@@ -4989,13 +4989,6 @@ private struct VehicleMarketView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
-                    Text("Contexte régional publié par IDFM : la part variable de la rémunération liée à la qualité de service atteint 10 % du chiffre d’affaires, contre 1 % auparavant. Cette publication ne donne pas le barème en euros ni les modalités propres à la DSP 45 ; elle n’entre pas dans ce calcul.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Link("IDFM · rémunération variable liée à la qualité · 27 mai 2026", destination: URL(string: "https://presse.iledefrance-mobilites.fr/qualite-de-service-des-bus-en-ile-de-france-une-progression-continue-au-benefice-des-voyageurs/?lang=fr")!)
-                        .font(.caption)
-
                     HStack {
                         Text("OFFRES DISPONIBLES")
                             .font(.caption.weight(.bold))
@@ -7924,6 +7917,12 @@ private struct DailyOperationsReportView: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(13)
                         .background(Color.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 11))
+                    Text("Repère régional IDFM : en mai 2026, la part variable de rémunération liée à la qualité est annoncée à 10 % du chiffre d’affaires, contre 1 % auparavant ; la production DSP45 était supérieure à 94 % en 2025. Ce contexte ne donne pas le barème en euros de la DSP45 et ne modifie pas les règles de jeu ci-dessus.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Link("IDFM · rémunération variable et qualité de service · 27 mai 2026", destination: URL(string: "https://presse.iledefrance-mobilites.fr/qualite-de-service-des-bus-en-ile-de-france-une-progression-continue-au-benefice-des-voyageurs/?lang=fr")!)
+                        .font(.caption)
                 }
                 .padding(22)
                 .frame(maxWidth: 820, alignment: .leading)
