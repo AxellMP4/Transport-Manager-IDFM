@@ -461,6 +461,48 @@ struct MachinistServiceAssignment: Codable, Hashable, Identifiable, Sendable {
     var laborCostEuro: Int? = nil
 }
 
+struct MachinistReliefPlan: Codable, Hashable, Identifiable, Sendable {
+    let id: String
+    let eventSequence: UInt64
+    let outgoingAssignmentID: String
+    let incomingAssignmentID: String
+    let stopID: String
+    let stopSequence: Int
+    var cancelledAt: Date? = nil
+    var transferPlan: MachinistTransferPlan? = nil
+}
+
+struct MachinistReliefStop: Hashable, Identifiable, Sendable {
+    let eventSequence: UInt64
+    let stopID: String
+    let stopName: String
+    let stopSequence: Int
+    let scheduledAt: Date
+    let coordinate: BusMovementCoordinate
+
+    var id: UInt64 { eventSequence }
+}
+
+struct MachinistTransferRequest: Hashable, Sendable {
+    let machinistID: String
+    let originName: String
+    let originAddress: String?
+    let originCoordinate: BusMovementCoordinate?
+    let earliestDepartureAt: Date
+    let stop: MachinistReliefStop
+}
+
+struct MachinistTransferPlan: Codable, Hashable, Sendable {
+    let machinistID: String
+    let stopEventSequence: UInt64
+    let stopID: String
+    let originName: String
+    let departureAt: Date
+    let expectedArrivalAt: Date
+    let expectedTravelSeconds: TimeInterval
+    let routingSourceTitle: String
+}
+
 struct MachinistDutyBlock: Codable, Hashable, Identifiable, Sendable {
     let id: String
     let machinistID: String

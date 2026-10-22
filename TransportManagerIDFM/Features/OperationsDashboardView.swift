@@ -72,6 +72,45 @@ private struct AdditionalScenarioCoverageView: View {
     }
 }
 
+private struct MachinistPlannedReliefOption: Identifiable {
+    let stop: MachinistReliefStop
+    let candidate: Machinist
+
+    var id: String { "\(stop.eventSequence)-\(candidate.id)" }
+}
+
+private struct MachinistPlannedReliefMenu: View {
+    let options: [MachinistPlannedReliefOption]
+    let machinistName: String
+    let isPlanning: Bool
+    let onSelect: (MachinistReliefStop, Machinist) -> Void
+
+    var body: some View {
+        Menu {
+            if options.isEmpty {
+                Text("Aucun machiniste qualifié et disponible pour les prochains arrêts.")
+            } else {
+                ForEach(options) { option in
+                    Button("\(option.stop.stopName) · \(option.stop.scheduledAt.formatted(date: .omitted, time: .shortened)) → \(option.candidate.displayName)") {
+                        onSelect(option.stop, option.candidate)
+                    }
+                }
+            }
+        } label: {
+            if isPlanning {
+                ProgressView()
+                    .controlSize(.small)
+            } else {
+                Image(systemName: "calendar.badge.clock")
+            }
+        }
+        .buttonStyle(.borderless)
+        .disabled(isPlanning)
+        .help("Planifier une relève à un prochain arrêt")
+        .accessibilityLabel("Planifier la relève de \(machinistName) à un prochain arrêt")
+    }
+}
+
 private struct DepotMapLine: Identifiable {
     let row: DepotLineRosterRow
     let routes: [GTFSRouteSummary]
@@ -5999,6 +6038,7 @@ private struct MachinistManagementView: View {
     @State private var trainingError: String?
     @State private var breakError: String?
     @State private var reliefError: String?
+    @State private var isPlanningRelief = false
 
     private var session: SimulationSession? { simulation.session }
     private var machinists: [Machinist] {
@@ -6180,7 +6220,7 @@ private struct MachinistManagementView: View {
                     .padding(15)
                     .background(.background, in: RoundedRectangle(cornerRadius: 14))
 
-                    Text("Plusieurs courses peuvent former un même service machiniste si le battement ne dépasse pas 2 h. Un bloc ne dépasse pas 10 h et deux blocs distincts sont séparés par 11 h de repos minimum. Ces seuils et la pause non rémunérée de 30 min sont des règles de jeu, pas une vérification réglementaire. La pause doit tenir entre deux courses planifiées du même bloc ; son temps est déduit du coût horaire du bloc. Une relève en cours de course peut être effectuée à l’arrêt, avec qualification, disponibilité et repos vérifiés ; la rémunération suit les règles de jeu du bloc du machiniste. Les absences sont typées et leur rémunération estimée est inscrite à leur fin. Les relèves planifiées à l’avance, le repos avancé et les salaires mensuels restent à intégrer.")
+                    Text("Plusieurs courses peuvent former un même service machiniste si le battement ne dépasse pas 2 h. Un bloc ne dépasse pas 10 h et deux blocs distincts sont séparés par 11 h de repos minimum. Ces seuils et la pause non rémunérée de 30 min sont des règles de jeu, pas une vérification réglementaire. La pause doit tenir entre deux courses planifiées du même bloc ; son temps est déduit du coût horaire du bloc. Une relève en cours de course peut être effectuée à l’arrêt courant ou planifiée pour un prochain arrêt, avec qualification, disponibilité et repos vérifiés ; la rémunération suit les règles de jeu du bloc du machiniste. Les absences sont typées et leur rémunération estimée est inscrite à leur fin. Le repos avancé et la réouverture générale des blocs restent hors simulation.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -6286,6 +6326,24 @@ private struct MachinistManagementView: View {
             .filter { $0.machinistID == machinist.id && $0.actualEndAt == nil }
             .sorted { $0.plannedStartAt < $1.plannedStartAt }
             .first
+        let scheduledReliefPlan = assignment.flatMap { currentAssignment in
+            (session?.plannedMachinistReliefs ?? []).first(where: {
+                $0.outgoingAssignmentID == currentAssignment.id && $0.cancelledAt == nil
+            })
+        }
+        let scheduledReliefEvent = scheduledReliefPlan.flatMap { plan in
+            session?.pendingEvents.first(where: { $0.sequence == plan.eventSequence })
+        }
+        let incomingReliefPlan = assignment.flatMap { currentAssignment in
+            (session?.plannedMachinistReliefs ?? []).first(where: { reliefPlan in
+                reliefPlan.incomingAssignmentID == currentAssignment.id
+                    && reliefPlan.cancelledAt == nil
+                    && session?.pendingEvents.contains(where: { $0.sequence == reliefPlan.eventSequence }) == true
+            })
+        }
+        let incomingReliefEvent = incomingReliefPlan.flatMap { plan in
+            session?.pendingEvents.first(where: { $0.sequence == plan.eventSequence })
+        }
         let dutyBlock = assignment.flatMap { currentAssignment in
             session?.machinistDutyBlocks?.first(where: { $0.id == currentAssignment.dutyBlockID })
         }
@@ -6312,6 +6370,22 @@ private struct MachinistManagementView: View {
         let reliefCandidates = canOfferRelief
             ? simulation.availableMachinistReliefCandidates(forVehicleID: assignment?.vehicleID ?? "")
             : []
+        let plannedReliefStops = assignment.map {
+            simulation.upcomingMachinistReliefStops(forVehicleID: $0.vehicleID)
+        } ?? []
+        let canPlanRelief = assignment.map { currentAssignment in
+            session?.ownedBuses?.contains(where: { bus in
+                bus.id == currentAssignment.vehicleID
+                    && bus.currentTripID == currentAssignment.tripID
+                    && bus.status == .inService
+                    && currentAssignment.plannedStartAt <= now
+                    && now < currentAssignment.plannedEndAt
+            }) == true
+        } ?? false
+        let plannedReliefOptions = plannedMachinistReliefOptions(
+            vehicleID: assignment?.vehicleID ?? "",
+            stops: plannedReliefStops
+        )
         let absence = activeOrUpcomingAbsences.first(where: { $0.machinistID == machinist.id })
         let training = (session?.machinistTrainings ?? []).first(where: {
             $0.machinistID == machinist.id && $0.isPending
@@ -6351,12 +6425,37 @@ private struct MachinistManagementView: View {
                 }
             } else if let assignment {
                 VStack(alignment: .trailing, spacing: 3) {
-                    Text(hasIncident ? "Attente après panne" : (assignment.plannedStartAt > (session?.simulatedAt ?? .distantPast) ? "Service prévu" : "En service"))
+                    Text(hasIncident ? "Attente après panne" : machinistAssignmentStatus(
+                        assignment,
+                        incomingReliefPlan: incomingReliefPlan,
+                        now: now
+                    ))
                         .font(.caption.weight(.medium))
                         .foregroundStyle(hasIncident ? Color.orange : Color.secondary)
                     Text("Ligne \(assignment.routeID) · bloc de \(max(1, dutyBlockAssignments.count)) course(s) · \((dutyBlock?.plannedStartAt ?? assignment.plannedStartAt).formatted(date: .omitted, time: .shortened))–\((dutyBlock?.plannedEndAt ?? assignment.plannedEndAt).formatted(date: .omitted, time: .shortened))")
                         .font(.caption2.monospacedDigit())
                         .foregroundStyle(.secondary)
+                    if let scheduledReliefEvent,
+                       case let .machinistRelieved(_, _, _, _, incomingName, stopName) = scheduledReliefEvent.kind {
+                        Text("Relève prévue à \(stopName) · \(scheduledReliefEvent.simulatedAt.formatted(date: .omitted, time: .shortened)) avec \(incomingName)")
+                            .font(.caption2)
+                            .foregroundStyle(.tint)
+                        if let transferPlan = scheduledReliefPlan?.transferPlan {
+                            Text("Trajet estimé : \(transferPlan.originName) → \(Int(ceil(transferPlan.expectedTravelSeconds / 60))) min · arrivée prévue à \(transferPlan.expectedArrivalAt.formatted(date: .omitted, time: .shortened))")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .help(transferPlan.routingSourceTitle)
+                        }
+                    }
+                    if let incomingReliefPlan,
+                       let incomingReliefEvent,
+                       case let .machinistRelieved(_, _, _, _, _, stopName) = incomingReliefEvent.kind,
+                       let transferPlan = incomingReliefPlan.transferPlan {
+                        Text("Vers la relève à \(stopName) · départ \(transferPlan.departureAt.formatted(date: .omitted, time: .shortened)) · arrivée estimée \(transferPlan.expectedArrivalAt.formatted(date: .omitted, time: .shortened))")
+                            .font(.caption2)
+                            .foregroundStyle(.tint)
+                            .help(transferPlan.routingSourceTitle)
+                    }
                 }
             } else if let training {
                 VStack(alignment: .trailing, spacing: 3) {
@@ -6412,6 +6511,29 @@ private struct MachinistManagementView: View {
                 .disabled(reliefCandidates.isEmpty)
                 .help("Organiser la relève à l’arrêt actuel")
                 .accessibilityLabel("Organiser la relève de \(machinist.displayName) à l’arrêt actuel")
+            }
+            if canPlanRelief, let assignment, !plannedReliefStops.isEmpty {
+                MachinistPlannedReliefMenu(
+                    options: plannedReliefOptions,
+                    machinistName: machinist.displayName,
+                    isPlanning: isPlanningRelief
+                ) { stop, candidate in
+                    planRelief(
+                        vehicleID: assignment.vehicleID,
+                        at: stop.eventSequence,
+                        with: candidate.id
+                    )
+                }
+            }
+            if let scheduledReliefPlan, scheduledReliefEvent != nil {
+                Button(role: .destructive) {
+                    cancelPlannedRelief(eventSequence: scheduledReliefPlan.eventSequence)
+                } label: {
+                    Image(systemName: "xmark.circle")
+                }
+                .buttonStyle(.borderless)
+                .help("Annuler la relève planifiée")
+                .accessibilityLabel("Annuler la relève planifiée de \(machinist.displayName)")
             }
             if machinist.qualification == .standard && training == nil {
                 Button {
@@ -6564,6 +6686,64 @@ private struct MachinistManagementView: View {
                 vehicleID: vehicleID,
                 incomingMachinistID: incomingMachinistID
             )
+        } catch {
+            reliefError = error.localizedDescription
+        }
+    }
+
+    private func plannedMachinistReliefOptions(
+        vehicleID: String,
+        stops: [MachinistReliefStop]
+    ) -> [MachinistPlannedReliefOption] {
+        stops.flatMap { stop in
+            simulation.availableMachinistPlannedReliefCandidates(
+                forVehicleID: vehicleID,
+                stopEventSequence: stop.eventSequence
+            ).map { MachinistPlannedReliefOption(stop: stop, candidate: $0) }
+        }
+    }
+
+    private func planRelief(vehicleID: String, at stopEventSequence: UInt64, with incomingMachinistID: String) {
+        guard !isPlanningRelief else { return }
+        isPlanningRelief = true
+        Task { @MainActor in
+            defer { isPlanningRelief = false }
+            do {
+                guard let request = simulation.machinistTransferRequest(
+                    machinistID: incomingMachinistID,
+                    stopEventSequence: stopEventSequence
+                ) else {
+                    throw SimulationEngineError.machinistTransferUnavailable
+                }
+                let transferPlan = try await MachinistTransferRouter.plan(for: request)
+                try simulation.scheduleMachinistRelief(
+                    vehicleID: vehicleID,
+                    incomingMachinistID: incomingMachinistID,
+                    stopEventSequence: stopEventSequence,
+                    transferPlan: transferPlan
+                )
+            } catch {
+                reliefError = error.localizedDescription
+            }
+        }
+    }
+
+    private func machinistAssignmentStatus(
+        _ assignment: MachinistServiceAssignment,
+        incomingReliefPlan: MachinistReliefPlan?,
+        now: Date
+    ) -> String {
+        guard let transferPlan = incomingReliefPlan?.transferPlan else {
+            return assignment.plannedStartAt > now ? "Service prévu" : "En service"
+        }
+        if now < transferPlan.departureAt { return "Départ vers relève prévu" }
+        if now < transferPlan.expectedArrivalAt { return "En trajet vers relève" }
+        return "Arrivé, relève en attente"
+    }
+
+    private func cancelPlannedRelief(eventSequence: UInt64) {
+        do {
+            try simulation.cancelScheduledMachinistRelief(eventSequence: eventSequence)
         } catch {
             reliefError = error.localizedDescription
         }

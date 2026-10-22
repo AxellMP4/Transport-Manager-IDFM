@@ -227,3 +227,92 @@ enum VehicleDeadheadRouter {
             && (-180...180).contains(coordinate.longitude)
     }
 }
+
+private enum MachinistTransferRouterError: LocalizedError {
+    case unavailable(String)
+    case arrivesTooLate
+
+    var errorDescription: String? {
+        switch self {
+        case let .unavailable(details):
+            "Aucun trajet collectif estimé par MapKit depuis \(details)."
+        case .arrivesTooLate:
+            "Le trajet collectif estimé n’arrive pas à temps à l’arrêt. Choisissez un arrêt plus tardif."
+        }
+    }
+}
+
+@MainActor
+enum MachinistTransferRouter {
+    static func plan(for request: MachinistTransferRequest) async throws -> MachinistTransferPlan {
+        let originCoordinate: CLLocationCoordinate2D
+        if let coordinate = request.originCoordinate {
+            originCoordinate = CLLocationCoordinate2D(latitude: coordinate.latitude, longitude: coordinate.longitude)
+        } else if let address = request.originAddress {
+            let region = CLCircularRegion(
+                center: CLLocationCoordinate2D(latitude: 48.85, longitude: 2.35),
+                radius: 100_000,
+                identifier: "Île-de-France"
+            )
+            let placemarks = try await CLGeocoder().geocodeAddressString("\(address), France", in: region)
+            guard let location = placemarks.first(where: { $0.location != nil })?.location else {
+                throw MachinistTransferRouterError.unavailable(request.originName)
+            }
+            originCoordinate = location.coordinate
+        } else {
+            throw MachinistTransferRouterError.unavailable(request.originName)
+        }
+
+        let destinationCoordinate = CLLocationCoordinate2D(
+            latitude: request.stop.coordinate.latitude,
+            longitude: request.stop.coordinate.longitude
+        )
+        guard isValid(originCoordinate), isValid(destinationCoordinate) else {
+            throw MachinistTransferRouterError.unavailable(request.originName)
+        }
+
+        let originLocation = CLLocation(latitude: originCoordinate.latitude, longitude: originCoordinate.longitude)
+        let destinationLocation = CLLocation(latitude: destinationCoordinate.latitude, longitude: destinationCoordinate.longitude)
+        let directDistance = originLocation.distance(from: destinationLocation)
+        let expectedTravelSeconds: TimeInterval
+        let sourceTitle: String
+        if directDistance <= 30 {
+            expectedTravelSeconds = 0
+            sourceTitle = "Position déjà à l’arrêt"
+        } else {
+            let directionsRequest = MKDirections.Request()
+            directionsRequest.source = MKMapItem(placemark: MKPlacemark(coordinate: originCoordinate))
+            directionsRequest.destination = MKMapItem(placemark: MKPlacemark(coordinate: destinationCoordinate))
+            directionsRequest.transportType = .transit
+            directionsRequest.departureDate = .now
+            let eta = try await MKDirections(request: directionsRequest).calculateETA()
+            guard eta.expectedTravelTime.isFinite, eta.expectedTravelTime > 0 else {
+                throw MachinistTransferRouterError.unavailable(request.originName)
+            }
+            expectedTravelSeconds = eta.expectedTravelTime
+            sourceTitle = "Apple Plans · estimation en transports collectifs"
+        }
+
+        let expectedArrivalAt = request.earliestDepartureAt.addingTimeInterval(expectedTravelSeconds)
+        guard expectedArrivalAt <= request.stop.scheduledAt else {
+            throw MachinistTransferRouterError.arrivesTooLate
+        }
+        return MachinistTransferPlan(
+            machinistID: request.machinistID,
+            stopEventSequence: request.stop.eventSequence,
+            stopID: request.stop.stopID,
+            originName: request.originName,
+            departureAt: request.earliestDepartureAt,
+            expectedArrivalAt: expectedArrivalAt,
+            expectedTravelSeconds: expectedTravelSeconds,
+            routingSourceTitle: sourceTitle
+        )
+    }
+
+    private static func isValid(_ coordinate: CLLocationCoordinate2D) -> Bool {
+        coordinate.latitude.isFinite
+            && coordinate.longitude.isFinite
+            && (-90...90).contains(coordinate.latitude)
+            && (-180...180).contains(coordinate.longitude)
+    }
+}
