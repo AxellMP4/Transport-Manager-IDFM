@@ -5642,6 +5642,7 @@ private struct VehicleMarketView: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            vehicleTechnicalVariants(for: model)
 
             if let energyReadiness {
                 Label("Dépôt · \(energyReadiness.statusTitle)", systemImage: energyReadinessSymbol(energyReadiness))
@@ -5797,6 +5798,37 @@ private struct VehicleMarketView: View {
         .foregroundStyle(.secondary)
     }
 
+    @ViewBuilder
+    private func vehicleTechnicalVariants(for model: VehicleMarketModel) -> some View {
+        if let variants = model.technicalVariants, !variants.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(variants) { variant in
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(variant.title)
+                            .font(.caption.weight(.semibold))
+                        Text(variant.specificationSummary)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        Text(variant.applicabilityNote)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        if let url = URL(string: variant.evidenceURL) {
+                            Link(variant.evidenceTitle, destination: url)
+                                .font(.caption2)
+                        }
+                    }
+                    .padding(.leading, 8)
+                    .overlay(alignment: .leading) {
+                        Rectangle()
+                            .fill(Color.accentColor.opacity(0.35))
+                            .frame(width: 2)
+                    }
+                }
+            }
+        }
+    }
+
     private func regionalReferenceCard(_ model: VehicleMarketModel) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             BusIllustrationView(model: model)
@@ -5825,6 +5857,7 @@ private struct VehicleMarketView: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            vehicleTechnicalVariants(for: model)
             HStack(spacing: 12) {
                 Label("\(model.maximumCapacity.map(String.init) ?? "Capacité inconnue") voyageurs max.", systemImage: "person.2")
                 if let seatedCapacity = model.seatedCapacity {

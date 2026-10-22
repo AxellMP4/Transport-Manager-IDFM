@@ -186,6 +186,7 @@ struct VehicleMarketModel: Codable, Hashable, Identifiable, Sendable {
     let technicalEvidenceTitle: String?
     let technicalEvidenceURL: String?
     let technicalDataNote: String?
+    let technicalVariants: [VehicleTechnicalVariant]?
     let additionalEvidenceTitle: String?
     let additionalEvidenceURL: String?
     let estimateEvidenceTitle: String
@@ -194,6 +195,35 @@ struct VehicleMarketModel: Codable, Hashable, Identifiable, Sendable {
 
     var displayName: String { "\(manufacturer) \(commercialName)" }
 
+}
+
+struct VehicleTechnicalVariant: Codable, Hashable, Identifiable, Sendable {
+    let id: String
+    let title: String
+    let lengthMeters: Double?
+    let widthMeters: Double?
+    let heightMeters: Double?
+    let batteryCapacityKWh: Int?
+    let maximumPowerKilowatts: Int?
+    let maximumCapacity: Int?
+    let seatedCapacity: Int?
+    let rangeKilometers: Int?
+    let applicabilityNote: String
+    let evidenceTitle: String
+    let evidenceURL: String
+
+    var specificationSummary: String {
+        var specifications: [String] = []
+        if let lengthMeters { specifications.append(lengthMeters.formatted(.number.precision(.fractionLength(2))) + " m") }
+        if let widthMeters { specifications.append(widthMeters.formatted(.number.precision(.fractionLength(2))) + " m de large") }
+        if let heightMeters { specifications.append(heightMeters.formatted(.number.precision(.fractionLength(2))) + " m de haut") }
+        if let maximumCapacity { specifications.append("jusqu’à " + String(maximumCapacity) + " voyageurs") }
+        if let seatedCapacity { specifications.append(String(seatedCapacity) + " places assises") }
+        if let batteryCapacityKWh { specifications.append("batterie jusqu’à " + String(batteryCapacityKWh) + " kWh") }
+        if let maximumPowerKilowatts { specifications.append(String(maximumPowerKilowatts) + " kW") }
+        if let rangeKilometers { specifications.append("autonomie jusqu’à " + String(rangeKilometers) + " km") }
+        return specifications.joined(separator: " · ")
+    }
 }
 
 struct VehicleEnergyEstimate: Hashable, Sendable {
@@ -984,7 +1014,25 @@ enum VehicleMarketCatalog {
             priceReferenceYear: 2024,
             priceEstimateNote: "Repère CATP 2024 : autobus mild-hybride diesel standard 12 m, options comprises, environ 299 500 € HT (219 500 € hors options et 80 000 € d’options moyennes). La génération hybride de cette offre n’est pas établie comme mild-hybrid ; le repère sert uniquement à l’estimation de jeu, pas de prix Urbanway individuel.",
             technicalTitle: "Urbanway Hybrid 12/18 m — fiche constructeur",
-            technicalURL: "https://www.ivecobus.com/worldwide/-/media/IvecoBus/International/Urbanway-2024.pdf?rev=8202872493f84cfbb93a4a54402f4f74"
+            technicalURL: "https://www.ivecobus.com/worldwide/-/media/IvecoBus/International/Urbanway-2024.pdf?rev=8202872493f84cfbb93a4a54402f4f74",
+            technicalDataNote: "La version full-hybrid observée en Île-de-France en 2015 n’est pas caractérisée par cette fiche. Voir ci-dessous la fiche CATP de la génération mild-hybrid 2023, distincte ; ses données ne sont pas appliquées aux offres d’occasion de 2015.",
+            technicalVariants: [
+                VehicleTechnicalVariant(
+                    id: "urbanway-12-diesel-mild-hybrid-2023",
+                    title: "Version mild-hybrid Diesel Euro VI/E · fiche CATP 2024 / accord-cadre 2023–2032",
+                    lengthMeters: 12.09,
+                    widthMeters: 2.50,
+                    heightMeters: 3.165,
+                    batteryCapacityKWh: nil,
+                    maximumPowerKilowatts: 228,
+                    maximumCapacity: 105,
+                    seatedCapacity: 28,
+                    rangeKilometers: nil,
+                    applicabilityNote: "Ces valeurs décrivent la version mild-hybrid de l’accord-cadre, pas la version full-hybrid de 2015 recensée dans le parc. Le moteur thermique Cursor 9 développe 228 kW ; l’assistance 48 V est donnée pour 25 kW en continu / 35 kW en pointe, avec une batterie de 1 kWh. Cette batterie d’assistance n’est pas la capacité de traction électrique du modèle de jeu.",
+                    evidenceTitle: "CATP · Urbanway mild-hybrid 12 m, fiche de l’accord-cadre 2023–2032",
+                    evidenceURL: "https://www.catp.fr/wp-content/uploads/2024/04/FP-IVECO-autobus-Diesel-Mild-Hybride-12m.pdf"
+                )
+            ]
         ),
         model(
             id: "heuliez-gx337e-electric",
@@ -1069,12 +1117,30 @@ enum VehicleMarketCatalog {
             lastYear: nil,
             regionalEvidenceYear: 2016,
             rangeKilometers: 180,
-            rangeEvidenceNote: "Jusqu’à 180 km sans recharge intermédiaire selon la publication IDFM de 2015 ; une recharge au terminus peut augmenter l’autonomie.",
+            rangeEvidenceNote: "La publication IDFM de 2015 annonce jusqu’à 180 km sans recharge intermédiaire pour la version alors testée. La fiche Bluebus actuelle annonce jusqu’à 320 km ; la configuration des véhicules d’occasion de 2017 n’est pas identifiée et conserve donc la valeur historique dans la simulation.",
             referencePrice: 554_500,
             priceReferenceYear: 2022,
             priceEstimateNote: "Repère de l’étude CATP 2024 : autobus électrique à batterie 12 m à charge lente, options comprises, 554 500 € HT (474 500 € véhicule de base et 80 000 € d’options moyennes), montant indiqué comme équivalent à février 2022. La CATP n’en fait pas un devis Bluebus.",
             technicalTitle: "IDFM · STIF en ligne n°8 (2015) — bus standard 12 m, autonomie annoncée jusqu’à 180 km",
             technicalURL: "https://www.iledefrance-mobilites.fr/medias/portail-idfm/26c22c53-53fa-4e38-8a28-558408a359b1_stif_en_ligne_no8.pdf",
+            technicalDataNote: "La fiche constructeur actuelle décrit une configuration plus récente, affichée séparément ci-dessous. Elle n’est pas utilisée pour recalculer l’autonomie ou la batterie du Bluebus d’occasion de 2017, dont la version exacte n’est pas établie.",
+            technicalVariants: [
+                VehicleTechnicalVariant(
+                    id: "bluebus-12m-current-manufacturer-specification",
+                    title: "Fiche constructeur actuelle du Bluebus 12 m · consultée en 2026",
+                    lengthMeters: 12.068,
+                    widthMeters: 2.915,
+                    heightMeters: 3.291,
+                    batteryCapacityKWh: 441,
+                    maximumPowerKilowatts: 160,
+                    maximumCapacity: 109,
+                    seatedCapacity: nil,
+                    rangeKilometers: 320,
+                    applicabilityNote: "La largeur comprend les rétroviseurs. La capacité batterie et l’autonomie sont des maxima annoncés par Bluebus ; l’autonomie est mesurée sur cycles SORT. Ces caractéristiques de la fiche actuelle ne sont pas attribuées aux véhicules IDFM vus en 2015 ni à l’offre d’occasion 2017, faute d’identification de leur configuration.",
+                    evidenceTitle: "Bluebus · fiche officielle du modèle 12 m",
+                    evidenceURL: "https://www.bluebus.fr/bluebus-12-m"
+                )
+            ],
             fleetTitle: "RATP · Rapport d’activité 2016 — commande de 23 Bluebus de 12 m pour la ligne 341",
             fleetURL: "https://www.ratp.fr/mediateur/sites/default/files/2017-06/raddratp2016fr_0.pdf"
         ),
@@ -1448,6 +1514,7 @@ enum VehicleMarketCatalog {
         technicalTitle: String? = nil,
         technicalURL: String? = nil,
         technicalDataNote: String? = nil,
+        technicalVariants: [VehicleTechnicalVariant]? = nil,
         additionalEvidenceTitle: String? = nil,
         additionalEvidenceURL: String? = nil,
         fleetTitle: String? = nil,
@@ -1483,6 +1550,7 @@ enum VehicleMarketCatalog {
             technicalEvidenceTitle: technicalTitle,
             technicalEvidenceURL: technicalURL,
             technicalDataNote: technicalDataNote,
+            technicalVariants: technicalVariants,
             additionalEvidenceTitle: additionalEvidenceTitle,
             additionalEvidenceURL: additionalEvidenceURL,
             estimateEvidenceTitle: "Étude comparative des motorisations de bus 2024 — CATP",
