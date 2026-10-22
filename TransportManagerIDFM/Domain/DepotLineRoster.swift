@@ -314,6 +314,7 @@ enum DepotLineRoster {
         "N71": "Aucune modification de fonctionnement annoncée."
     ]
     static let historicalBordsDeMarneCenterURL = URL(string: "https://www.iledefrance-mobilites.fr/le-reseau/projets/bus-bordsdemarne/questions/quelles-seront-les-caracteristiques-du-materiel-roulant")!
+    private static let ratpSeineSaintDenisBrochure2026URL = URL(string: "https://ratpgroup.com/api/media/brochure-ratp-en-seine-saint-denis-2026.pdf")!
     static let gtfsDatasetURL = URL(string: "https://prim.iledefrance-mobilites.fr/fr/jeux-de-donnees/offre-horaires-tc-gtfs-idfm")!
     static let documentsDatasetURL = URL(string: "https://data.iledefrance-mobilites.fr/explore/dataset/fiches-horaires-et-plans/")!
     static let lineReferenceURL = URL(string: "https://data.iledefrance-mobilites.fr/explore/dataset/referentiel-des-lignes/")!
@@ -339,10 +340,11 @@ enum DepotLineRoster {
             id: "neuilly-plaisance",
             name: "COB Neuilly-Plaisance",
             locality: "Neuilly-Plaisance",
-            status: "Centre opérationnel du contrat Bords de Marne",
+            status: "COB recensé · lignes DSP45 à ventiler",
             availability: .operational,
-            evidenceNote: "Les lignes du périmètre et les attributions par site sont affichées séparément : le libellé contractuel « Bords de Marne » ne suffit pas toujours à confirmer un COB physique.",
-            sourceURL: awardEvidenceURL,
+            evidenceNote: "La brochure RATP d’avril 2026 identifie le COB Neuilly-Plaisance parmi ses sites opérationnels et indique séparément que la DSP 45 Boucles de Marne est exploitée par RATP Cap IDF depuis le 1er novembre 2025. Elle ne répartit pas les lignes du contrat entre les COB. Le tableau ligne–centre de l’ancien contrat IDFM–RATP reste borné au 31 octobre 2025.",
+            sourceURL: ratpSeineSaintDenisBrochure2026URL,
+            evidenceTitle: "RATP · présence en Seine-Saint-Denis · avril 2026",
             idfmBusContractID: "45"
         ),
         DepotLineRosterSite(
