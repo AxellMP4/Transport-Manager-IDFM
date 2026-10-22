@@ -18,6 +18,7 @@ Construire le jeu macOS natif de gestion des bus IDFM défini dans [le cahier de
 - L’événement horodaté conserve les deux noms, la ligne et l’arrêt. L’affectation sortante est clôturée à l’heure de relève; sa paie estimée est réglée selon les règles de bloc existantes. Une nouvelle affectation prend la suite jusqu’à la fin de course et peut rejoindre un bloc du remplaçant si les contraintes le permettent.
 - Le transfert est immédiat à l’arrêt courant, sans déplacement simulé des machinistes. Les relèves anticipées, les trajets du personnel, la réouverture générale des blocs et la conformité à une réglementation de travail restent hors simulation; les durées et coûts demeurent des règles de jeu.
 - Validation du 22 octobre à 21:40 : `xcodebuild -quiet -project TransportManagerIDFM.xcodeproj -scheme TransportManagerIDFM -configuration Debug -sdk macosx CODE_SIGNING_ALLOWED=NO build` réussit pour `x86_64`. Xcode signale l’indisponibilité de CoreSimulator; aucune erreur de compilation. Aucun test automatisé ni lancement de l’application n’a été effectué.
+- Publication sur `main` le 22 octobre : commit [`35e135cb`](https://github.com/AxellMP4/Transport-Manager-IDFM/commit/35e135cb7d942112c3e7991ea092425fcc2d1e34), arbre `28cf7e61`, identique à l’arbre local après la fonctionnalité de relève.
 
 ## Remisage historique partiel de la ligne 113 à Bussy — 21 octobre 2026
 
