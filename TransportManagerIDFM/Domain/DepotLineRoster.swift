@@ -281,7 +281,38 @@ enum DepotLineRoster {
     static let wikipediaURL = URL(string: "https://fr.wikipedia.org/wiki/R%C3%A9seau_de_bus_Bord_de_Marne")!
     static let databusURL = URL(string: "https://busparisiens.fr/DataBus/tel/DB_liste.php")!
     static let reorganizationURL = URL(string: "https://www.iledefrance-mobilites.fr/actualites/locales/detail/a-compter-du-1er-novembre-2026-ile-de-france-mobil")!
-    private static let unchangedServiceLineIDs: Set<String> = ["221", "306", "N11", "N16", "N32", "N34", "N35", "N71"]
+    private static let reorganizationServiceSummaries: [String: String] = [
+        "101": "Ajustements ponctuels des horaires annoncés ; la nouvelle grille détaillée n’est pas publiée ici.",
+        "106": "Ajustements ponctuels des horaires annoncés ; la nouvelle grille détaillée n’est pas publiée ici.",
+        "107": "Fréquences annoncées : 15 min en pointe en semaine, 20 à 30 min le samedi et 30 min le dimanche.",
+        "108": "Ajustements ponctuels des horaires annoncés ; la nouvelle grille détaillée n’est pas publiée ici.",
+        "110": "Ajustements ponctuels des horaires annoncés ; la nouvelle grille détaillée n’est pas publiée ici.",
+        "111": "Fréquence annoncée de 8 min en pointe du lundi au vendredi.",
+        "112": "Renfort de fréquence annoncé.",
+        "113": "Ajustements ponctuels des horaires annoncés ; la nouvelle grille détaillée n’est pas publiée ici.",
+        "114": "Ajustements ponctuels des horaires annoncés ; la nouvelle grille détaillée n’est pas publiée ici.",
+        "116": "Fréquence renforcée, amplitude horaire élargie et fréquence renforcée le week-end annoncées.",
+        "118": "Renfort de fréquence annoncé.",
+        "120": "Ajustements ponctuels des horaires annoncés ; la nouvelle grille détaillée n’est pas publiée ici.",
+        "124": "Renfort de fréquence annoncé.",
+        "127": "Renfort de fréquence annoncé.",
+        "201": "Ajustements ponctuels des horaires annoncés ; la nouvelle grille détaillée n’est pas publiée ici.",
+        "203": "Fréquence renforcée et amplitude horaire élargie annoncées.",
+        "210": "Parcours modifié à Fontenay-sous-Bois et Vincennes pour desservir les Rigollots ; fréquence annoncée de 20 min en journée du lundi au vendredi.",
+        "214": "Maintien de la ligne avec fréquences renforcées et amplitude horaire élargie ; les arrêts de la ZI des Chanoux sont transférés à la nouvelle 314.",
+        "221": "Aucune modification de fonctionnement annoncée.",
+        "303": "Renfort de fréquence annoncé, y compris le week-end.",
+        "306": "Aucune modification de fonctionnement annoncée.",
+        "314": "Nouvelle liaison Neuilly-Plaisance RER–ZI des Chanoux, du lundi au vendredi : 15 min en pointe et 60 min en heures creuses.",
+        "520": "Aucune modification de fonctionnement annoncée.",
+        "N11": "Aucune modification de fonctionnement annoncée.",
+        "N16": "Aucune modification de fonctionnement annoncée.",
+        "N32": "Aucune modification de fonctionnement annoncée.",
+        "N33": "Aucune modification de fonctionnement annoncée.",
+        "N34": "Aucune modification de fonctionnement annoncée.",
+        "N35": "Aucune modification de fonctionnement annoncée.",
+        "N71": "Aucune modification de fonctionnement annoncée."
+    ]
     static let historicalBordsDeMarneCenterURL = URL(string: "https://www.iledefrance-mobilites.fr/le-reseau/projets/bus-bordsdemarne/questions/quelles-seront-les-caracteristiques-du-materiel-roulant")!
     static let gtfsDatasetURL = URL(string: "https://prim.iledefrance-mobilites.fr/fr/jeux-de-donnees/offre-horaires-tc-gtfs-idfm")!
     static let documentsDatasetURL = URL(string: "https://data.iledefrance-mobilites.fr/explore/dataset/fiches-horaires-et-plans/")!
@@ -847,18 +878,19 @@ enum DepotLineRoster {
         }
 
         var claimsWithNetworkScope = rowClaims
-        if unchangedServiceLineIDs.contains(line) {
+        if let serviceSummary = reorganizationServiceSummaries[line],
+           !rowClaims.contains(where: { $0.kind == .announcedService && $0.validFromKey == 20261101 }) {
             claimsWithNetworkScope.append(DepotLineRosterClaim(
                 kind: .announcedService,
                 siteID: nil,
                 centerLabel: nil,
-                sourceTitle: "IDFM · ligne \(line) sans modification au 1er novembre 2026",
+                sourceTitle: "IDFM · évolution de l’offre de la ligne \(line) au 1er novembre 2026",
                 sourceURL: reorganizationURL,
                 sourceDate: Self.sourceDate(year: 2026, month: 10, day: 13),
                 sourceDateLabel: "Annonce du 13 octobre 2026",
                 validFromKey: 20261101,
                 validThroughKey: nil,
-                note: "IDFM indique que le fonctionnement de la ligne ne change pas au 1er novembre 2026 ; cette annonce ne désigne aucun COB."
+                note: "\(serviceSummary) Cette annonce décrit le service à compter du 1er novembre ; elle ne désigne aucun COB et ne remplace pas une grille horaire post-réorganisation."
             ))
         }
         if dsp45LineIDs.contains(line) {
