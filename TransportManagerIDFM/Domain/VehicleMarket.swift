@@ -954,7 +954,7 @@ enum VehicleMarketCatalog {
             referencePrice: 293_400,
             priceReferenceYear: 2024,
             priceEstimateNote: "Repère CATP 2024 : autobus standard diesel Euro VI step E de 12 m, options comprises, 293 400 € HT. Utilisé comme comparable de prix neuf pour ce modèle retiré, pas comme prix historique du Citelis ni comme prix individuel.",
-            technicalDataNote: "La fiche Irisbus de 2010 décrit la gamme Citelis 12 Diesel, pas la configuration de chaque véhicule du parc régional. Elle propose plusieurs puissances, niveaux d’émission et aménagements.",
+            technicalDataNote: "La fiche Irisbus de 2010 décrit la gamme Citelis 12 Diesel. Un exemplaire régional précis, n° 918604, est aussi documenté par une source secondaire ; ces données ne caractérisent pas tous les bus de cette gamme.",
             technicalVariants: [
                 VehicleTechnicalVariant(
                     id: "citelis-12-diesel-irisbus-range-2010",
@@ -970,6 +970,21 @@ enum VehicleMarketCatalog {
                     applicabilityNote: "Cursor 8 de 180 ou 213 kW (245 ou 290 ch), émissions Euro V ou EEV et 2 ou 3 portes selon version. La brochure indique 20 à 37 places assises selon l’aménagement. Elle ne permet pas d’identifier la motorisation ni l’homologation de chaque Citelis régional observé.",
                     evidenceTitle: "Irisbus IVECO · fiche technique Citelis 12 m Diesel (12/2010)",
                     evidenceURL: "https://www.tplitalia.it/produttori/Irisbus-IvecoBus/Irisbus-Citelis-12m-pubIRUS11011008-12-2010.pdf"
+                ),
+                VehicleTechnicalVariant(
+                    id: "citelis-12-bords-de-marne-918604-2012",
+                    title: "Exemplaire Bords de Marne n° 918604 · 2012",
+                    lengthMeters: 11.99,
+                    widthMeters: nil,
+                    heightMeters: nil,
+                    batteryCapacityKWh: nil,
+                    maximumPowerKilowatts: 180,
+                    maximumCapacity: nil,
+                    seatedCapacity: 30,
+                    rangeKilometers: nil,
+                    applicabilityNote: "TC Infos décrit ce véhicule comme EEV, Cursor 8 F2B de 245 ch, 2 portes, 30 assises, 72 debout et 1 emplacement UFR. Il est affecté à Bords de Marne jusqu’en octobre 2025 puis à Neuilly-Plaisance depuis novembre 2025. Relevé secondaire mis à jour le 7 mars 2026, limité à ce numéro de parc.",
+                    evidenceTitle: "TC Infos · fiche individuelle Irisbus Citelis 12 n° 918604",
+                    evidenceURL: "https://tc-infos.fr/vehicule/10847"
                 )
             ],
             fleetURL: "https://tc-infos.fr/reseau/1452/parc-bus-cars/page1"
@@ -988,7 +1003,7 @@ enum VehicleMarketCatalog {
             referencePrice: 380_000,
             priceReferenceYear: 2024,
             priceEstimateNote: "Estimation de jeu 2024 : repère CATP diesel standard 12 m de 293 400 € HT, majoré de 30 % par règle de gabarit articulé et arrondi. La CATP ne publie pas ici de prix Citelis 18 ; ce n’est ni un prix historique ni un prix individuel.",
-            technicalDataNote: "La brochure Irisbus de 2009 documente une gamme Citelis 18 Diesel, mais pas l’aménagement exact des véhicules régionaux recensés en 2013.",
+            technicalDataNote: "La brochure Irisbus de 2009 documente la gamme Citelis 18 Diesel. Une fiche secondaire détaille aussi l’exemplaire régional n° 921667, sans caractériser tous les véhicules de cette série.",
             technicalVariants: [
                 VehicleTechnicalVariant(
                     id: "citelis-18-diesel-irisbus-range-2009",
@@ -1004,6 +1019,21 @@ enum VehicleMarketCatalog {
                     applicabilityNote: "Cursor 8 de 213 ou 280 kW (290 ou 380 ch), 3 ou 4 portes et 31 à 49 places assises selon la version et l’homologation. Ces valeurs décrivent la gamme constructeur et ne confirment pas la configuration exacte des véhicules de Bords de Marne.",
                     evidenceTitle: "Irisbus IVECO · catalogue de gamme Citelis 10,5, 12 et 18 m (12/2009)",
                     evidenceURL: "https://www.tplitalia.it/produttori/Irisbus-IvecoBus/Irisbus-Citelis-catalogo-pubIRUC011009008-12-2009.pdf"
+                ),
+                VehicleTechnicalVariant(
+                    id: "citelis-18-bords-de-marne-921667-2013",
+                    title: "Exemplaire Bords de Marne n° 921667 · 2013",
+                    lengthMeters: 17.8,
+                    widthMeters: nil,
+                    heightMeters: nil,
+                    batteryCapacityKWh: nil,
+                    maximumPowerKilowatts: 280,
+                    maximumCapacity: nil,
+                    seatedCapacity: 44,
+                    rangeKilometers: nil,
+                    applicabilityNote: "TC Infos décrit ce véhicule comme Euro V, Cursor 8 F2B de 381 ch, 3 portes, 44 assises, 104 debout et 1 emplacement UFR. Il est listé à Frères-Lumière depuis février 2026 après des périodes à Bords de Marne et au dépôt d’appui Championnet. Relevé secondaire mis à jour le 9 mars 2026, limité à ce numéro de parc.",
+                    evidenceTitle: "TC Infos · fiche individuelle Irisbus Citelis 18 n° 921667",
+                    evidenceURL: "https://tc-infos.fr/vehicule/10801"
                 )
             ],
             fleetURL: "https://tc-infos.fr/reseau/1452/parc-bus-cars/page2"
