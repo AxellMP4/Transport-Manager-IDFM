@@ -954,6 +954,24 @@ enum VehicleMarketCatalog {
             referencePrice: 293_400,
             priceReferenceYear: 2024,
             priceEstimateNote: "Repère CATP 2024 : autobus standard diesel Euro VI step E de 12 m, options comprises, 293 400 € HT. Utilisé comme comparable de prix neuf pour ce modèle retiré, pas comme prix historique du Citelis ni comme prix individuel.",
+            technicalDataNote: "La fiche Irisbus de 2010 décrit la gamme Citelis 12 Diesel, pas la configuration de chaque véhicule du parc régional. Elle propose plusieurs puissances, niveaux d’émission et aménagements.",
+            technicalVariants: [
+                VehicleTechnicalVariant(
+                    id: "citelis-12-diesel-irisbus-range-2010",
+                    title: "Gamme constructeur Citelis 12 Diesel · décembre 2010",
+                    lengthMeters: 11.99,
+                    widthMeters: 2.5,
+                    heightMeters: nil,
+                    batteryCapacityKWh: nil,
+                    maximumPowerKilowatts: 213,
+                    maximumCapacity: nil,
+                    seatedCapacity: nil,
+                    rangeKilometers: nil,
+                    applicabilityNote: "Cursor 8 de 180 ou 213 kW (245 ou 290 ch), émissions Euro V ou EEV et 2 ou 3 portes selon version. La brochure indique 20 à 37 places assises selon l’aménagement. Elle ne permet pas d’identifier la motorisation ni l’homologation de chaque Citelis régional observé.",
+                    evidenceTitle: "Irisbus IVECO · fiche technique Citelis 12 m Diesel (12/2010)",
+                    evidenceURL: "https://www.tplitalia.it/produttori/Irisbus-IvecoBus/Irisbus-Citelis-12m-pubIRUS11011008-12-2010.pdf"
+                )
+            ],
             fleetURL: "https://tc-infos.fr/reseau/1452/parc-bus-cars/page1"
         ),
         model(
@@ -970,6 +988,24 @@ enum VehicleMarketCatalog {
             referencePrice: 380_000,
             priceReferenceYear: 2024,
             priceEstimateNote: "Estimation de jeu 2024 : repère CATP diesel standard 12 m de 293 400 € HT, majoré de 30 % par règle de gabarit articulé et arrondi. La CATP ne publie pas ici de prix Citelis 18 ; ce n’est ni un prix historique ni un prix individuel.",
+            technicalDataNote: "La brochure Irisbus de 2009 documente une gamme Citelis 18 Diesel, mais pas l’aménagement exact des véhicules régionaux recensés en 2013.",
+            technicalVariants: [
+                VehicleTechnicalVariant(
+                    id: "citelis-18-diesel-irisbus-range-2009",
+                    title: "Gamme constructeur Citelis 18 Diesel · décembre 2009",
+                    lengthMeters: 17.9,
+                    widthMeters: 2.5,
+                    heightMeters: nil,
+                    batteryCapacityKWh: nil,
+                    maximumPowerKilowatts: 280,
+                    maximumCapacity: nil,
+                    seatedCapacity: nil,
+                    rangeKilometers: nil,
+                    applicabilityNote: "Cursor 8 de 213 ou 280 kW (290 ou 380 ch), 3 ou 4 portes et 31 à 49 places assises selon la version et l’homologation. Ces valeurs décrivent la gamme constructeur et ne confirment pas la configuration exacte des véhicules de Bords de Marne.",
+                    evidenceTitle: "Irisbus IVECO · catalogue de gamme Citelis 10,5, 12 et 18 m (12/2009)",
+                    evidenceURL: "https://www.tplitalia.it/produttori/Irisbus-IvecoBus/Irisbus-Citelis-catalogo-pubIRUC011009008-12-2009.pdf"
+                )
+            ],
             fleetURL: "https://tc-infos.fr/reseau/1452/parc-bus-cars/page2"
         ),
         model(
