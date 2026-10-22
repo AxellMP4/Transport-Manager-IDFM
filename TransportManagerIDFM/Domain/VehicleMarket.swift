@@ -1511,6 +1511,64 @@ enum VehicleMarketCatalog {
             marketAvailabilityNote: "MAN indique que 100 autobus standards Lion’s City au gaz ont été livrés pour les transports publics parisiens. Le communiqué ne précise ni génération, ni longueur, ni capacité voyageurs, ni hybridation, ni prix individuel ; il n’atteste pas de présence à Bords de Marne, de compatibilité avec ses dépôts ou de disponibilité actuelle à l’achat. Aucune offre n’est simulée."
         ),
         model(
+            id: "man-lions-city-12c-gnv-hybrid",
+            manufacturer: "MAN Truck & Bus",
+            commercialName: "Lion’s City 12C mild-hybrid GNV",
+            vehicleClass: .standard,
+            length: 12.185,
+            width: 2.55,
+            height: 3.34,
+            energy: .gnvHybrid,
+            maxCapacity: 110,
+            seatedCapacity: 27,
+            firstYear: nil,
+            lastYear: nil,
+            regionalEvidenceYear: 2025,
+            regionalEvidenceLabel: "Produit référencé par la CATP · exploitation en Île-de-France non attestée",
+            referencePrice: 324_600,
+            priceReferenceYear: 2024,
+            priceEstimateNote: "Repère CATP 2024 : autobus standard mild-hybrid GNV 12 m, options comprises, 324 600 € HT. Ce coût moyen de catégorie sert de base à une estimation de jeu indexée à 2 % par an ; ce n’est ni un prix d’offre MAN ni un prix de contrat individuel.",
+            technicalTitle: "CATP · Catalogue Véhicules 2025, Lion’s City 12C mild-hybrid GNV",
+            technicalURL: "https://www.catp.fr/wp-content/uploads/2025/07/2025-07-Catalogue-BusCars-1.pdf",
+            technicalDataNote: "Le catalogue CATP 2025 donne 12,185 × 2,55 × 3,34 m, 27 places assises et jusqu’à 110 voyageurs. Il cite deux puissances (206 ou 243 kW) et des capacités de réservoir comprises entre 1 014 et 1 690 L selon configuration. Le produit référencé et sa fiche technique ne prouvent pas une mise en service en Île-de-France, une compatibilité avec un dépôt précis ni un prix MAN individuel.",
+            technicalVariants: [
+                VehicleTechnicalVariant(
+                    id: "man-lions-city-12c-gnv-hybrid-206kw-2025",
+                    title: "CATP · configuration moteur 206 kW (2025)",
+                    lengthMeters: 12.185,
+                    widthMeters: 2.55,
+                    heightMeters: 3.34,
+                    batteryCapacityKWh: nil,
+                    maximumPowerKilowatts: 206,
+                    maximumCapacity: 110,
+                    seatedCapacity: 27,
+                    rangeKilometers: nil,
+                    applicabilityNote: "Mild-hybrid GNV. Le catalogue CATP associe cette variante à un réservoir de 1 014 à 1 690 L selon configuration. Ces caractéristiques sont celles de la fiche d’achat publique, pas d’un autobus francilien identifié.",
+                    evidenceTitle: "CATP · Catalogue Véhicules 2025, p. 33–34",
+                    evidenceURL: "https://www.catp.fr/wp-content/uploads/2025/07/2025-07-Catalogue-BusCars-1.pdf"
+                ),
+                VehicleTechnicalVariant(
+                    id: "man-lions-city-12c-gnv-hybrid-243kw-2025",
+                    title: "CATP · configuration moteur 243 kW (2025)",
+                    lengthMeters: 12.185,
+                    widthMeters: 2.55,
+                    heightMeters: 3.34,
+                    batteryCapacityKWh: nil,
+                    maximumPowerKilowatts: 243,
+                    maximumCapacity: 110,
+                    seatedCapacity: 27,
+                    rangeKilometers: nil,
+                    applicabilityNote: "Mild-hybrid GNV. Le catalogue CATP associe cette variante à un réservoir de 1 014 à 1 690 L selon configuration. Ces caractéristiques sont celles de la fiche d’achat publique, pas d’un autobus francilien identifié.",
+                    evidenceTitle: "CATP · Catalogue Véhicules 2025, p. 33–34",
+                    evidenceURL: "https://www.catp.fr/wp-content/uploads/2025/07/2025-07-Catalogue-BusCars-1.pdf"
+                )
+            ],
+            additionalEvidenceTitle: "CATP · Étude comparative des motorisations 2024 · coût moyen mild-hybrid GNV",
+            additionalEvidenceURL: "https://www.agir-transport.org/wp-content/uploads/2024/07/Etude-comparative-des-differentes-motorisations-de-bus-2024.pdf",
+            fleetTitle: "CATP · Catalogue Véhicules 2025 · référence d’achat, pas preuve de flotte",
+            fleetURL: "https://www.catp.fr/wp-content/uploads/2025/07/2025-07-Catalogue-BusCars-1.pdf"
+        ),
+        model(
             id: "heuliez-gx137-electric",
             manufacturer: "Heuliez Bus",
             commercialName: "GX 137 ELEC",
@@ -1693,6 +1751,20 @@ enum VehicleMarketCatalog {
                 gameYear: gameYear,
                 stock: 1,
                 deliveryDays: 120
+            ))
+        }
+        if let manHybridGNV = models.first(where: { $0.id == "man-lions-city-12c-gnv-hybrid" }),
+           let newPrice = estimatedNewPrice(for: manHybridGNV, gameYear: gameYear) {
+            results.append(makeOffer(
+                model: manHybridGNV,
+                condition: .new,
+                vehicleYear: gameYear,
+                odometer: 0,
+                conditionPercent: 100,
+                askingPrice: newPrice,
+                gameYear: gameYear,
+                stock: 1,
+                deliveryDays: 90
             ))
         }
         return results.sorted {

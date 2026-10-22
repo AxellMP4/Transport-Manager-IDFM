@@ -1,10 +1,10 @@
 # Archive GTFS IDFM
 
-## État du flux — 22 octobre 2026
+## État du flux — 23 octobre 2026
 
-- La [fiche officielle du jeu GTFS PRIM](https://prim.iledefrance-mobilites.fr/fr/jeux-de-donnees/offre-horaires-tc-gtfs-idfm), relue le 22 octobre, indique un dernier traitement des données et métadonnées le 21 octobre 2026 à 17:00. Aucun traitement du 22 octobre n’y est encore affiché. La fiche annonce une fenêtre glissante de 30 jours et trois publications quotidiennes prévues (08:00, 13:00 et 17:00).
-- Le [catalogue PRIM](https://prim.iledefrance-mobilites.fr/fr/catalogue-data) marque le téléchargement de ce jeu « Connexion requise ». Le nouvel export du 21 octobre n’a donc pas été récupéré ni importé ici : ses métadonnées publiques ne révèlent ni le contenu exact du ZIP ni les courses 214/314.
-- L’archive locale et la version importée dans le magasin restent celles du 20 octobre ci-dessous. Il faut télécharger un ZIP avec un compte autorisé, le conserver avec sa date et son empreinte, puis l’importer depuis **Sources** avant de valider les courses du 2 novembre. Une annonce de mise à jour ne prouve ni le contenu du ZIP ni un rattachement à un COB.
+- La [fiche officielle du jeu GTFS PRIM](https://prim.iledefrance-mobilites.fr/jeux-de-donnees/offre-horaires-tc-gtfs-idfm?staticdataslug=offre-horaires-tc-gtfs-idfm), relue le 23 octobre, indique un dernier traitement des données et métadonnées le 22 octobre 2026 à 17:00. Elle annonce une fenêtre glissante de 30 jours et trois publications quotidiennes prévues (08:00, 13:00 et 17:00).
+- Le bouton **Exporter la donnée** est désactivé et la fiche affiche « Connexion requise » pour exporter ou visualiser ce jeu soumis à la Licence Mobilité. Aucun compte authentifié n’est disponible dans cette session ; le ZIP affiché au 22 octobre n’a donc pas été récupéré ni importé. Les métadonnées publiques ne révèlent pas le contenu du ZIP ni la présence des courses 214/314.
+- L’archive locale et la version importée dans le magasin restent celles du 20 octobre ci-dessous. Un compte autorisé doit télécharger le ZIP, qui sera conservé avec sa date et son empreinte, puis importé depuis **Sources** avant de valider les courses post-réorganisation. Une date de traitement affichée ne prouve ni le contenu du ZIP ni un rattachement à un COB.
 
 ## Version du 20 octobre 2026
 
