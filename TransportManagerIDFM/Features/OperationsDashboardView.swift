@@ -6034,6 +6034,7 @@ private struct MachinistManagementView: View {
     @State private var machinistForAbsence: Machinist?
     @State private var machinistForTraining: Machinist?
     @State private var machinistForBreak: Machinist?
+    @State private var machinistBlockForCorrection: MachinistDutyBlock?
     @State private var recruitmentError: String?
     @State private var trainingError: String?
     @State private var breakError: String?
@@ -6071,6 +6072,17 @@ private struct MachinistManagementView: View {
         (session?.machinistBreaks ?? [])
             .filter { activeMachinistIDs.contains($0.machinistID) }
             .sorted { $0.startsAt > $1.startsAt }
+            .prefix(20)
+            .map { $0 }
+    }
+    private var settledDutyBlockHistory: [MachinistDutyBlock] {
+        (session?.machinistDutyBlocks ?? [])
+            .filter {
+                $0.actualEndAt != nil
+                    && $0.lastSettledAt != nil
+                    && activeMachinistIDs.contains($0.machinistID)
+            }
+            .sorted { ($0.lastSettledAt ?? .distantPast) > ($1.lastSettledAt ?? .distantPast) }
             .prefix(20)
             .map { $0 }
     }
@@ -6146,6 +6158,28 @@ private struct MachinistManagementView: View {
                                 machinistRow(machinist)
                             }
                         }
+                    }
+                    .padding(15)
+                    .background(.background, in: RoundedRectangle(cornerRadius: 14))
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("HISTORIQUE DES SERVICES")
+                            .font(.caption.weight(.bold))
+                            .tracking(0.7)
+                            .foregroundStyle(.secondary)
+                        if settledDutyBlockHistory.isEmpty {
+                            Text("Les blocs apparaîtront ici après leur clôture et leur règlement.")
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            ForEach(settledDutyBlockHistory) { block in
+                                settledDutyBlockRow(block)
+                            }
+                        }
+                        Text("La correction porte sur tout le bloc, conserve les heures et le montant de paie déjà enregistrés et ajoute un motif à l’historique. Les qualifications, le dépôt, les conflits, les absences, les formations et le repos de jeu sont vérifiés.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                     .padding(15)
                     .background(.background, in: RoundedRectangle(cornerRadius: 14))
@@ -6259,6 +6293,15 @@ private struct MachinistManagementView: View {
                     windows: simulation.availableMachinistBreakWindows(for: machinist.id)
                 )
                 .frame(minWidth: 520, minHeight: 340)
+            }
+            .sheet(item: $machinistBlockForCorrection) { block in
+                MachinistAssignmentCorrectionEditorView(
+                    simulation: simulation,
+                    dutyBlock: block,
+                    previousMachinistName: machinistName(block.machinistID),
+                    candidates: simulation.availableMachinistDutyBlockCorrectionCandidates(dutyBlockID: block.id)
+                )
+                .frame(minWidth: 540, minHeight: 440)
             }
             .confirmationDialog(
                 "Confirmer le recrutement",
@@ -6559,6 +6602,52 @@ private struct MachinistManagementView: View {
         .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 10))
     }
 
+    private func settledDutyBlockRow(_ block: MachinistDutyBlock) -> some View {
+        let assignments = (session?.machinistServiceAssignments ?? [])
+            .filter { $0.dutyBlockID == block.id }
+            .sorted { $0.plannedStartAt < $1.plannedStartAt }
+        let routes = Array(Set(assignments.map(\.routeID))).sorted()
+        let routeDescription = routes.isEmpty ? "Service machiniste" : "Ligne(s) \(routes.joined(separator: ", "))"
+        let corrections = (session?.machinistAssignmentCorrections ?? [])
+            .filter { $0.dutyBlockID == block.id }
+            .sorted { $0.recordedAt < $1.recordedAt }
+        let candidates = simulation.availableMachinistDutyBlockCorrectionCandidates(dutyBlockID: block.id)
+
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: corrections.isEmpty ? "person.text.rectangle" : "person.crop.circle.badge.checkmark")
+                    .foregroundStyle(corrections.isEmpty ? Color.secondary : Color.accentColor)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("\(machinistName(block.machinistID)) · \(routeDescription)")
+                        .font(.subheadline.weight(.semibold))
+                    Text("\(block.plannedStartAt.formatted(date: .abbreviated, time: .shortened))–\((block.actualEndAt ?? block.plannedEndAt).formatted(date: .omitted, time: .shortened)) · \(assignments.count) course(s) · paie enregistrée \(currency(block.laborCostEuro ?? 0))")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 6)
+                Button("Corriger") {
+                    machinistBlockForCorrection = block
+                }
+                .buttonStyle(.bordered)
+                .disabled(candidates.isEmpty)
+                .help(candidates.isEmpty ? "Aucun machiniste admissible pour ce bloc complet." : "Corriger le machiniste enregistré pour ce bloc clôturé")
+            }
+            ForEach(corrections) { correction in
+                Text("Correction · \(machinistName(correction.previousMachinistID)) → \(machinistName(correction.correctedMachinistID)) · \(correction.recordedAt.formatted(date: .abbreviated, time: .shortened)) · \(correction.reason)")
+                    .font(.caption)
+                    .foregroundStyle(.tint)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.leading, 28)
+            }
+        }
+        .padding(11)
+        .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 10))
+    }
+
+    private func machinistName(_ machinistID: String) -> String {
+        session?.machinists?.first(where: { $0.id == machinistID })?.displayName ?? "Machiniste archivé"
+    }
+
     private func breakRow(_ scheduledBreak: MachinistBreak) -> some View {
         let name = machinists.first(where: { $0.id == scheduledBreak.machinistID })?.displayName ?? "Machiniste"
         let now = session?.simulatedAt ?? .distantPast
@@ -6754,6 +6843,110 @@ private struct MachinistManagementView: View {
             try simulation.cancelMachinistAbsence(absenceID: absenceID)
         } catch {
             recruitmentError = error.localizedDescription
+        }
+    }
+
+    private func currency(_ amount: Int) -> String {
+        amount.formatted(.currency(code: "EUR").precision(.fractionLength(0)))
+    }
+}
+
+private struct MachinistAssignmentCorrectionEditorView: View {
+    @ObservedObject var simulation: SimulationEngine
+    let dutyBlock: MachinistDutyBlock
+    let previousMachinistName: String
+    let candidates: [Machinist]
+    @Environment(\.dismiss) private var dismiss
+    @State private var selectedMachinistID: String
+    @State private var reason = ""
+    @State private var errorMessage: String?
+
+    init(
+        simulation: SimulationEngine,
+        dutyBlock: MachinistDutyBlock,
+        previousMachinistName: String,
+        candidates: [Machinist]
+    ) {
+        self.simulation = simulation
+        self.dutyBlock = dutyBlock
+        self.previousMachinistName = previousMachinistName
+        self.candidates = candidates
+        _selectedMachinistID = State(initialValue: candidates.first?.id ?? "")
+    }
+
+    private var selectedMachinist: Machinist? {
+        candidates.first(where: { $0.id == selectedMachinistID })
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Bloc terminé et soldé") {
+                    LabeledContent("Machiniste enregistré", value: previousMachinistName)
+                    LabeledContent(
+                        "Période",
+                        value: "\(dutyBlock.plannedStartAt.formatted(date: .abbreviated, time: .shortened))–\((dutyBlock.actualEndAt ?? dutyBlock.plannedEndAt).formatted(date: .omitted, time: .shortened))"
+                    )
+                    LabeledContent("Paie enregistrée", value: currency(dutyBlock.laborCostEuro ?? 0))
+                }
+
+                Section("Correction") {
+                    if candidates.isEmpty {
+                        ContentUnavailableView(
+                            "Aucun remplacement admissible",
+                            systemImage: "person.crop.circle.badge.xmark",
+                            description: Text("Un machiniste doit être recruté dans le même dépôt, qualifié et libre sur toute la période du bloc.")
+                        )
+                    } else {
+                        Picker("Machiniste corrigé", selection: $selectedMachinistID) {
+                            ForEach(candidates) { candidate in
+                                Text("\(candidate.displayName) · \(candidate.qualification.title)")
+                                    .tag(candidate.id)
+                            }
+                        }
+                        TextField("Motif de la correction", text: $reason, axis: .vertical)
+                            .lineLimit(2...4)
+                    }
+                }
+
+                Text("La correction réattribue toutes les courses du bloc. Elle conserve les heures, le montant déjà enregistré et les règlements; elle ne recalcule pas la paie selon le nouveau machiniste. Le motif et chaque transition restent visibles dans l’historique.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .formStyle(.grouped)
+            .navigationTitle("Corriger l’affectation")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Annuler") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Enregistrer") { saveCorrection() }
+                        .disabled(selectedMachinist == nil || reason.trimmingCharacters(in: .whitespacesAndNewlines).count < 4)
+                }
+            }
+            .alert("Correction impossible", isPresented: Binding(
+                get: { errorMessage != nil },
+                set: { if !$0 { errorMessage = nil } }
+            )) {
+                Button("OK", role: .cancel) { errorMessage = nil }
+            } message: {
+                Text(errorMessage ?? "Une erreur est survenue.")
+            }
+        }
+    }
+
+    private func saveCorrection() {
+        guard let selectedMachinist else { return }
+        do {
+            try simulation.correctMachinistDutyBlock(
+                dutyBlockID: dutyBlock.id,
+                toMachinistID: selectedMachinist.id,
+                reason: reason
+            )
+            dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 

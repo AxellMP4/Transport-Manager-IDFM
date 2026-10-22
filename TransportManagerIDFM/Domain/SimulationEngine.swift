@@ -35,6 +35,9 @@ enum SimulationEngineError: LocalizedError {
     case machinistTrainingAlreadyStarted
     case machinistBreakUnavailable
     case machinistBreakAlreadyStarted
+    case machinistDutyBlockCorrectionUnavailable
+    case machinistDutyBlockCorrectionReasonRequired
+    case machinistDutyBlockCorrectionConflict
     case invalidTripSchedule
     case invalidImportedSave
     case noSessionToExport
@@ -135,6 +138,12 @@ enum SimulationEngineError: LocalizedError {
             "Aucun créneau de pause de 30 minutes n’est libre entre deux courses prévues de ce bloc."
         case .machinistBreakAlreadyStarted:
             "Une pause commencée ou terminée ne peut plus être annulée."
+        case .machinistDutyBlockCorrectionUnavailable:
+            "Seul un bloc machiniste terminé et soldé peut être corrigé."
+        case .machinistDutyBlockCorrectionReasonRequired:
+            "Indiquez un motif d’au moins quatre caractères pour garder une trace de la correction."
+        case .machinistDutyBlockCorrectionConflict:
+            "Ce machiniste ne peut pas reprendre tout le bloc : qualification, dépôt, repos, absence, formation ou autre service incompatible."
         case .invalidTripSchedule:
             "La séquence d’arrêts n’a pas d’horaires GTFS géolocalisés et cohérents."
         case .invalidImportedSave:
@@ -1135,6 +1144,7 @@ struct SimulationSession: Codable, Hashable, Identifiable, Sendable {
     var ownedBuses: [PurchasedBus]?
     var machinists: [Machinist]?
     var machinistServiceAssignments: [MachinistServiceAssignment]?
+    var machinistAssignmentCorrections: [MachinistAssignmentCorrection]? = nil
     var plannedMachinistReliefs: [MachinistReliefPlan]? = nil
     var machinistDutyBlocks: [MachinistDutyBlock]?
     var machinistAbsences: [MachinistAbsence]?
@@ -1662,6 +1672,7 @@ final class SimulationEngine: ObservableObject {
             ownedBuses: [],
             machinists: [],
             machinistServiceAssignments: [],
+            machinistAssignmentCorrections: [],
             machinistDutyBlocks: [],
             machinistAbsences: [],
             machinistTrainings: [],
@@ -2178,6 +2189,119 @@ final class SimulationEngine: ObservableObject {
             .sorted { $0.employeeNumber < $1.employeeNumber }
     }
 
+    func availableMachinistDutyBlockCorrectionCandidates(dutyBlockID: String) -> [Machinist] {
+        guard let session,
+              let block = session.machinistDutyBlocks?.first(where: { $0.id == dutyBlockID }) else { return [] }
+        return (session.machinists ?? [])
+            .filter { Self.canCorrectMachinistDutyBlock(block, to: $0, in: session) }
+            .sorted { $0.employeeNumber < $1.employeeNumber }
+    }
+
+    func correctMachinistDutyBlock(
+        dutyBlockID: String,
+        toMachinistID: String,
+        reason: String
+    ) throws {
+        if isRunning { advanceFromRealtime() }
+        guard var activeSession = session,
+              var dutyBlocks = activeSession.machinistDutyBlocks,
+              let blockIndex = dutyBlocks.firstIndex(where: { $0.id == dutyBlockID }),
+              let correctedMachinist = activeSession.machinists?.first(where: { $0.id == toMachinistID }) else {
+            throw SimulationEngineError.machinistDutyBlockCorrectionUnavailable
+        }
+        let savedReason = reason.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard savedReason.count >= 4 else {
+            throw SimulationEngineError.machinistDutyBlockCorrectionReasonRequired
+        }
+        let block = dutyBlocks[blockIndex]
+        guard Self.canCorrectMachinistDutyBlock(block, to: correctedMachinist, in: activeSession),
+              var assignments = activeSession.machinistServiceAssignments else {
+            throw SimulationEngineError.machinistDutyBlockCorrectionConflict
+        }
+        guard let previousMachinist = activeSession.machinists?.first(where: { $0.id == block.machinistID }) else {
+            throw SimulationEngineError.machinistDutyBlockCorrectionUnavailable
+        }
+
+        for index in assignments.indices where assignments[index].dutyBlockID == dutyBlockID {
+            assignments[index].machinistID = toMachinistID
+        }
+        dutyBlocks[blockIndex].machinistID = toMachinistID
+
+        var breaks = activeSession.machinistBreaks ?? []
+        for index in breaks.indices where breaks[index].dutyBlockID == dutyBlockID {
+            breaks[index].machinistID = toMachinistID
+        }
+
+        let payrollRecordID = "machinist-duty-\(dutyBlockID)"
+        var payrollRecords = activeSession.machinistPayrollRecords ?? []
+        if let payrollIndex = payrollRecords.firstIndex(where: { $0.id == payrollRecordID }) {
+            payrollRecords[payrollIndex].machinistID = toMachinistID
+            payrollRecords[payrollIndex].details += " · affectation corrigée de \(previousMachinist.displayName) à \(correctedMachinist.displayName) : \(savedReason)"
+        }
+
+        let updatedPayrollRecord = payrollRecords.first(where: { $0.id == payrollRecordID })
+        var ledgerEntries = activeSession.ledgerEntries ?? []
+        if let ledgerIndex = ledgerEntries.firstIndex(where: { $0.id == payrollRecordID }),
+           let updatedPayrollRecord {
+            let oldEntry = ledgerEntries[ledgerIndex]
+            ledgerEntries[ledgerIndex] = SimulationLedgerEntry(
+                id: oldEntry.id,
+                occurredAt: oldEntry.occurredAt,
+                category: oldEntry.category,
+                description: "\(correctedMachinist.displayName) · \(updatedPayrollRecord.details)",
+                amount: oldEntry.amount,
+                nature: oldEntry.nature,
+                cashDeltaEuro: oldEntry.cashDeltaEuro,
+                depotID: oldEntry.depotID
+            )
+        }
+
+        let updatedLedgerDescription = ledgerEntries.first(where: { $0.id == payrollRecordID })?.description
+        var invoices = activeSession.invoices ?? []
+        for index in invoices.indices {
+            let invoice = invoices[index]
+            let lineItems = invoice.lineItems.map { item in
+                guard item.ledgerEntryID == payrollRecordID,
+                      let description = updatedLedgerDescription,
+                      description != item.description else { return item }
+                return SimulationInvoiceLineItem(
+                    ledgerEntryID: item.ledgerEntryID,
+                    category: item.category,
+                    description: description,
+                    amountEuro: item.amountEuro
+                )
+            }
+            invoices[index] = SimulationInvoice(
+                id: invoice.id,
+                title: invoice.title,
+                counterparty: invoice.counterparty,
+                direction: invoice.direction,
+                issuedAt: invoice.issuedAt,
+                dueAt: invoice.dueAt,
+                lineItems: lineItems,
+                paidAt: invoice.paidAt
+            )
+        }
+
+        let correction = MachinistAssignmentCorrection(
+            id: UUID().uuidString,
+            dutyBlockID: dutyBlockID,
+            previousMachinistID: previousMachinist.id,
+            correctedMachinistID: correctedMachinist.id,
+            recordedAt: activeSession.simulatedAt,
+            reason: savedReason
+        )
+        activeSession.machinistServiceAssignments = assignments
+        activeSession.machinistDutyBlocks = dutyBlocks
+        activeSession.machinistBreaks = breaks
+        activeSession.machinistPayrollRecords = payrollRecords
+        activeSession.ledgerEntries = ledgerEntries
+        activeSession.invoices = invoices
+        activeSession.machinistAssignmentCorrections = (activeSession.machinistAssignmentCorrections ?? []) + [correction]
+        session = activeSession
+        save()
+    }
+
     func availableMachinistReliefCandidates(forVehicleID vehicleID: String) -> [Machinist] {
         guard let session,
               session.incidentAwaitingRepairResponse == nil,
@@ -2446,6 +2570,7 @@ final class SimulationEngine: ObservableObject {
             machinistID: incomingMachinistID,
             dutyBlockID: incomingDutyBlockID,
             vehicleID: vehicleID,
+            vehicleModelID: assignment.vehicleModelID ?? bus.modelID,
             tripID: tripID,
             routeID: assignment.routeID,
             serviceDateKey: assignment.serviceDateKey,
@@ -2583,6 +2708,7 @@ final class SimulationEngine: ObservableObject {
             machinistID: incomingMachinistID,
             dutyBlockID: incomingDutyBlockID,
             vehicleID: vehicleID,
+            vehicleModelID: assignment.vehicleModelID ?? bus.modelID,
             tripID: tripID,
             routeID: assignment.routeID,
             serviceDateKey: assignment.serviceDateKey,
@@ -4206,6 +4332,7 @@ final class SimulationEngine: ObservableObject {
             machinistID: returnAssignmentPlan.machinist.id,
             dutyBlockID: dutyBlockID,
             vehicleID: vehicleID,
+            vehicleModelID: bus.modelID,
             tripID: returnTripID,
             routeID: "RETOUR-DEPOT",
             serviceDateKey: returnAssignmentPlan.previousCourse.serviceDateKey,
@@ -4508,6 +4635,7 @@ final class SimulationEngine: ObservableObject {
             machinistID: machinist.id,
             dutyBlockID: dutyBlockID,
             vehicleID: bus.id,
+            vehicleModelID: bus.modelID,
             tripID: tripID,
             routeID: routeID,
             serviceDateKey: serviceDateKey,
@@ -6416,6 +6544,55 @@ final class SimulationEngine: ObservableObject {
             dutyBlockPlan: dutyBlockPlan,
             estimatedLaborCostEuro: estimatedLaborCost
         )
+    }
+
+    private static func canCorrectMachinistDutyBlock(
+        _ block: MachinistDutyBlock,
+        to candidate: Machinist,
+        in session: SimulationSession
+    ) -> Bool {
+        guard block.machinistID != candidate.id,
+              let settledAt = block.lastSettledAt,
+              let actualEndAt = block.actualEndAt,
+              block.laborCostEuro != nil,
+              actualEndAt <= session.simulatedAt,
+              settledAt <= session.simulatedAt,
+              let previousMachinist = session.machinists?.first(where: { $0.id == block.machinistID }),
+              (previousMachinist.depotID ?? session.depotID) == (candidate.depotID ?? session.depotID),
+              candidate.hiredAt <= block.plannedStartAt else { return false }
+
+        let assignments = session.machinistServiceAssignments ?? []
+        let blockAssignments = assignments.filter { $0.dutyBlockID == block.id }
+        guard !blockAssignments.isEmpty,
+              blockAssignments.allSatisfy({ assignment in
+                  guard let actualEndAt = assignment.actualEndAt else { return false }
+                  return actualEndAt <= session.simulatedAt
+              }) else {
+            return false
+        }
+        let vehicleClasses = blockAssignments.compactMap { assignment -> BusVehicleClass? in
+            let modelID = assignment.vehicleModelID
+                ?? session.ownedBuses?.first(where: { $0.id == assignment.vehicleID })?.modelID
+            guard let modelID else { return nil }
+            return VehicleMarketCatalog.model(id: modelID)?.vehicleClass
+        }
+        guard vehicleClasses.count == blockAssignments.count,
+              vehicleClasses.allSatisfy(candidate.qualification.canDrive) else { return false }
+
+        let remainingAssignments = assignments.filter { $0.dutyBlockID != block.id }
+        let remainingBlocks = (session.machinistDutyBlocks ?? []).filter { $0.id != block.id }
+        let remainingBreaks = (session.machinistBreaks ?? []).filter { $0.dutyBlockID != block.id }
+        guard let plan = machinistDutyBlockAssignmentPlan(
+            candidate.id,
+            from: block.plannedStartAt,
+            to: actualEndAt,
+            assignments: remainingAssignments,
+            dutyBlocks: remainingBlocks,
+            breaks: remainingBreaks,
+            absences: session.machinistAbsences ?? [],
+            trainings: session.machinistTrainings ?? []
+        ) else { return false }
+        return plan.joiningDutyBlockID == nil
     }
 
     private static func machinistDutyBlockAssignmentPlan(

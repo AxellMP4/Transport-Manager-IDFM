@@ -449,9 +449,10 @@ struct MachinistTrainingRecord: Codable, Hashable, Identifiable, Sendable {
 
 struct MachinistServiceAssignment: Codable, Hashable, Identifiable, Sendable {
     let id: String
-    let machinistID: String
+    var machinistID: String
     var dutyBlockID: String? = nil
     let vehicleID: String
+    var vehicleModelID: String? = nil
     let tripID: String
     let routeID: String
     let serviceDateKey: Int
@@ -459,6 +460,15 @@ struct MachinistServiceAssignment: Codable, Hashable, Identifiable, Sendable {
     let plannedEndAt: Date
     var actualEndAt: Date? = nil
     var laborCostEuro: Int? = nil
+}
+
+struct MachinistAssignmentCorrection: Codable, Hashable, Identifiable, Sendable {
+    let id: String
+    let dutyBlockID: String
+    let previousMachinistID: String
+    let correctedMachinistID: String
+    let recordedAt: Date
+    let reason: String
 }
 
 struct MachinistReliefPlan: Codable, Hashable, Identifiable, Sendable {
@@ -505,7 +515,7 @@ struct MachinistTransferPlan: Codable, Hashable, Sendable {
 
 struct MachinistDutyBlock: Codable, Hashable, Identifiable, Sendable {
     let id: String
-    let machinistID: String
+    var machinistID: String
     var plannedStartAt: Date
     var plannedEndAt: Date
     var actualEndAt: Date? = nil
@@ -520,7 +530,7 @@ struct MachinistDepotReturnStaffing: Hashable, Sendable {
 
 struct MachinistBreak: Codable, Hashable, Identifiable, Sendable {
     let id: String
-    let machinistID: String
+    var machinistID: String
     let dutyBlockID: String
     let startsAt: Date
     let endsAt: Date
@@ -623,12 +633,12 @@ enum MachinistPayrollKind: String, Codable, CaseIterable, Hashable, Identifiable
 
 struct MachinistPayrollRecord: Codable, Hashable, Identifiable, Sendable {
     let id: String
-    let machinistID: String
+    var machinistID: String
     let occurredAt: Date
     let kind: MachinistPayrollKind
     let workHours: Double
     let amountEuro: Int
-    let details: String
+    var details: String
 }
 
 struct SimulationLedgerEntry: Codable, Hashable, Identifiable, Sendable {
