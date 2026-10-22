@@ -50,6 +50,9 @@ enum SimulationEngineError: LocalizedError {
     case stopClosureUnavailable
     case invalidStopClosureReplacement
     case stopAlreadyClosed
+    case routeClosureUnavailable
+    case routeAlreadySuspended
+    case routeClosureActive
     case invalidRouteDetour
     case routeDetourUnavailable
     case routeDetourOverlap
@@ -160,6 +163,12 @@ enum SimulationEngineError: LocalizedError {
             "L’arrêt de remplacement ou son itinéraire piéton ne correspond pas à la ligne fermée."
         case .stopAlreadyClosed:
             "Cet arrêt est déjà fermé pour au moins une ligne exploitée."
+        case .routeClosureUnavailable:
+            "Cette ligne n’est pas exploitée par la carrière ou la durée de suspension est invalide."
+        case .routeAlreadySuspended:
+            "Cette ligne est déjà suspendue."
+        case .routeClosureActive:
+            "Ce départ est prévu pendant la suspension de la ligne."
         case .invalidRouteDetour:
             "La déviation doit relier deux arrêts consécutifs de la ligne, avec des horaires, une fenêtre et un tracé routier valides."
         case .routeDetourUnavailable:
@@ -598,6 +607,25 @@ struct SimulatedRouteDetour: Codable, Hashable, Identifiable, Sendable {
     }
 }
 
+struct SimulatedRouteClosure: Codable, Hashable, Identifiable, Sendable {
+    let id: String
+    let routeID: String
+    let routeName: String
+    let startsAt: Date
+    var scheduledEndAt: Date
+    var endedAt: Date? = nil
+
+    func isActive(at date: Date) -> Bool {
+        endedAt == nil && startsAt <= date && date < scheduledEndAt
+    }
+}
+
+private extension SimulatedRouteClosure {
+    var startedEventSummary: String {
+        "Suspension de la ligne \(routeName) · aucun nouveau départ · les courses déjà engagées continuent · reprise prévue \(scheduledEndAt.formatted(date: .omitted, time: .shortened))"
+    }
+}
+
 struct RouteDetourEventDetails: Codable, Hashable, Sendable {
     let detourID: String
     let routeID: String
@@ -618,6 +646,7 @@ enum SimulationEventKind: Codable, Hashable, Sendable {
     case serviceDeparture(tripID: String)
     case scheduledServiceDeparture(tripID: String, routeID: String, serviceDateKey: Int)
     case missedServiceDeparture(tripID: String, routeID: String)
+    case routeServiceSuspended(tripID: String, routeID: String, closureID: String)
     case vehicleDelivered(vehicleID: String)
     case busDeadheadStarted(tripID: String, routeID: String, vehicleID: String, stopID: String, stopName: String, latitude: Double, longitude: Double, plan: VehicleDeadheadPlan)
     case busDeadheadArrived(tripID: String, routeID: String, vehicleID: String, stopID: String, stopName: String, latitude: Double, longitude: Double, distanceMeters: Double)
@@ -655,6 +684,8 @@ enum SimulationEventKind: Codable, Hashable, Sendable {
     case machinistRelieved(tripID: String, vehicleID: String, routeID: String, outgoingMachinistName: String, incomingMachinistName: String, stopName: String)
     case stopClosureStarted(SimulatedStopClosure)
     case stopClosureEnded(closureID: String, stopID: String, stopName: String)
+    case routeClosureStarted(SimulatedRouteClosure)
+    case routeClosureEnded(closureID: String, routeID: String, routeName: String)
     case routeDetourScheduled(RouteDetourEventDetails, startsAt: Date)
     case routeDetourStarted(RouteDetourEventDetails)
     case routeDetourExtended(RouteDetourEventDetails)
@@ -683,6 +714,8 @@ struct SimulationEvent: Codable, Hashable, Identifiable, Sendable {
             "Départ prévu de la ligne \(routeID)"
         case let .missedServiceDeparture(tripID, routeID):
             "Course non assurée · ligne \(routeID), course \(tripID)"
+        case let .routeServiceSuspended(tripID, routeID, _):
+            "Départ suspendu · ligne \(routeID), course \(tripID)"
         case .vehicleDelivered:
             "Livraison d’un bus au dépôt"
         case let .busDeadheadStarted(tripID, routeID, _, _, stopName, _, _, _):
@@ -757,6 +790,10 @@ struct SimulationEvent: Codable, Hashable, Identifiable, Sendable {
             closure.startedEventSummary
         case let .stopClosureEnded(_, _, stopName):
             "Réouverture de l’arrêt \(stopName)"
+        case let .routeClosureStarted(closure):
+            closure.startedEventSummary
+        case let .routeClosureEnded(_, _, routeName):
+            "Reprise des départs · ligne \(routeName)"
         case let .routeDetourScheduled(details, startsAt):
             "Déviation planifiée · ligne \(details.routeID), \(details.fromStopName) → \(details.toStopName) · début \(startsAt.formatted(date: .omitted, time: .shortened))"
         case let .routeDetourStarted(details):
@@ -1111,6 +1148,7 @@ struct SimulationSession: Codable, Hashable, Identifiable, Sendable {
     var vehicleIncidents: [VehicleIncident]?
     var vehicleMaintenanceRecords: [VehicleMaintenanceRecord]?
     var stopClosures: [SimulatedStopClosure]? = nil
+    var routeClosures: [SimulatedRouteClosure]? = nil
     var routeDetours: [SimulatedRouteDetour]? = nil
     var primTrafficAlerts: [PRIMTrafficAlert]? = nil
     var breakdownFrequency: VehicleIncidentFrequency? = nil
@@ -1242,6 +1280,14 @@ struct SimulationSession: Codable, Hashable, Identifiable, Sendable {
         (routeDetours ?? []).filter { $0.isActive(at: simulatedAt) }
     }
 
+    var activeRouteClosures: [SimulatedRouteClosure] {
+        (routeClosures ?? []).filter { $0.isActive(at: simulatedAt) }
+    }
+
+    func activeRouteClosure(routeID: String, at date: Date) -> SimulatedRouteClosure? {
+        (routeClosures ?? []).first { $0.routeID == routeID && $0.isActive(at: date) }
+    }
+
     func routeDetour(id: String) -> SimulatedRouteDetour? {
         routeDetours?.first { $0.id == id }
     }
@@ -1281,7 +1327,12 @@ struct SimulationSession: Codable, Hashable, Identifiable, Sendable {
 
     var missedServiceDepartureCount: Int {
         eventHistory.reduce(into: 0) { count, event in
-            if case .missedServiceDeparture = event.kind { count += 1 }
+            switch event.kind {
+            case .missedServiceDeparture, .routeServiceSuspended:
+                count += 1
+            default:
+                break
+            }
         }
     }
 }
@@ -1630,6 +1681,7 @@ final class SimulationEngine: ObservableObject {
             vehicleIncidents: [],
             vehicleMaintenanceRecords: [],
             stopClosures: [],
+            routeClosures: [],
             breakdownFrequency: breakdownFrequency,
             workshopBayCount: VehicleWorkshopRules.initialRepairBayCount,
             workshopExpansionCompletesAt: nil,
@@ -3389,6 +3441,151 @@ final class SimulationEngine: ObservableObject {
         save()
     }
 
+    func suspendRoute(routeID: String, routeName: String, for duration: TimeInterval) throws {
+        if isRunning { advanceFromRealtime() }
+        guard var activeSession = session,
+              activeSession.incidentAwaitingRepairResponse == nil,
+              activeSession.allEffectiveOperatedRouteIDs.contains(routeID),
+              duration.isFinite,
+              (60...86_400).contains(duration) else {
+            throw SimulationEngineError.routeClosureUnavailable
+        }
+        guard activeSession.activeRouteClosure(routeID: routeID, at: activeSession.simulatedAt) == nil else {
+            throw SimulationEngineError.routeAlreadySuspended
+        }
+
+        let closure = SimulatedRouteClosure(
+            id: UUID().uuidString,
+            routeID: routeID,
+            routeName: routeName,
+            startsAt: activeSession.simulatedAt,
+            scheduledEndAt: activeSession.simulatedAt.addingTimeInterval(duration)
+        )
+        let departureEvents = activeSession.pendingEvents.compactMap { event -> (SimulationEvent, MachinistServiceAssignment)? in
+            guard case let .busDeparted(tripID, vehicleID, _, _, _, _) = event.kind,
+                  event.simulatedAt >= closure.startsAt,
+                  event.simulatedAt < closure.scheduledEndAt,
+                  let assignment = activeSession.machinistServiceAssignments?.first(where: {
+                      $0.tripID == tripID
+                          && $0.vehicleID == vehicleID
+                          && $0.routeID == routeID
+                          && $0.actualEndAt == nil
+                          && $0.plannedStartAt <= event.simulatedAt
+                          && $0.plannedEndAt >= event.simulatedAt
+                  }),
+                  let bus = activeSession.ownedBuses?.first(where: { $0.id == vehicleID }),
+                  bus.status == .assigned,
+                  bus.reservedTripKey == assignment.id else { return nil }
+            return (event, assignment)
+        }
+
+        var cancelledSequences = Set<UInt64>()
+        var cancelledAssignments = Set<String>()
+        var releasedVehicleIDs = Set<String>()
+        var suspendedDepartureEvents: [SimulationEvent] = []
+        for (departure, assignment) in departureEvents {
+            cancelledAssignments.insert(assignment.id)
+            releasedVehicleIDs.insert(assignment.vehicleID)
+            for event in activeSession.pendingEvents where event.simulatedAt >= closure.startsAt {
+                switch event.kind {
+                case let .busDeparted(tripID, vehicleID, _, _, _, _),
+                     let .busAtStop(tripID, vehicleID, _, _, _, _, _),
+                     let .busServiceCompleted(tripID, vehicleID, _, _, _, _):
+                    if tripID == assignment.tripID && vehicleID == assignment.vehicleID {
+                        cancelledSequences.insert(event.sequence)
+                    }
+                case let .busDeadheadStarted(tripID, _, vehicleID, _, _, _, _, _),
+                     let .busDeadheadArrived(tripID, _, vehicleID, _, _, _, _, _):
+                    if tripID == assignment.tripID && vehicleID == assignment.vehicleID {
+                        cancelledSequences.insert(event.sequence)
+                    }
+                case let .passengerDemand(demand):
+                    if demand.tripID == assignment.tripID && demand.vehicleID == assignment.vehicleID {
+                        cancelledSequences.insert(event.sequence)
+                    }
+                case let .passengersExchanged(exchange):
+                    if exchange.tripID == assignment.tripID && exchange.vehicleID == assignment.vehicleID {
+                        cancelledSequences.insert(event.sequence)
+                    }
+                case let .busMovementStarted(vehicleID, leg):
+                    if vehicleID == assignment.vehicleID,
+                       leg.startsAt >= departure.simulatedAt,
+                       leg.startsAt <= assignment.plannedEndAt {
+                        cancelledSequences.insert(event.sequence)
+                    }
+                default:
+                    break
+                }
+            }
+            suspendedDepartureEvents.append(SimulationEvent(
+                sequence: departure.sequence,
+                simulatedAt: departure.simulatedAt,
+                kind: .routeServiceSuspended(
+                    tripID: assignment.tripID,
+                    routeID: routeID,
+                    closureID: closure.id
+                )
+            ))
+        }
+        activeSession.pendingEvents.removeAll { cancelledSequences.contains($0.sequence) }
+        activeSession.pendingEvents.append(contentsOf: suspendedDepartureEvents)
+
+        if !cancelledAssignments.isEmpty {
+            var assignments = activeSession.machinistServiceAssignments ?? []
+            let cancelledDutyBlockIDs = Set(assignments.compactMap { assignment in
+                cancelledAssignments.contains(assignment.id) ? assignment.dutyBlockID : nil
+            })
+            assignments.removeAll { cancelledAssignments.contains($0.id) }
+            activeSession.machinistServiceAssignments = assignments
+            activeSession.machinistDutyBlocks?.removeAll { block in
+                cancelledDutyBlockIDs.contains(block.id)
+                    && !assignments.contains(where: { $0.dutyBlockID == block.id })
+            }
+            if var dutyBlocks = activeSession.machinistDutyBlocks {
+                for index in dutyBlocks.indices where cancelledDutyBlockIDs.contains(dutyBlocks[index].id) {
+                    let remainingAssignments = assignments.filter { $0.dutyBlockID == dutyBlocks[index].id }
+                    if let first = remainingAssignments.map(\.plannedStartAt).min(),
+                       let last = remainingAssignments.map(\.plannedEndAt).max() {
+                        dutyBlocks[index].plannedStartAt = first
+                        dutyBlocks[index].plannedEndAt = last
+                    }
+                }
+                activeSession.machinistDutyBlocks = dutyBlocks
+            }
+        }
+        if var buses = activeSession.ownedBuses {
+            for index in buses.indices where releasedVehicleIDs.contains(buses[index].id) {
+                buses[index].status = buses[index].currentStopID == nil ? .atDepot : .atStop
+                buses[index].currentTripID = nil
+                buses[index].reservedTripKey = nil
+                buses[index].reservedUntil = nil
+                buses[index].activeMovementLeg = nil
+            }
+            activeSession.ownedBuses = buses
+        }
+
+        activeSession.routeClosures = (activeSession.routeClosures ?? []) + [closure]
+        activeSession.eventHistory.append(SimulationEvent(
+            sequence: activeSession.nextEventSequence,
+            simulatedAt: activeSession.simulatedAt,
+            kind: .routeClosureStarted(closure)
+        ))
+        activeSession.nextEventSequence &+= 1
+        activeSession.pendingEvents.append(SimulationEvent(
+            sequence: activeSession.nextEventSequence,
+            simulatedAt: closure.scheduledEndAt,
+            kind: .routeClosureEnded(
+                closureID: closure.id,
+                routeID: closure.routeID,
+                routeName: closure.routeName
+            )
+        ))
+        activeSession.nextEventSequence &+= 1
+        activeSession.pendingEvents.sort(by: Self.eventOrder)
+        session = activeSession
+        save()
+    }
+
     @discardableResult
     func scheduleRouteDetour(
         routeID: String,
@@ -3841,6 +4038,9 @@ final class SimulationEngine: ObservableObject {
         }
         let scheduledDeparture = activeSession.pendingEvents[eventIndex]
         guard operatedRouteIDs.contains(routeID) else { throw SimulationEngineError.scheduledDepartureUnavailable }
+        guard activeSession.activeRouteClosure(routeID: routeID, at: scheduledDeparture.simulatedAt) == nil else {
+            throw SimulationEngineError.routeClosureActive
+        }
         guard !sourceStopVisits.isEmpty,
               sourceStopVisits.count >= 2,
               sourceStopVisits.allSatisfy({
@@ -4370,10 +4570,13 @@ final class SimulationEngine: ObservableObject {
                let resolvedEvent = Self.resolvePassengerDemand(event, in: activeSession) {
                 eventForHistory = resolvedEvent
             } else if case let .scheduledServiceDeparture(tripID, routeID, _) = event.kind {
+                let suspension = activeSession.activeRouteClosure(routeID: routeID, at: event.simulatedAt)
                 eventForHistory = SimulationEvent(
                     sequence: event.sequence,
                     simulatedAt: event.simulatedAt,
-                    kind: .missedServiceDeparture(tripID: tripID, routeID: routeID)
+                    kind: suspension.map {
+                        .routeServiceSuspended(tripID: tripID, routeID: routeID, closureID: $0.id)
+                    } ?? .missedServiceDeparture(tripID: tripID, routeID: routeID)
                 )
             } else if case let .busServiceCompleted(tripID, vehicleID, stopID, stopName, latitude, longitude) = event.kind,
                       let routeID = activeSession.machinistServiceAssignments?.last(where: {
@@ -4430,6 +4633,13 @@ final class SimulationEngine: ObservableObject {
                detours[detourIndex].endedAt == nil {
                 detours[detourIndex].endedAt = event.simulatedAt
                 activeSession.routeDetours = detours
+            }
+            if case let .routeClosureEnded(closureID, _, _) = event.kind,
+               var closures = activeSession.routeClosures,
+               let closureIndex = closures.firstIndex(where: { $0.id == closureID }),
+               closures[closureIndex].endedAt == nil {
+                closures[closureIndex].endedAt = event.simulatedAt
+                activeSession.routeClosures = closures
             }
             if case let .vehicleBreakdown(incident) = event.kind {
                 cancelledEventSequences.formUnion(Self.remainingTripEventSequences(
@@ -5055,7 +5265,7 @@ final class SimulationEngine: ObservableObject {
         }
         let recordedDepartureCount = dayEvents.reduce(into: 0) { count, event in
             switch event.kind {
-            case .busDeparted, .missedServiceDeparture:
+            case .busDeparted, .missedServiceDeparture, .routeServiceSuspended:
                 count += 1
             default:
                 break
@@ -5262,7 +5472,12 @@ final class SimulationEngine: ObservableObject {
             if case .busDeparted = event.kind { count += 1 }
         }
         let missed = events.reduce(into: 0) { count, event in
-            if case .missedServiceDeparture = event.kind { count += 1 }
+            switch event.kind {
+            case .missedServiceDeparture, .routeServiceSuspended:
+                count += 1
+            default:
+                break
+            }
         }
         let completed = events.reduce(into: 0) { count, event in
             switch event.kind {
@@ -5438,6 +5653,8 @@ final class SimulationEngine: ObservableObject {
             case let .busDeparted(_, vehicleID, _, _, _, _):
                 if let depotID = vehicleDepotIDs[vehicleID] { served[depotID, default: 0] += 1 }
             case let .missedServiceDeparture(_, routeID):
+                if let depotID = depotForRoute(routeID) { missed[depotID, default: 0] += 1 }
+            case let .routeServiceSuspended(_, routeID, _):
                 if let depotID = depotForRoute(routeID) { missed[depotID, default: 0] += 1 }
             case let .busServiceCompleted(_, vehicleID, _, _, _, _),
                  let .busServiceCompletedAtClosedStop(_, vehicleID, _, _, _, _, _, _),

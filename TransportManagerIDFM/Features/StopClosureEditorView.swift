@@ -10,6 +10,7 @@ struct StopClosureEditorView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var selectedReplacementStopID = ""
     @State private var durationHours = 2
+    @State private var suspendsWholeLine = false
     @State private var passengerInformationMessage = ""
     @State private var walkingRoute: StopReplacementWalkingRoute?
     @State private var walkingRouteForReplacementStopID: String?
@@ -36,8 +37,9 @@ struct StopClosureEditorView: View {
     }
 
     private var canSave: Bool {
-        simulation.session != nil
-            && selectedReplacementStop != nil
+        guard simulation.session != nil else { return false }
+        if suspendsWholeLine { return true }
+        return selectedReplacementStop != nil
             && walkingRoute != nil
             && walkingRouteForReplacementStopID == selectedReplacementStopID
             && !isCalculatingRoute
@@ -49,7 +51,17 @@ struct StopClosureEditorView: View {
                 Section("Arrêt et ligne concernés") {
                     LabeledContent("Arrêt fermé", value: "\(stop.name) · \(stop.stopID)")
                     LabeledContent("Ligne", value: "\(routeName) · \(routeID)")
-                    if candidates.isEmpty {
+                    Toggle("Suspendre toute la ligne", isOn: $suspendsWholeLine)
+                    if suspendsWholeLine {
+                        Label {
+                            Text("Aucun nouveau départ pendant la durée choisie. Les courses déjà parties ou dont l’acheminement a commencé vont à leur terminus. Une course affectée mais pas encore partie sera suspendue et comptée comme non assurée. Les voyageurs restent aux arrêts; aucune correspondance n’est créée automatiquement.")
+                        } icon: {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.orange)
+                        }
+                        .font(.caption)
+                        .fixedSize(horizontal: false, vertical: true)
+                    } else if candidates.isEmpty {
                         ContentUnavailableView(
                             "Aucun arrêt de remplacement",
                             systemImage: "figure.walk",
@@ -71,10 +83,11 @@ struct StopClosureEditorView: View {
                             }
                         }
                     }
-                    Stepper("Durée de fermeture : \(durationHours) h", value: $durationHours, in: 1...24)
+                    Stepper("Durée : \(durationHours) h", value: $durationHours, in: 1...24)
                 }
 
-                Section("Message aux voyageurs") {
+                if !suspendsWholeLine {
+                    Section("Message aux voyageurs") {
                     TextEditor(text: $passengerInformationMessage)
                         .frame(minHeight: 78)
                         .accessibilityLabel("Message d’information voyageurs pour l’arrêt fermé")
@@ -82,9 +95,11 @@ struct StopClosureEditorView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
 
-                Section("Trajet piéton estimé") {
+                if !suspendsWholeLine {
+                    Section("Trajet piéton estimé") {
                     if isCalculatingRoute {
                         ProgressView("Calcul du trajet par Apple Plans…")
                     } else if let walkingRoute,
@@ -145,6 +160,7 @@ struct StopClosureEditorView: View {
                         }
                         .disabled(selectedReplacementStop == nil || isCalculatingRoute)
                     }
+                    }
                 }
 
                 if let saveError {
@@ -156,13 +172,13 @@ struct StopClosureEditorView: View {
                 }
             }
             .formStyle(.grouped)
-            .navigationTitle("Fermer un arrêt · \(routeName)")
+            .navigationTitle(suspendsWholeLine ? "Suspendre la ligne · \(routeName)" : "Fermer un arrêt · \(routeName)")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Annuler") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Fermer et rediriger") { saveClosure() }
+                    Button(suspendsWholeLine ? "Suspendre la ligne" : "Fermer et rediriger") { saveClosure() }
                         .disabled(!canSave)
                 }
             }
@@ -172,8 +188,8 @@ struct StopClosureEditorView: View {
                 selectedReplacementStopID = candidates.first?.stopID ?? ""
             }
         }
-        .task(id: selectedReplacementStopID) {
-            guard !selectedReplacementStopID.isEmpty else { return }
+        .task(id: "\(selectedReplacementStopID)-\(suspendsWholeLine)") {
+            guard !suspendsWholeLine, !selectedReplacementStopID.isEmpty else { return }
             await calculateWalkingRoute()
         }
         .alert("Fermeture impossible", isPresented: Binding(
@@ -218,6 +234,19 @@ struct StopClosureEditorView: View {
     }
 
     private func saveClosure() {
+        if suspendsWholeLine {
+            do {
+                try simulation.suspendRoute(
+                    routeID: routeID,
+                    routeName: routeName,
+                    for: TimeInterval(durationHours * 60 * 60)
+                )
+                dismiss()
+            } catch {
+                saveError = error.localizedDescription
+            }
+            return
+        }
         guard let replacement = selectedReplacementStop,
               let walkingRoute,
               walkingRouteForReplacementStopID == replacement.stopID else { return }

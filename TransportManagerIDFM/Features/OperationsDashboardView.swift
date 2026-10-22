@@ -2763,6 +2763,7 @@ struct OperationsDashboardView: View {
             }
             .overlay(alignment: .bottomTrailing) {
                 VStack(alignment: .trailing, spacing: 8) {
+                    activeRouteClosuresCard
                     activeStopClosuresCard
                     activeRouteDetoursCard
                 }
@@ -2842,6 +2843,37 @@ struct OperationsDashboardView: View {
             }
         }
         .accessibilityLabel("Carte d’exploitation, \(visibleBusStops.count) arrêts de bus visibles")
+    }
+
+    @ViewBuilder
+    private var activeRouteClosuresCard: some View {
+        let closures = simulation.session?.activeRouteClosures ?? []
+        if !closures.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Label("LIGNES SUSPENDUES · \(closures.count)", systemImage: "nosign")
+                    .font(.caption.weight(.bold))
+                    .tracking(0.35)
+                    .foregroundStyle(.orange)
+                ForEach(closures) { closure in
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(library.busRoutes.first(where: { $0.routeID == closure.routeID })?.displayName ?? closure.routeName)
+                            .font(.caption.weight(.semibold))
+                        Text("Reprise des départs à \(closure.scheduledEndAt.formatted(date: .omitted, time: .shortened))")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        Text("Les courses déjà engagées vont à leur terminus. Les files voyageurs restent aux arrêts.")
+                            .font(.caption2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 9))
+                }
+            }
+            .padding(12)
+            .frame(maxWidth: 350, alignment: .leading)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 13))
+        }
     }
 
     @ViewBuilder
