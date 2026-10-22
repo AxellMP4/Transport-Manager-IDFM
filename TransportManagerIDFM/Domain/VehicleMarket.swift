@@ -1516,6 +1516,46 @@ enum VehicleMarketCatalog {
             marketAvailabilityNote: "Les archives RATP attestent la série de 70 véhicules et sa mise en service historique en Île-de-France. Elles ne documentent ni le prix actuel ou historique d’achat, ni une disponibilité d’occasion, ni un rattachement à Bords de Marne ; aucune offre n’est créée."
         ),
         model(
+            id: "mercedes-citaro-g-articulated-ratp-2014",
+            manufacturer: "Mercedes-Benz",
+            commercialName: "Citaro G articulé · livraisons RATP dès 2014",
+            vehicleClass: .articulated,
+            length: nil,
+            energy: .diesel,
+            maxCapacity: nil,
+            seatedCapacity: nil,
+            firstYear: 2014,
+            lastYear: nil,
+            regionalEvidenceYear: 2014,
+            regionalEvidenceLabel: "75 exemplaires annoncés en livraison à la RATP dès le T4 2014",
+            referencePrice: nil,
+            priceReferenceYear: nil,
+            priceEstimateNote: nil,
+            technicalTitle: "Mercedes-Benz Buses · fiche technique Citaro",
+            technicalURL: "https://www.mercedes-benz-bus.com/int/en/models/citaro/facts-citaro.pdf",
+            technicalDataNote: "Bus & Car rapporte que les livraisons des 75 Citaro G à la RATP ont commencé au dernier trimestre 2014, notamment au dépôt d’Aubervilliers, et décrit le Citaro G essayé comme diesel. L’article ne qualifie pas chaque autobus livré. La fiche constructeur consultée décrit le Citaro G actuellement commercialisé ; ses caractéristiques sont affichées dans une variante distincte et ne sont pas attribuées à la série RATP 2014. La configuration réelle des exemplaires, leur prix individuel et une disponibilité d’occasion ne sont pas établis.",
+            technicalVariants: [
+                VehicleTechnicalVariant(
+                    id: "mercedes-citaro-g-current-facts-2026",
+                    title: "Fiche constructeur actuelle · Citaro G · consultée en 2026",
+                    lengthMeters: 18.125,
+                    widthMeters: 2.55,
+                    heightMeters: 3.095,
+                    batteryCapacityKWh: nil,
+                    maximumPowerKilowatts: nil,
+                    maximumCapacity: 163,
+                    seatedCapacity: 42,
+                    rangeKilometers: nil,
+                    applicabilityNote: "Données de la fiche actuelle pour le Citaro G : elles décrivent des configurations de produit contemporaines et ne prouvent pas les dimensions ou l’aménagement exacts des véhicules livrés à la RATP en 2014–2015.",
+                    evidenceTitle: "Mercedes-Benz Buses · Citaro · caractéristiques techniques",
+                    evidenceURL: "https://www.mercedes-benz-bus.com/int/en/models/citaro/facts-citaro.pdf"
+                )
+            ],
+            fleetTitle: "Bus & Car · livraison des Citaro G à la RATP à partir du T4 2014",
+            fleetURL: "https://www.busetcar.com/bibliotheque-numerique/bus-et-car/968/technologie/le-citaro-joue-la-maxi-capacite-efficace-614126.php",
+            marketAvailabilityNote: "L’article de 2015 documente le début des livraisons au réseau RATP et un premier dépôt à Aubervilliers. Il n’atteste pas d’affectation à Bords de Marne, de disponibilité actuelle à la vente ou d’un prix d’occasion vérifiable ; aucune offre n’est simulée."
+        ),
+        model(
             id: "man-lions-city-standard-gnv-paris",
             manufacturer: "MAN",
             commercialName: "Lion’s City standard GNV · version non précisée",
