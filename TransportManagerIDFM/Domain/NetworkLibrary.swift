@@ -1,4 +1,5 @@
 import Combine
+import CryptoKit
 import Foundation
 
 enum NetworkImportState: Equatable, Sendable {
@@ -120,7 +121,20 @@ private extension BundledSnapshotBootstrapError.Source {
     }
 }
 
+private enum BundledGTFSArchiveAssemblyError: LocalizedError {
+    case integrityMismatch(expectedBytes: UInt64, actualBytes: UInt64, expectedSHA256: String, actualSHA256: String)
+
+    var errorDescription: String? {
+        switch self {
+        case let .integrityMismatch(expectedBytes, actualBytes, expectedSHA256, actualSHA256):
+            "L’archive GTFS intégrée est incomplète ou altérée (\(actualBytes) octets, SHA-256 \(actualSHA256), attendus : \(expectedBytes) octets et \(expectedSHA256))."
+        }
+    }
+}
+
 private enum BundledGTFSArchiveAssembler {
+    private static let expectedByteCount: UInt64 = 149_753_099
+    private static let expectedSHA256 = "3c3fe0eb7e165dde283ff87489339b48b4c3dcf69be011cc7ae2bc78d1764500"
     private static let partNames = (0..<18).map {
         String(format: "idfm-gtfs-2026-10-20-part-%02d", $0)
     }
@@ -134,6 +148,8 @@ private enum BundledGTFSArchiveAssembler {
         }
 
         let output = try FileHandle(forWritingTo: destination)
+        var assembledByteCount: UInt64 = 0
+        var hasher = SHA256()
         do {
             for partName in partNames {
                 guard let partURL = Bundle.main.url(forResource: partName, withExtension: "bin") else {
@@ -144,8 +160,19 @@ private enum BundledGTFSArchiveAssembler {
                 defer { try? input.close() }
                 while true {
                     guard let chunk = try input.read(upToCount: 1_048_576), !chunk.isEmpty else { break }
+                    hasher.update(data: chunk)
+                    assembledByteCount += UInt64(chunk.count)
                     try output.write(contentsOf: chunk)
                 }
+            }
+            let actualSHA256 = hasher.finalize().map { String(format: "%02x", $0) }.joined()
+            guard assembledByteCount == expectedByteCount, actualSHA256 == expectedSHA256 else {
+                throw BundledGTFSArchiveAssemblyError.integrityMismatch(
+                    expectedBytes: expectedByteCount,
+                    actualBytes: assembledByteCount,
+                    expectedSHA256: expectedSHA256,
+                    actualSHA256: actualSHA256
+                )
             }
             try output.synchronize()
             try output.close()
