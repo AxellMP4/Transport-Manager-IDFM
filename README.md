@@ -1,4 +1,3 @@
-Warning: fs was declared with const; use let for reassignable variables.
 # Transport Manager IDFM
 
 Jeu de gestion macOS natif en Swift, décrit dans [le cahier des charges](docs/Plan_recreation_Transport_Manager_IDFM.md).

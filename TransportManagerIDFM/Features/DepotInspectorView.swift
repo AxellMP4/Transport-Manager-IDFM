@@ -1,0 +1,1137 @@
+import SwiftUI
+
+private enum DepotRosterSheet: Identifiable {
+    case timetable(GTFSRouteSummary)
+    case assignment(DepotLineAssignmentPrefill)
+
+    var id: String {
+        switch self {
+        case .timetable(let route): "timetable|\(route.id)"
+        case .assignment(let prefill): "assignment|\(prefill.id)"
+        }
+    }
+}
+
+struct DepotInspectorView: View {
+    @Environment(\.dismiss) private var dismiss
+    let depot: DepotReference?
+    let scenario: ScenarioDefinition
+    let catalog: NetworkCatalog
+    @ObservedObject var library: NetworkLibrary
+    let serviceDate: Date
+    var showsCloseButton = true
+    @State private var isDepotLineRosterPresented = false
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(alignment: .center, spacing: 12) {
+                Image(systemName: "building.2.fill")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(.tint)
+                    .frame(width: 38, height: 38)
+                    .background(Color.accentColor.opacity(0.11), in: RoundedRectangle(cornerRadius: 11))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Fiche du dépôt")
+                        .font(.headline)
+                    Text(depot?.name ?? "Aucun dépôt sélectionné")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 12)
+                Button {
+                    isDepotLineRosterPresented = true
+                } label: {
+                    Label("Lignes, plans et horaires", systemImage: "list.bullet.rectangle")
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(depot == nil)
+                if showsCloseButton {
+                    Button("Fermer") { dismiss() }
+                        .keyboardShortcut(.cancelAction)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 13)
+
+            Divider()
+
+            if let depot {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 340), spacing: 14)], alignment: .leading, spacing: 14) {
+                            depotSummary(depot)
+                            networkSummary
+                        }
+
+                        GroupBox {
+                            LazyVGrid(columns: [GridItem(.adaptive(minimum: 330), spacing: 18)], alignment: .leading, spacing: 13) {
+                                ForEach(catalog.sources) { source in
+                                    SourceRow(source: source)
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.top, 5)
+                        } label: {
+                            Label("Sources et données du réseau", systemImage: "tray.full")
+                                .font(.headline)
+                        }
+                    }
+                    .padding(20)
+                    .frame(maxWidth: 1160, alignment: .leading)
+                    .frame(maxWidth: .infinity, alignment: .top)
+                }
+            } else {
+                ContentUnavailableView("Aucun dépôt sélectionné", systemImage: "building.2")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .background(Color(nsColor: .windowBackgroundColor))
+        .sheet(isPresented: $isDepotLineRosterPresented) {
+            if let depot {
+                DepotLineRosterView(
+                    initialDepotID: depot.id,
+                    scenario: scenario,
+                    library: library,
+                    initialServiceDate: serviceDate
+                )
+                .frame(minWidth: 1040, minHeight: 700)
+            }
+        }
+    }
+
+    private func depotSummary(_ depot: DepotReference) -> some View {
+        GroupBox {
+            VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(depot.name)
+                        .font(.title3.weight(.semibold))
+                    Text(depot.locality)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                StatusLabel(text: depot.evidenceLabel, systemImage: "building.2.fill", tint: .green)
+
+                Text(depot.address)
+                    .font(.callout.weight(.medium))
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Link(destination: depot.addressSourceURL) {
+                    Label(depot.addressSourceTitle, systemImage: "arrow.up.right.square")
+                        .font(.caption)
+                }
+                .fixedSize(horizontal: false, vertical: true)
+
+                Divider()
+                InspectorValue(title: "Scénario", value: scenario.name)
+                InspectorValue(title: "Réseau", value: scenario.networkName)
+                InspectorValue(title: "Contrat", value: "\(scenario.contractID) · \(scenario.operatorName)")
+                InspectorValue(title: "Validité", value: "\(scenario.contractStartDate) – \(scenario.contractEndDate)")
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        } label: {
+            Label("Centre bus", systemImage: "building.2")
+                .font(.headline)
+        }
+    }
+
+    private var networkSummary: some View {
+        GroupBox {
+            VStack(alignment: .leading, spacing: 13) {
+                if let version = catalog.activeVersion {
+                    HStack(spacing: 12) {
+                        networkMetric("Lignes bus", value: version.busRouteCount.formatted(), symbol: "bus")
+                        networkMetric("Arrêts géolocalisés", value: version.busStopCount.formatted(), symbol: "mappin.and.ellipse")
+                        networkMetric("Réseau", value: version.feedStopCount.formatted(), symbol: "point.3.connected.trianglepath.dotted")
+                    }
+                    Divider()
+                    InspectorValue(title: "Version active", value: version.id)
+                    InspectorValue(title: "Importée le", value: version.importedAt.formatted(date: .abbreviated, time: .omitted))
+                    InspectorValue(title: "Licence", value: version.license)
+                } else {
+                    ContentUnavailableView(
+                        "Offre GTFS non chargée",
+                        systemImage: "archivebox",
+                        description: Text("Importe l’offre théorique pour afficher les lignes, horaires et arrêts du réseau.")
+                    )
+                    .frame(minHeight: 170)
+                }
+
+                Text("Les lignes du dépôt restent accessibles même quand leur rattachement est à vérifier. Le niveau de preuve s’affiche dans le catalogue des lignes.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        } label: {
+            Label("Réseau importé", systemImage: "point.3.connected.trianglepath.dotted")
+                .font(.headline)
+        }
+    }
+
+    private func networkMetric(_ title: String, value: String, symbol: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Image(systemName: symbol)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.tint)
+            Text(value)
+                .font(.title3.weight(.semibold).monospacedDigit())
+            Text(title)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(10)
+        .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 10))
+    }
+}
+
+struct DepotLineRosterView: View {
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject var library: NetworkLibrary
+    let scenario: ScenarioDefinition
+    @State private var selectedDepotID: String
+    @State private var serviceDate: Date
+    @State private var isGTFSImporterPresented = false
+    @State private var presentedSheet: DepotRosterSheet?
+
+    init(initialDepotID: String, scenario: ScenarioDefinition, library: NetworkLibrary, initialServiceDate: Date) {
+        _library = ObservedObject(wrappedValue: library)
+        self.scenario = scenario
+        _selectedDepotID = State(initialValue: initialDepotID)
+        _serviceDate = State(initialValue: initialServiceDate)
+    }
+
+    private var selectedDepotName: String {
+        DepotLineRoster.selectableSites.first(where: { $0.id == selectedDepotID })?.name ?? selectedDepotID
+    }
+
+    private var candidateLines: [DepotLineRosterRow] {
+        DepotLineRoster.rows.filter {
+            $0.isVisible(atSite: selectedDepotID, on: serviceDate)
+        }
+    }
+
+    private var contractScopeLines: [DepotLineRosterRow] {
+        DepotContractLineScope.candidateRows(
+            for: selectedSite,
+            references: library.lineReferences,
+            serviceDate: serviceDate,
+            excluding: candidateLines
+        )
+    }
+
+    private var unassignedLines: [DepotLineRosterRow] {
+        DepotLineRoster.rows.filter {
+            $0.isVisible(on: serviceDate) && $0.siteIDsWithEvidence(on: serviceDate).isEmpty
+        }
+    }
+
+    private var selectedSite: DepotLineRosterSite? {
+        DepotLineRoster.selectableSites.first { $0.id == selectedDepotID }
+    }
+
+    private var isBordsDeMarneSite: Bool {
+        scenario.referenceDepots.contains { $0.id == selectedDepotID }
+            || ["freres-lumiere", "neuilly-sur-marne-projet"].contains(selectedDepotID)
+    }
+
+    private var canPrepareCareerAssignment: Bool {
+        selectedSite?.isOperational == true
+            && scenario.referenceDepots.contains { $0.id == selectedDepotID }
+            && library.catalog.activeContractVersion != nil
+            && library.contractFeatures.contains { $0.contractID == scenario.idfmBusContractID }
+    }
+
+    private func prepareCareerAssignment(for row: DepotLineRosterRow, route: GTFSRouteSummary) {
+        guard canPrepareCareerAssignment else { return }
+        let depotClaims = row.siteEvidenceClaims(for: selectedDepotID, on: serviceDate)
+        let primaryClaim = depotClaims.first(where: { $0.sourceURL != nil })
+        guard let primaryClaim, let evidenceURL = primaryClaim.sourceURL else { return }
+        let additionalEvidenceURLs = row.claims
+            .filter { $0.isVisible(on: serviceDate) }
+            .compactMap { $0.sourceURL?.absoluteString }
+            .filter { $0 != evidenceURL.absoluteString }
+            .reduce(into: [String]()) { urls, url in
+                if !urls.contains(url) { urls.append(url) }
+            }
+        presentedSheet = .assignment(DepotLineAssignmentPrefill(
+            depotID: selectedDepotID,
+            routeID: route.routeID,
+            evidenceTitle: primaryClaim.sourceTitle,
+            evidenceURL: evidenceURL.absoluteString,
+            additionalEvidenceURLs: additionalEvidenceURLs,
+            evidenceDate: primaryClaim.sourceDate,
+            notes: "Préremplissage documentaire à vérifier et confirmer manuellement pour le \(serviceDate.formatted(date: .numeric, time: .omitted)). État du catalogue public : \(row.evidenceStatus(on: serviceDate).rawValue). \(row.note)\n\(primaryClaim.kind.rawValue) · \(primaryClaim.sourceDateSummary) · \(primaryClaim.validitySummary). \(primaryClaim.note ?? "")"
+        ))
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .center) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Lignes · \(selectedDepotName)")
+                        .font(.title2.weight(.semibold))
+                    Text(selectedSite?.idfmBusContractID.map { "DSP \($0) · lignes du lot et preuves COB" }
+                        ?? (isBordsDeMarneSite
+                            ? "DSP 45 · preuves, affectations et variantes"
+                            : "Catalogue régional · rattachements à documenter"))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button("Fermer") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+            }
+            .padding(20)
+
+            Divider()
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    HStack(alignment: .center, spacing: 14) {
+                        Picker("Dépôt", selection: $selectedDepotID) {
+                            ForEach(DepotLineRoster.selectableSites) { site in
+                                Text("\(site.name) · \(site.availability.label)").tag(site.id)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .frame(maxWidth: 300, alignment: .leading)
+
+                        DatePicker("Date de service", selection: $serviceDate, displayedComponents: .date)
+                            .datePickerStyle(.field)
+                            .frame(maxWidth: 250)
+                    }
+
+                    if let selectedSite {
+                        Label(selectedSite.status, systemImage: selectedSite.availability.systemImage)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(selectedSite.isOperational ? Color.green : Color.orange)
+                        Text(selectedSite.evidenceNote)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        if let address = selectedSite.documentedAddress {
+                            Text("Adresse publiée : \(address)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        if let title = selectedSite.evidenceTitle, let url = selectedSite.sourceURL {
+                            Link(title, destination: url)
+                                .font(.caption)
+                        }
+                    }
+
+                    Label(selectedSite?.idfmBusContractID == nil
+                        ? "Lignes recensées pour ce site"
+                        : "Lignes et variantes du contrat", systemImage: "bus.fill")
+                        .font(.headline)
+                    Text("Le registre distingue les lignes présentes dans le réseau, les affectations de centre publiées et les services partagés ou partiels. Le niveau de preuve est indiqué ligne par ligne.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text("Le catalogue ne rattache une ligne au dépôt que lorsqu’une affirmation liée à ce site couvre la date choisie. Une période de validité inconnue reste à vérifier et ne suffit pas à confirmer un rattachement actuel.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    if isBordsDeMarneSite {
+                        Text("Référence active : 29 lignes (22 régulières et 7 Noctilien). N31 reste consultable comme conflit historique hors roster actif. Les preuves par COB sont datées : les lignes de Saint-Maur proviennent de l’annexe 2025–2026, et les observations de parc à Neuilly-Plaisance ne répartissent pas toutes les courses.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    } else if let contractID = selectedSite?.idfmBusContractID {
+                        Text("Le contrat DSP \(contractID) donne le périmètre des lignes. Il ne précise pas quelle ligne est exploitée depuis ce COB ; ces références restent visibles comme candidates jusqu’à preuve de répartition.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    } else {
+                        Text("Le GTFS régional contient des lignes, horaires et tracés. Aucune ligne n’est attribuée à ce site sans une preuve publique de rattachement au dépôt.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    LazyVStack(alignment: .leading, spacing: 10) {
+                        ForEach(candidateLines) { row in
+                            DepotLineCatalogCard(
+                                row: row,
+                                serviceDate: serviceDate,
+                                library: library,
+                                onShowTimetable: { presentedSheet = .timetable($0) },
+                                onPrepareAssignment: canPrepareCareerAssignment
+                                    ? { row, route in prepareCareerAssignment(for: row, route: route) }
+                                    : nil
+                            )
+                        }
+                    }
+
+                    if !contractScopeLines.isEmpty {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Label("Lignes du contrat · COB à confirmer", systemImage: "point.3.connected.trianglepath.dotted")
+                                .font(.headline)
+                            Text("Ce sont les lignes actives du lot IDFM associé au site. Le contrat ne permet pas de les répartir entre les dépôts ; les tracés, variantes, horaires et liens documentaires sont affichés comme références du lot.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                            ForEach(contractScopeLines) { row in
+                                DepotLineCatalogCard(
+                                    row: row,
+                                    serviceDate: serviceDate,
+                                    library: library,
+                                    onShowTimetable: { presentedSheet = .timetable($0) },
+                                    onPrepareAssignment: canPrepareCareerAssignment
+                                        ? { row, route in prepareCareerAssignment(for: row, route: route) }
+                                        : nil
+                                )
+                            }
+                        }
+                    }
+
+                    if candidateLines.isEmpty && contractScopeLines.isEmpty {
+                        ContentUnavailableView(
+                            "Aucune ligne reliée à ce site",
+                            systemImage: "bus",
+                            description: Text(isBordsDeMarneSite
+                                ? "Aucune affirmation conservée pour ce site ne couvre la date choisie."
+                                : "Le site est consultable, mais ses lignes ne sont pas encore rattachées dans le registre public de l’application.")
+                        )
+                    }
+
+                    if isBordsDeMarneSite && !unassignedLines.isEmpty {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Lignes sans COB établi à cette date")
+                            .font(.headline)
+                            ForEach(unassignedLines) { row in
+                                DepotLineCatalogCard(
+                                    row: row,
+                                    serviceDate: serviceDate,
+                                    library: library,
+                                    onShowTimetable: { presentedSheet = .timetable($0) },
+                                    onPrepareAssignment: nil
+                                )
+                            }
+                        }
+                    }
+
+                    Divider()
+
+                    VStack(alignment: .leading, spacing: 9) {
+                        Text("Synchroniser les données de ligne")
+                            .font(.headline)
+                        Text("Les liens de plans PDF et de fiches horaires viennent du catalogue IDFM. Importez le GTFS PRIM couvrant la date choisie pour afficher la grille théorique des courses, directions et arrêts.")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        Link(destination: DepotLineRoster.gtfsDatasetURL) {
+                            Label("Ouvrir l’offre théorique GTFS sur PRIM", systemImage: "arrow.up.right.square")
+                        }
+                        Text("Le jeu GTFS IDFM décrit les 30 prochains jours et est mis à jour trois fois par jour. Il est soumis à la Licence Mobilité et peut demander une connexion/clé PRIM.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        HStack {
+                            Button {
+                                library.downloadLatestLineReferences()
+                            } label: {
+                                if library.lineReferenceImportState.isImporting || library.isLoadingLineReferences {
+                                    ProgressView().controlSize(.small)
+                                } else {
+                                    Label("Référentiel IDFM", systemImage: "arrow.down.circle")
+                                }
+                            }
+                            .disabled(library.lineReferenceImportState.isImporting || library.isLoadingLineReferences)
+
+                            Button {
+                                library.downloadLatestLineDocuments()
+                            } label: {
+                                if library.lineDocumentImportState.isImporting || library.isLoadingLineDocuments {
+                                    ProgressView().controlSize(.small)
+                                } else {
+                                    Label("Plans et horaires", systemImage: "arrow.down.circle")
+                                }
+                            }
+                            .disabled(library.lineDocumentImportState.isImporting || library.isLoadingLineDocuments)
+
+                            Button {
+                                isGTFSImporterPresented = true
+                            } label: {
+                                Label("Choisir le ZIP GTFS…", systemImage: "archivebox")
+                            }
+                            .disabled(library.importState.isImporting)
+                        }
+
+                        Text("Référentiel : \(library.lineReferences.count) lignes · Documents : \(library.lineDocuments.count) liens · GTFS : \(library.catalog.activeVersion?.id ?? "aucune version")")
+                            .font(.caption.monospaced())
+                            .foregroundStyle(.secondary)
+
+                        if let message = library.lineReferencesError ?? library.lineDocumentsError ?? library.busRoutesError {
+                            Label(message, systemImage: "exclamationmark.triangle.fill")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+
+                        Link(destination: DepotLineRoster.contractEvidenceURL) {
+                            Label("Contrat IDFM · lignes et centres d’exploitation", systemImage: "doc.text")
+                        }
+                        Link(destination: DepotLineRoster.awardEvidenceURL) {
+                            Label("IDFM · périmètre et centres de la DSP 45", systemImage: "building.2")
+                        }
+                        Link(destination: DepotLineRoster.reorganizationURL) {
+                            Label("Source IDFM · réorganisation au 1er novembre 2026", systemImage: "calendar")
+                        }
+                        Link(destination: DepotLineRoster.wikipediaURL) {
+                            Label("Wikipédia · lignes et centres opérationnels publiés", systemImage: "link")
+                        }
+                        Link(destination: DepotLineRoster.tcInfosDepotURL(for: selectedDepotID)) {
+                            Label("TC Infos · parc du dépôt", systemImage: "bus")
+                        }
+                        Link(destination: DepotLineRoster.databusURL) {
+                            Label("DataBus / BusParisiens · données de parc", systemImage: "link")
+                        }
+                    }
+                    .padding(14)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(.quaternary, in: RoundedRectangle(cornerRadius: 12))
+                }
+                .padding(20)
+            }
+        }
+        .frame(minWidth: 720, minHeight: 640)
+        .fileImporter(isPresented: $isGTFSImporterPresented, allowedContentTypes: [.zip], allowsMultipleSelection: false) { result in
+            if case let .success(urls) = result, let url = urls.first {
+                library.importGTFS(from: url)
+            }
+        }
+        .sheet(item: $presentedSheet) { sheet in
+            switch sheet {
+            case .timetable(let route):
+                if let version = library.catalog.activeVersion {
+                    GTFSRouteTimetableGridView(
+                        library: library,
+                        route: route,
+                        version: version,
+                        documents: documents(for: route),
+                        initialServiceDate: serviceDate
+                    )
+                } else {
+                    ContentUnavailableView("GTFS absent", systemImage: "archivebox", description: Text("Importez une archive GTFS pour afficher une grille horaire par course et par arrêt."))
+                        .frame(minWidth: 600, minHeight: 260)
+                }
+            case .assignment(let prefill):
+                DepotAssignmentManagerView(
+                    library: library,
+                    scenario: scenario,
+                    depot: scenario.referenceDepots.first { $0.id == prefill.depotID },
+                    prefill: prefill
+                )
+                .frame(minWidth: 720, minHeight: 620)
+            }
+        }
+        .task {
+            await library.loadBusRoutes()
+            await library.loadActiveLineReferences()
+            await library.loadActiveLineDocuments()
+        }
+    }
+
+    private func documents(for route: GTFSRouteSummary) -> [NetworkLineDocument] {
+        library.documents(for: route)
+    }
+}
+
+private struct InspectorValue: View {
+    let title: String
+    let value: String
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 12)
+            Text(value)
+                .font(.caption.weight(.medium))
+                .multilineTextAlignment(.trailing)
+        }
+    }
+}
+
+private struct SourceRow: View {
+    let source: NetworkDataSource
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 9) {
+            Image(systemName: "arrow.down.circle")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.top, 2)
+
+            VStack(alignment: .leading, spacing: 3) {
+                if let destination = source.destination {
+                    Link(source.title, destination: destination)
+                        .font(.caption.weight(.medium))
+                        .lineLimit(2)
+                } else {
+                    Text(source.title)
+                        .font(.caption.weight(.medium))
+                        .lineLimit(2)
+                }
+                Text(source.purpose)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+
+            Spacer(minLength: 4)
+
+            Text(source.state.label)
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 4)
+                .background(.quaternary, in: Capsule())
+        }
+    }
+}
+
+private struct StatusLabel: View {
+    let text: String
+    let systemImage: String
+    let tint: Color
+
+    var body: some View {
+        Label(text, systemImage: systemImage)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(tint)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .background(tint.opacity(0.10), in: Capsule())
+            .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+struct RegionalDepotRegistryView: View {
+    @Environment(\.dismiss) private var dismiss
+    var showsCloseButton = true
+    var onSelectSiteID: ((String) -> Void)? = nil
+    @State private var searchText = ""
+
+    private var directorySites: [DepotLineRosterSite] {
+        DepotLineRoster.selectableSites.filter { site in
+            searchText.isEmpty
+                || site.name.localizedCaseInsensitiveContains(searchText)
+                || site.locality.localizedCaseInsensitiveContains(searchText)
+                || site.documentedAddress?.localizedCaseInsensitiveContains(searchText) == true
+        }
+    }
+
+    private var operationalSites: [DepotLineRosterSite] {
+        directorySites.filter { $0.availability == .operational }
+    }
+
+    private var unverifiedSites: [DepotLineRosterSite] {
+        directorySites.filter { $0.availability == .currentStatusUnverified }
+    }
+
+    private var plannedSites: [DepotLineRosterSite] {
+        directorySites.filter { $0.availability == .planned }
+    }
+
+    private var unclassifiedLabels: [DepotRegistryEntry] {
+        RegionalDepotRegistry.seedEntries.filter {
+            $0.kind == .unclassifiedLabel
+                && (searchText.isEmpty || $0.originalLabel.localizedCaseInsensitiveContains(searchText))
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    Text("Choisis un dépôt pour ouvrir sa carte et son réseau. Le catalogue reprend les centres du répertoire public des COB stratégiques, complétés par les sites cités dans les sources IDFM. Les vraies lignes et leurs horaires sont chargés par contrat ; quand les documents ne disent pas quel dépôt exploite une ligne, elle reste marquée « affectation au dépôt à confirmer ».")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .listRowBackground(Color.clear)
+                }
+
+                if !operationalSites.isEmpty {
+                    Section("Dépôts recensés en activité · \(operationalSites.count)") {
+                        ForEach(operationalSites) { site in
+                            directorySiteRow(site)
+                        }
+                    }
+                }
+
+                if !unverifiedSites.isEmpty {
+                    Section("Dépôts à vérifier · \(unverifiedSites.count)") {
+                        ForEach(unverifiedSites) { site in
+                            directorySiteRow(site)
+                        }
+                    }
+                }
+
+                if !plannedSites.isEmpty {
+                    Section("Projets · non jouables · \(plannedSites.count)") {
+                        ForEach(plannedSites) { site in
+                            directorySiteRow(site)
+                        }
+                    }
+                }
+
+                if !unclassifiedLabels.isEmpty {
+                    Section("Libellés conservés · pas encore identifiés comme dépôts · \(unclassifiedLabels.count)") {
+                        ForEach(unclassifiedLabels) { entry in
+                            registryRow(entry)
+                        }
+                    }
+                }
+
+                if directorySites.isEmpty && unclassifiedLabels.isEmpty {
+                    ContentUnavailableView.search(text: searchText)
+                }
+            }
+            .searchable(text: $searchText, prompt: "Rechercher un dépôt ou une ville")
+            .navigationTitle(onSelectSiteID == nil ? "Référentiel régional des dépôts" : "Choisir un dépôt")
+            .toolbar {
+                if showsCloseButton {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Fermer") { dismiss() }
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func directorySiteRow(_ site: DepotLineRosterSite) -> some View {
+        if let onSelectSiteID {
+            Button {
+                onSelectSiteID(site.id)
+                dismiss()
+            } label: {
+                directorySiteContents(site, isSelectable: true)
+            }
+            .buttonStyle(.plain)
+        } else {
+            directorySiteContents(site, isSelectable: false)
+        }
+    }
+
+    private func directorySiteContents(_ site: DepotLineRosterSite, isSelectable: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Text(site.name)
+                    .font(.headline)
+                Spacer()
+                Text(site.availability.label)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(site.availability == .operational ? Color.green : Color.orange)
+                if isSelectable {
+                    Image(systemName: "arrow.right.circle.fill")
+                        .foregroundStyle(.tint)
+                }
+            }
+            Text("\(site.locality) · \(site.status)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            if let address = site.documentedAddress {
+                Text("Adresse publiée : \(address)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Text(site.evidenceNote)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            if let evidenceTitle = site.evidenceTitle {
+                Text(evidenceTitle)
+                    .font(.caption2)
+                    .foregroundStyle(.tint)
+                    .lineLimit(1)
+            }
+        }
+        .padding(.vertical, 4)
+        .contentShape(Rectangle())
+    }
+
+    private func registryRow(_ entry: DepotRegistryEntry) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(entry.originalLabel)
+                    .font(.headline)
+                Spacer()
+                Text(entry.kind == .confirmedAlias ? "COB du scénario" : entry.kind == .datedAddressReference ? "Référence 2022" : "À vérifier")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(entry.kind == .confirmedAlias ? Color.green : Color.orange)
+            }
+            Text(entry.kind.explanation)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            if let linkedDepotID = entry.linkedDepotID,
+               let depot = ScenarioDefinition.bordsDeMarne.referenceDepots.first(where: { $0.id == linkedDepotID }) {
+                Text("Centre identifié : \(depot.name) · \(depot.address)")
+                    .font(.caption)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if let documentedAddress = entry.documentedAddress {
+                Text("Adresse publiée : \(documentedAddress)")
+                    .font(.caption)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if let evidenceTitle = entry.evidenceTitle, let evidenceURL = entry.evidenceURL {
+                Link(evidenceTitle, destination: evidenceURL)
+                    .font(.caption)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+struct DepotDirectoryWorkspaceView: View {
+    @ObservedObject var library: NetworkLibrary
+    /// The depot currently selected in the directory; it can differ from the active career depot.
+    let selectedDepotID: String
+    let careerDepotID: String?
+    let managedDepotIDs: Set<String>
+    let selectionLocked: Bool
+    let serviceDate: Date
+    let operatedRouteIDsForDepot: (String) -> Set<String>
+    let onSelect: (String) -> Void
+    let onOpen: (String) -> Void
+    let onActivate: (String) -> Void
+
+    @State private var searchText = ""
+    @State private var browseSelectionID: String?
+
+    private var directorySelectedDepotID: String {
+        selectionLocked ? (browseSelectionID ?? selectedDepotID) : selectedDepotID
+    }
+
+    private var sites: [DepotLineRosterSite] {
+        DepotLineRoster.selectableSites
+            .filter { site in
+                searchText.isEmpty
+                    || site.name.localizedCaseInsensitiveContains(searchText)
+                    || site.locality.localizedCaseInsensitiveContains(searchText)
+                    || site.documentedAddress?.localizedCaseInsensitiveContains(searchText) == true
+            }
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
+
+    private var activeSites: [DepotLineRosterSite] { sites.filter { $0.availability == .operational } }
+    private var unverifiedSites: [DepotLineRosterSite] { sites.filter { $0.availability == .currentStatusUnverified } }
+    private var plannedSites: [DepotLineRosterSite] { sites.filter { $0.availability == .planned } }
+
+    private var selectedSite: DepotLineRosterSite? {
+        DepotLineRoster.selectableSites.first { $0.id == directorySelectedDepotID }
+    }
+
+    private var selectedSiteRows: [DepotLineRosterRow] {
+        guard let selectedSite else { return [] }
+        let documentedRows = DepotLineRoster.rows.filter { $0.isVisible(atSite: directorySelectedDepotID, on: serviceDate) }
+        let contractRows = DepotContractLineScope.candidateRows(
+            for: selectedSite,
+            references: library.lineReferences,
+            serviceDate: serviceDate,
+            excluding: documentedRows
+        )
+        return documentedRows + contractRows
+    }
+
+    private var selectedSiteLineCoverage: DepotLineCoverage {
+        library.depotLineCoverage(
+            depotID: directorySelectedDepotID,
+            serviceDate: serviceDate,
+            operatedRouteIDs: operatedRouteIDsForDepot(directorySelectedDepotID)
+        )
+    }
+
+    var body: some View {
+        HStack(spacing: 0) {
+            directoryList
+                .frame(minWidth: 320, idealWidth: 390, maxWidth: 480)
+            Divider()
+            selectedDepotDetail
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+        .background(Color(nsColor: .windowBackgroundColor))
+        .task {
+            await library.loadBusRoutes()
+            await library.loadActiveRouteGeometries()
+            await library.loadActiveLineReferences()
+            await library.loadActiveLineDocuments()
+        }
+    }
+
+    private var directoryList: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Tous les dépôts")
+                    .font(.title2.weight(.semibold))
+                Text("\(DepotLineRoster.selectableSites.count) sites recensés en Île-de-France")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 16)
+            .padding(.bottom, 10)
+
+            TextField("Nom du dépôt ou de la ville", text: $searchText)
+                .textFieldStyle(.roundedBorder)
+                .padding(.horizontal, 12)
+                .padding(.bottom, 9)
+
+            Divider()
+            List {
+                if !activeSites.isEmpty {
+                    Section("En activité selon les sources · \(activeSites.count)") {
+                        ForEach(activeSites) { site in siteRow(site) }
+                    }
+                }
+                if !unverifiedSites.isEmpty {
+                    Section("Statut actuel à vérifier · \(unverifiedSites.count)") {
+                        ForEach(unverifiedSites) { site in siteRow(site) }
+                    }
+                }
+                if !plannedSites.isEmpty {
+                    Section("Projets · \(plannedSites.count)") {
+                        ForEach(plannedSites) { site in siteRow(site) }
+                    }
+                }
+                if sites.isEmpty {
+                    ContentUnavailableView.search(text: searchText)
+                }
+            }
+            .listStyle(.inset(alternatesRowBackgrounds: false))
+        }
+        .background(Color(nsColor: .controlBackgroundColor))
+    }
+
+    @ViewBuilder
+    private func siteRow(_ site: DepotLineRosterSite) -> some View {
+        let isSelected = directorySelectedDepotID == site.id
+        Button {
+            if selectionLocked {
+                browseSelectionID = site.id
+            } else {
+                onSelect(site.id)
+            }
+        } label: {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: site.availability.systemImage)
+                    .foregroundStyle(site.availability == .operational ? Color.green : Color.orange)
+                    .frame(width: 19)
+                    .padding(.top, 2)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(site.name)
+                        .font(.subheadline.weight(.semibold))
+                    Text(site.locality)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    if let contractID = site.idfmBusContractID {
+                        Text("Contrat DSP \(contractID)")
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(.tint)
+                    } else {
+                        Text(site.availability == .planned ? "Projet de dépôt" : "Lignes à établir")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Spacer(minLength: 4)
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.tint)
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(selectionLocked ? "Consulter \(site.name) sans changer la carrière en cours." : "Sélectionner \(site.name)")
+    }
+
+    private var selectedDepotDetail: some View {
+        ScrollView {
+            if let selectedSite {
+                VStack(alignment: .leading, spacing: 18) {
+                    HStack(alignment: .top, spacing: 14) {
+                        Image(systemName: "building.2.fill")
+                            .font(.system(size: 22, weight: .semibold))
+                            .foregroundStyle(.tint)
+                            .frame(width: 52, height: 52)
+                            .background(Color.accentColor.opacity(0.11), in: RoundedRectangle(cornerRadius: 14))
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(selectedSite.name)
+                                .font(.title2.weight(.semibold))
+                            Text(selectedSite.locality)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer(minLength: 6)
+                    }
+
+                    Label(selectedSite.availability.label, systemImage: selectedSite.availability.systemImage)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(selectedSite.availability == .operational ? Color.green : Color.orange)
+
+                    if let address = selectedSite.documentedAddress {
+                        Label(address, systemImage: "mappin.and.ellipse")
+                            .font(.callout)
+                    }
+                    Text(selectedSite.evidenceNote)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if let evidenceTitle = selectedSite.evidenceTitle, let sourceURL = selectedSite.sourceURL {
+                        Link(evidenceTitle, destination: sourceURL)
+                            .font(.callout)
+                    }
+
+                    Divider()
+                    HStack(alignment: .firstTextBaseline) {
+                        Text("Réseau associé")
+                            .font(.headline)
+                        Spacer()
+                        Text("\(selectedSiteLineCoverage.uniqueLineCount) lignes uniques · \(selectedSiteLineCoverage.routeVariantCount) variantes")
+                            .font(.caption.weight(.semibold).monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
+                    if selectedSiteLineCoverage.uniqueLineCount > 0 {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 145), alignment: .leading)], alignment: .leading, spacing: 8) {
+                            depotCoverageMetric("Lignes GTFS", value: selectedSiteLineCoverage.gtfsCoverage, symbol: "clock.arrow.circlepath")
+                            depotCoverageMetric("Tracés officiels", value: selectedSiteLineCoverage.traceCoverage, symbol: "point.topleft.down.to.point.bottomright.curvepath")
+                            depotCoverageMetric("Plans PDF", value: selectedSiteLineCoverage.planCoverage, symbol: "map")
+                            depotCoverageMetric("Fiches horaires", value: selectedSiteLineCoverage.timetableCoverage, symbol: "doc.text")
+                            depotCoverageMetric("Références ambiguës / absentes", value: "\(selectedSiteLineCoverage.ambiguousReferenceCount) / \(selectedSiteLineCoverage.missingReferenceCount)", symbol: "questionmark.circle")
+                            depotCoverageMetric("Sans route GTFS", value: "\(selectedSiteLineCoverage.missingGTFSCount)", symbol: "bus")
+                            depotCoverageMetric("COB non confirmé", value: "\(selectedSiteLineCoverage.unconfirmedDepotEvidenceCount)/\(selectedSiteLineCoverage.uniqueLineCount)", symbol: "building.2")
+                        }
+                    }
+                    if DepotLineRoster.bordsDeMarneManifestSiteIDs.contains(selectedSite.id) {
+                        Label(
+                            "\(DepotLineRosterManifestCatalog.state.summary) · \(DepotLineRosterManifestCatalog.entries(for: serviceDate).count) actives à cette date",
+                            systemImage: DepotLineRosterManifestCatalog.state.isValid ? "checkmark.seal" : "exclamationmark.triangle"
+                        )
+                        .font(.caption)
+                        .foregroundStyle(DepotLineRosterManifestCatalog.state.isValid ? Color.secondary : Color.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                    }
+                    if let contractID = selectedSite.idfmBusContractID {
+                        Text("Lignes réelles du contrat DSP \(contractID). Quand IDFM ne ventile pas les lignes entre les centres du contrat, elles restent identifiées comme candidates.")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    } else if selectedSiteRows.isEmpty {
+                        Text("Le répertoire confirme ce site, mais les sources publiques chargées ne donnent pas encore de lignes rattachées à ce dépôt.")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    if let rosterNote = DepotContractLineScope.publicRosterNote(for: selectedSite, serviceDate: serviceDate) {
+                        Label(rosterNote, systemImage: "info.circle")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    HStack(spacing: 10) {
+                        Button {
+                            onOpen(selectedSite.id)
+                        } label: {
+                            Label(selectedSiteRows.isEmpty ? "Consulter ce site" : "Afficher ses lignes", systemImage: "arrow.right")
+                        }
+                        .buttonStyle(.borderedProminent)
+
+                        if selectionLocked, selectedSite.hasPlayableContractScope {
+                            Button {
+                                onActivate(selectedSite.id)
+                            } label: {
+                                Label(
+                                    managedDepotIDs.contains(selectedSite.id)
+                                        ? (selectedSite.id == careerDepotID ? "Dépôt actif" : "Changer pour ce dépôt")
+                                        : "Ajouter à l’entreprise",
+                                    systemImage: managedDepotIDs.contains(selectedSite.id)
+                                        ? (selectedSite.id == careerDepotID ? "checkmark.circle.fill" : "arrow.triangle.swap")
+                                        : "plus.circle"
+                                )
+                            }
+                            .buttonStyle(.bordered)
+                            .disabled(managedDepotIDs.contains(selectedSite.id) && selectedSite.id == careerDepotID)
+                            .help(managedDepotIDs.contains(selectedSite.id)
+                                ? "Basculer la carte et le contexte du parc vers ce dépôt"
+                                : "Ajouter ce dépôt régional à l’entreprise et charger ses lignes GTFS")
+                        }
+
+                        if selectedSite.hasPlayableContractScope {
+                            Label(
+                                selectedSite.availability == .operational
+                                    ? "Carrière sur cette DSP"
+                                    : "Carrière possible · statut du site à vérifier",
+                                systemImage: selectedSite.availability == .operational ? "building.2.crop.circle" : "questionmark.circle"
+                            )
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(selectedSite.availability == .operational ? .green : .orange)
+                        } else if selectedSite.availability == .planned {
+                            Label("Non jouable actuellement", systemImage: "calendar.badge.clock")
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(.orange)
+                        } else {
+                            Label("Consultation · lignes à documenter", systemImage: "eye")
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    if selectionLocked {
+                        Label("La partie gère les dépôts rattachés à son contrat. Les autres sites restent consultables depuis le répertoire.", systemImage: "building.2")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(26)
+                .frame(maxWidth: 760, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+            }
+        }
+        .task(id: selectedDepotID) {
+            await library.loadActiveLineReferences()
+        }
+    }
+
+    private func depotCoverageMetric(_ title: String, value: String, symbol: String) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Label(title, systemImage: symbol)
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            Text(value)
+                .font(.subheadline.weight(.semibold).monospacedDigit())
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(10)
+        .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 9))
+    }
+}
+
+private struct DepotLineRosterPreview: PreviewProvider {
+    static var previews: some View {
+        DepotLineRosterView(
+            initialDepotID: "saint-maur",
+            scenario: .bordsDeMarne,
+            library: NetworkLibrary(),
+            initialServiceDate: .now
+        )
+        .frame(width: 1120, height: 850)
+    }
+}
