@@ -17,6 +17,7 @@ enum SimulationEngineError: LocalizedError {
     case unknownMachinist
     case machinistNotQualified
     case machinistUnavailable
+    case invalidMachinistRelief
     case invalidMachinistAbsence
     case machinistAbsenceConflictsWithService
     case machinistAbsenceConflictsWithExistingAbsence
@@ -93,6 +94,8 @@ enum SimulationEngineError: LocalizedError {
             "La qualification du machiniste ne couvre pas la classe de ce bus."
         case .machinistUnavailable:
             "Ce machiniste n’est pas disponible : chevauchement, repos, absence ou limites du service."
+        case .invalidMachinistRelief:
+            "La relève doit avoir lieu pendant une course active, lorsque le bus est arrêté à un arrêt."
         case .invalidMachinistAbsence:
             "L’absence doit commencer à l’heure simulée actuelle ou plus tard et se terminer après son début."
         case .machinistAbsenceConflictsWithService:
@@ -649,6 +652,7 @@ enum SimulationEventKind: Codable, Hashable, Sendable {
     case machinistTrainingCompleted(trainingID: String)
     case machinistBreakStarted(breakID: String)
     case machinistBreakCompleted(breakID: String)
+    case machinistRelieved(tripID: String, vehicleID: String, routeID: String, outgoingMachinistName: String, incomingMachinistName: String, stopName: String)
     case stopClosureStarted(SimulatedStopClosure)
     case stopClosureEnded(closureID: String, stopID: String, stopName: String)
     case routeDetourScheduled(RouteDetourEventDetails, startsAt: Date)
@@ -747,6 +751,8 @@ struct SimulationEvent: Codable, Hashable, Identifiable, Sendable {
             "Début de la pause machiniste"
         case .machinistBreakCompleted:
             "Fin de la pause machiniste"
+        case let .machinistRelieved(_, _, routeID, outgoingName, incomingName, stopName):
+            "Relève sur la ligne \(routeID) à \(stopName) · \(outgoingName) cède la course à \(incomingName)"
         case let .stopClosureStarted(closure):
             closure.startedEventSummary
         case let .stopClosureEnded(_, _, stopName):
@@ -2110,6 +2116,137 @@ final class SimulationEngine: ObservableObject {
                     ) != nil
             }
             .sorted { $0.employeeNumber < $1.employeeNumber }
+    }
+
+    func availableMachinistReliefCandidates(forVehicleID vehicleID: String) -> [Machinist] {
+        guard let session,
+              session.incidentAwaitingRepairResponse == nil,
+              let bus = session.ownedBuses?.first(where: { $0.id == vehicleID }),
+              bus.status == .inService,
+              bus.activeMovementLeg == nil,
+              bus.currentStopID != nil,
+              let tripID = bus.currentTripID,
+              let assignment = session.machinistServiceAssignments?.last(where: {
+                  $0.vehicleID == vehicleID
+                      && $0.tripID == tripID
+                      && $0.actualEndAt == nil
+                      && $0.routeID != "RETOUR-DEPOT"
+              }),
+              assignment.plannedStartAt <= session.simulatedAt,
+              session.simulatedAt < assignment.plannedEndAt else { return [] }
+        return availableMachinists(
+            forVehicleID: vehicleID,
+            serviceStartAt: session.simulatedAt,
+            serviceEndAt: assignment.plannedEndAt
+        ).filter { $0.id != assignment.machinistID }
+    }
+
+    func relieveMachinist(vehicleID: String, incomingMachinistID: String) throws {
+        if isRunning { advanceFromRealtime() }
+        guard var activeSession = session else { throw SimulationEngineError.marketUnavailable }
+        guard activeSession.incidentAwaitingRepairResponse == nil else {
+            throw SimulationEngineError.operationBlockedByIncident
+        }
+        guard
+              let bus = activeSession.ownedBuses?.first(where: { $0.id == vehicleID }),
+              bus.status == .inService,
+              bus.activeMovementLeg == nil,
+              bus.currentStopID != nil,
+              let stopName = bus.currentStopName,
+              let tripID = bus.currentTripID,
+              let assignment = activeSession.machinistServiceAssignments?.last(where: {
+                  $0.vehicleID == vehicleID
+                      && $0.tripID == tripID
+                      && $0.actualEndAt == nil
+                      && $0.routeID != "RETOUR-DEPOT"
+              }),
+              assignment.plannedStartAt <= activeSession.simulatedAt,
+              activeSession.simulatedAt < assignment.plannedEndAt else {
+            throw SimulationEngineError.invalidMachinistRelief
+        }
+        guard let incomingMachinist = activeSession.machinists?.first(where: { $0.id == incomingMachinistID }) else {
+            throw SimulationEngineError.unknownMachinist
+        }
+        guard incomingMachinistID != assignment.machinistID,
+              (incomingMachinist.depotID ?? activeSession.depotID) == bus.depotID else {
+            throw SimulationEngineError.machinistUnavailable
+        }
+        let vehicleClass = VehicleMarketCatalog.model(id: bus.modelID)?.vehicleClass ?? .standard
+        guard incomingMachinist.qualification.canDrive(vehicleClass) else {
+            throw SimulationEngineError.machinistNotQualified
+        }
+        let now = activeSession.simulatedAt
+        let assignments = activeSession.machinistServiceAssignments ?? []
+        let dutyBlocks = activeSession.machinistDutyBlocks ?? []
+        guard let blockPlan = Self.machinistDutyBlockAssignmentPlan(
+            incomingMachinistID,
+            from: now,
+            to: assignment.plannedEndAt,
+            assignments: assignments,
+            dutyBlocks: dutyBlocks,
+            breaks: activeSession.machinistBreaks ?? [],
+            absences: activeSession.machinistAbsences ?? [],
+            trainings: activeSession.machinistTrainings ?? []
+        ) else {
+            throw SimulationEngineError.machinistUnavailable
+        }
+
+        let outgoingName = activeSession.machinists?.first(where: { $0.id == assignment.machinistID })?.displayName
+            ?? "Machiniste"
+        let reliefEvent = SimulationEvent(
+            sequence: activeSession.nextEventSequence,
+            simulatedAt: now,
+            kind: .machinistRelieved(
+                tripID: tripID,
+                vehicleID: vehicleID,
+                routeID: assignment.routeID,
+                outgoingMachinistName: outgoingName,
+                incomingMachinistName: incomingMachinist.displayName,
+                stopName: stopName
+            )
+        )
+        Self.finalizeMachinistService(for: reliefEvent, in: &activeSession)
+        activeSession.eventHistory.append(reliefEvent)
+        activeSession.nextEventSequence &+= 1
+
+        var updatedDutyBlocks = activeSession.machinistDutyBlocks ?? []
+        let incomingDutyBlockID: String
+        if let joiningID = blockPlan.joiningDutyBlockID,
+           let blockIndex = updatedDutyBlocks.firstIndex(where: { $0.id == joiningID }) {
+            incomingDutyBlockID = joiningID
+            updatedDutyBlocks[blockIndex].plannedStartAt = min(
+                updatedDutyBlocks[blockIndex].plannedStartAt,
+                now
+            )
+            updatedDutyBlocks[blockIndex].plannedEndAt = max(
+                updatedDutyBlocks[blockIndex].plannedEndAt,
+                assignment.plannedEndAt
+            )
+        } else {
+            incomingDutyBlockID = UUID().uuidString
+            updatedDutyBlocks.append(MachinistDutyBlock(
+                id: incomingDutyBlockID,
+                machinistID: incomingMachinistID,
+                plannedStartAt: now,
+                plannedEndAt: assignment.plannedEndAt
+            ))
+        }
+        activeSession.machinistDutyBlocks = updatedDutyBlocks
+        var updatedAssignments = activeSession.machinistServiceAssignments ?? []
+        updatedAssignments.append(MachinistServiceAssignment(
+            id: "relief-\(UUID().uuidString)",
+            machinistID: incomingMachinistID,
+            dutyBlockID: incomingDutyBlockID,
+            vehicleID: vehicleID,
+            tripID: tripID,
+            routeID: assignment.routeID,
+            serviceDateKey: assignment.serviceDateKey,
+            plannedStartAt: now,
+            plannedEndAt: assignment.plannedEndAt
+        ))
+        activeSession.machinistServiceAssignments = updatedAssignments
+        session = activeSession
+        save()
     }
 
     func availableMachinistBreakWindows(for machinistID: String) -> [MachinistBreakWindow] {
@@ -5355,6 +5492,9 @@ final class SimulationEngine: ObservableObject {
             guard let incident = session.vehicleIncidents?.first(where: { $0.id == incidentID }) else { return }
             tripID = incident.tripID
             vehicleID = incident.vehicleID
+        case let .machinistRelieved(relievedTripID, relievedVehicleID, _, _, _, _):
+            tripID = relievedTripID
+            vehicleID = relievedVehicleID
         default:
             return
         }
@@ -5481,6 +5621,8 @@ final class SimulationEngine: ObservableObject {
         let routeDescription: String
         if case .vehicleBreakdown = event.kind {
             routeDescription = "ligne \(assignment.routeID) · course interrompue par panne"
+        } else if case let .machinistRelieved(_, _, _, _, _, stopName) = event.kind {
+            routeDescription = "ligne \(assignment.routeID) · relève à \(stopName)"
         } else {
             routeDescription = "ligne \(assignment.routeID)"
         }

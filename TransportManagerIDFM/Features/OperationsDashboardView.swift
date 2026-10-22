@@ -5966,6 +5966,7 @@ private struct MachinistManagementView: View {
     @State private var recruitmentError: String?
     @State private var trainingError: String?
     @State private var breakError: String?
+    @State private var reliefError: String?
 
     private var session: SimulationSession? { simulation.session }
     private var machinists: [Machinist] {
@@ -6147,7 +6148,7 @@ private struct MachinistManagementView: View {
                     .padding(15)
                     .background(.background, in: RoundedRectangle(cornerRadius: 14))
 
-                    Text("Plusieurs courses peuvent former un même service machiniste si le battement ne dépasse pas 2 h. Un bloc ne dépasse pas 10 h et deux blocs distincts sont séparés par 11 h de repos minimum. Ces seuils et la pause non rémunérée de 30 min sont des règles de jeu, pas une vérification réglementaire. La pause doit tenir entre deux courses planifiées du même bloc ; son temps est déduit du coût horaire du bloc. Les absences sont typées et leur rémunération estimée est inscrite à leur fin. Les relèves, repos avancés et salaires mensuels restent à intégrer.")
+                    Text("Plusieurs courses peuvent former un même service machiniste si le battement ne dépasse pas 2 h. Un bloc ne dépasse pas 10 h et deux blocs distincts sont séparés par 11 h de repos minimum. Ces seuils et la pause non rémunérée de 30 min sont des règles de jeu, pas une vérification réglementaire. La pause doit tenir entre deux courses planifiées du même bloc ; son temps est déduit du coût horaire du bloc. Une relève en cours de course peut être effectuée à l’arrêt, avec qualification, disponibilité et repos vérifiés ; la rémunération suit les règles de jeu du bloc du machiniste. Les absences sont typées et leur rémunération estimée est inscrite à leur fin. Les relèves planifiées à l’avance, le repos avancé et les salaires mensuels restent à intégrer.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -6230,6 +6231,14 @@ private struct MachinistManagementView: View {
             } message: {
                 Text(breakError ?? "Une erreur est survenue.")
             }
+            .alert("Relève impossible", isPresented: Binding(
+                get: { reliefError != nil },
+                set: { if !$0 { reliefError = nil } }
+            )) {
+                Button("OK", role: .cancel) { reliefError = nil }
+            } message: {
+                Text(reliefError ?? "Une erreur est survenue.")
+            }
         }
     }
 
@@ -6257,6 +6266,20 @@ private struct MachinistManagementView: View {
             })
         } != nil
         let now = session?.simulatedAt ?? .distantPast
+        let canOfferRelief = assignment.map { currentAssignment in
+            session?.ownedBuses?.contains(where: { bus in
+                bus.id == currentAssignment.vehicleID
+                    && bus.currentTripID == currentAssignment.tripID
+                    && bus.status == .inService
+                    && bus.activeMovementLeg == nil
+                    && bus.currentStopID != nil
+                    && currentAssignment.plannedStartAt <= now
+                    && now < currentAssignment.plannedEndAt
+            }) == true
+        } ?? false
+        let reliefCandidates = canOfferRelief
+            ? simulation.availableMachinistReliefCandidates(forVehicleID: assignment?.vehicleID ?? "")
+            : []
         let absence = activeOrUpcomingAbsences.first(where: { $0.machinistID == machinist.id })
         let training = (session?.machinistTrainings ?? []).first(where: {
             $0.machinistID == machinist.id && $0.isPending
@@ -6338,6 +6361,25 @@ private struct MachinistManagementView: View {
                 Label("Disponible", systemImage: "checkmark.circle")
                     .font(.caption.weight(.medium))
                     .foregroundStyle(.green)
+            }
+            if canOfferRelief, let assignment {
+                Menu {
+                    if reliefCandidates.isEmpty {
+                        Text("Aucun machiniste qualifié et disponible pour la fin de cette course.")
+                    } else {
+                        ForEach(reliefCandidates) { candidate in
+                            Button(candidate.displayName) {
+                                relieve(vehicleID: assignment.vehicleID, with: candidate.id)
+                            }
+                        }
+                    }
+                } label: {
+                    Image(systemName: "person.2")
+                }
+                .buttonStyle(.borderless)
+                .disabled(reliefCandidates.isEmpty)
+                .help("Organiser la relève à l’arrêt actuel")
+                .accessibilityLabel("Organiser la relève de \(machinist.displayName) à l’arrêt actuel")
             }
             if machinist.qualification == .standard && training == nil {
                 Button {
@@ -6481,6 +6523,17 @@ private struct MachinistManagementView: View {
         } catch {
             recruitmentError = error.localizedDescription
             pendingQualification = nil
+        }
+    }
+
+    private func relieve(vehicleID: String, with incomingMachinistID: String) {
+        do {
+            try simulation.relieveMachinist(
+                vehicleID: vehicleID,
+                incomingMachinistID: incomingMachinistID
+            )
+        } catch {
+            reliefError = error.localizedDescription
         }
     }
 
