@@ -4989,6 +4989,12 @@ private struct VehicleMarketView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
+                    Text("Contexte régional publié par IDFM : la part variable de la rémunération liée à la qualité de service atteint 10 % du chiffre d’affaires, contre 1 % auparavant. Cette publication ne donne pas le barème en euros ni les modalités propres à la DSP 45 ; elle n’entre pas dans ce calcul.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Link("IDFM · rémunération variable liée à la qualité · 27 mai 2026", destination: URL(string: "https://presse.iledefrance-mobilites.fr/qualite-de-service-des-bus-en-ile-de-france-une-progression-continue-au-benefice-des-voyageurs/?lang=fr")!)
+                        .font(.caption)
 
                     HStack {
                         Text("OFFRES DISPONIBLES")
