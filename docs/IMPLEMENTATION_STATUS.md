@@ -51,6 +51,7 @@ Construire le jeu macOS natif de gestion des bus IDFM défini dans [le cahier de
 - Chaque correction conserve les identifiants de l’ancien et du nouveau machiniste, l’heure simulée et un motif obligatoire. Les courses, le bloc, ses pauses et l’attribution de la fiche de paie sont corrigés. Le nombre d’heures, le montant de paie, les écritures, les factures et les règlements déjà enregistrés restent inchangés ; le coût n’est pas recalculé au taux du nouveau machiniste.
 - Cette action corrige l’attribution d’un bloc entier, pas une course isolée ni les horaires de courses déjà exécutées. La valeur historique est visible dans Personnel et le détail de paie ; cette fonction ne représente pas une procédure de correction de paie réelle.
 - Validation du 22 octobre vers 23:14 Europe/Paris : `xcodebuild -quiet -project TransportManagerIDFM.xcodeproj -scheme TransportManagerIDFM -configuration Debug -sdk macosx -destination 'platform=macOS,arch=x86_64' -derivedDataPath /private/tmp/TransitCityMachinistCorrectionBuild CODE_SIGNING_ALLOWED=NO build` — code de retour 0. `git diff --check` réussit. Les avertissements CoreSimulator n’affectent pas la cible macOS. Aucun test automatisé ni lancement de l’application n’a été effectué.
+- Publication sur `main` le 22 octobre après vérification de la tête distante : commit [`775bd693`](https://github.com/AxellMP4/Transport-Manager-IDFM/commit/775bd693470e25811b8572ba800746db13d71c47), arbre `e0a440b90492d4d057322b650f22fe9750a8d39f`.
 
 ## Prolongement d’un bloc machiniste clôturé — 22 octobre 2026
 
