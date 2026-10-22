@@ -8,8 +8,8 @@ Construire le jeu macOS natif de gestion des bus IDFM défini dans [le cahier de
 
 - L’archive GTFS source fait 149 753 099 octets. Ses octets sont répartis en 18 fragments contigus d’au plus 8 388 608 octets sous `docs/data/gtfs/`; Xcode les embarque comme ressources et l’API GitHub peut les publier sans dépasser la taille de requête.
 - Au premier lancement sans version GTFS active, `NetworkLibrary` réassemble les morceaux en flux dans le dossier temporaire, puis importe l’archive originale. Aucun champ GTFS ni horaire n’est transformé.
-- Le ZIP source reste présent dans l’espace local mais est ignoré par Git; les 18 fragments reconstituent son SHA-256 documenté ci-dessous. Le commit local est prêt; la publication par le connecteur GitHub est en cours, car aucune authentification CLI n’est configurée.
-- Validation du 22 octobre à 21:12 : `xcodebuild -project TransportManagerIDFM.xcodeproj -scheme TransportManagerIDFM -configuration Debug -sdk macosx -derivedDataPath /private/tmp/TransitCitySplitGTFSBuild CODE_SIGNING_ALLOWED=NO build` réussit pour `x86_64` avec les 18 ressources GTFS embarquées. Xcode signale l’indisponibilité de CoreSimulator et ignore l’extraction App Intents faute de dépendance; aucune erreur de compilation. Aucun test automatisé ni lancement de l’app n’a été effectué.
+- Le ZIP source reste présent dans l’espace local mais est ignoré par Git; les 18 fragments reconstituent son SHA-256 documenté ci-dessous. L’arbre complet de 111 fichiers (190 921 180 octets) est publié sur `main`, commit [`8ecf0efa`](https://github.com/AxellMP4/Transport-Manager-IDFM/commit/8ecf0efa98a1018c928089cc0f3739cc7be3250f), arbre Git `40687af0`. L’API GitHub a été utilisée car le client Git local ne dispose pas d’identifiants CLI.
+- Validation du 22 octobre à 21:12 : `xcodebuild -project TransportManagerIDFM.xcodeproj -scheme TransportManagerIDFM -configuration Debug -sdk macosx CODE_SIGNING_ALLOWED=NO build` réussit pour `x86_64` avec les 18 ressources GTFS embarquées. Xcode signale l’indisponibilité de CoreSimulator et ignore l’extraction App Intents faute de dépendance; aucune erreur de compilation. Aucun test automatisé ni lancement de l’app n’a été effectué.
 
 ## Remisage historique partiel de la ligne 113 à Bussy — 21 octobre 2026
 
@@ -92,7 +92,7 @@ Construire le jeu macOS natif de gestion des bus IDFM défini dans [le cahier de
 
 ## Dernière validation technique — 21 octobre 2026, 01:59
 
-- Après la règle de redirection des voyageurs lors des fermetures d’arrêt, les sources du domaine et les vues concernées passent `swiftc -frontend -parse`; le build Debug macOS ciblé `x86_64` réussit. Xcode a affiché des avertissements liés aux services de simulateur et à App Intents, sans échec du build. L’application compilée est dans `/private/tmp/TransitCityBusArtworkDerivedData/Build/Products/Debug/TransportManagerIDFM.app`.
+- Après la règle de redirection des voyageurs lors des fermetures d’arrêt, les sources du domaine et les vues concernées passent `swiftc -frontend -parse`; le build Debug macOS ciblé `x86_64` réussit. Xcode a affiché des avertissements liés aux services de simulateur et à App Intents, sans échec du build.
 - L’application n’a pas été lancée et aucun test automatisé n’a été exécuté.
 
 ## Batterie et recharge électrique — 21 octobre 2026
@@ -312,4 +312,4 @@ Le dépôt contient la cible Xcode, les sources Swift, les ressources IDFM, les 
 
 Le chargeur du manifeste Bords de Marne conserve désormais les champs de preuve secondaires, libellés de centre et leurs dates historiques, annonces de service, validité documentaire brute, toutes les URLs de plan/horaire et les titres associés aux documents de projet. La fiche de ligne les rend consultables et précise que les sites et centres cités ne confirment pas une affectation au COB. Les affectations détaillées par dépôt restent dans le registre typé Swift jusqu’à migration des claims avec site et période propres.
 
-Vérification : `xcodebuild -project TransportManagerIDFM.xcodeproj -scheme TransportManagerIDFM -configuration Debug -destination 'platform=macOS,arch=x86_64' -derivedDataPath /private/tmp/TransitCityBusArtworkDerivedData build` — **BUILD SUCCEEDED** le 21 octobre 2026 à 02:42 Europe/Paris. Aucun test automatisé n’a été ajouté ni exécuté. Les avertissements CoreSimulator et App Intents n’empêchent pas la cible macOS de compiler. L’application n’a pas été lancée dans cette vérification.
+Vérification : `xcodebuild -project TransportManagerIDFM.xcodeproj -scheme TransportManagerIDFM -configuration Debug -destination 'platform=macOS,arch=x86_64' build` — **BUILD SUCCEEDED** le 21 octobre 2026 à 02:42 Europe/Paris. Aucun test automatisé n’a été ajouté ni exécuté. Les avertissements CoreSimulator et App Intents n’empêchent pas la cible macOS de compiler. L’application n’a pas été lancée dans cette vérification.
