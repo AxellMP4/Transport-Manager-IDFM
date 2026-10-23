@@ -469,11 +469,11 @@ enum DepotLineRoster {
             locality: "Neuilly-sur-Marne",
             status: "Projet IDFM · mise en service visée vers 2030",
             availability: .planned,
-            evidenceNote: "Les études d’avant-projet étaient en cours selon l’actualité IDFM du 1er octobre 2026 ; les sources consultées ne confirment pas le démarrage du chantier. La mise en service du projet est visée vers 2030. La FAQ IDFM du 22 février 2024 décrit les futurs bus Bords de Marne comme bi-articulés électriques de 24 m, d’environ 150 voyageurs, et indique que les COB existants ne peuvent pas les accueillir faute de capacité. Le nouveau COB doit assurer leur entretien, leur nettoyage et leur stationnement en fin de service. La source ne nomme pas chaque COB existant ni ne chiffre leurs capacités ; les autres lignes susceptibles de partager le futur site restent à définir. Ce site est distinct de Frères-Lumière.",
-            sourceURL: futureCobFAQURL,
-            evidenceTitle: "IDFM · matériel roulant et rôle du nouveau COB · 22 février 2024",
-            additionalEvidenceTitle: "IDFM · localisation du COB Bords de Marne",
-            additionalEvidenceURL: URL(string: "https://www.iledefrance-mobilites.fr/le-reseau/projets/bus-bordsdemarne/localisation-cob-bbdm")
+            evidenceNote: "Les études d’avant-projet étaient en cours selon l’actualité IDFM du 1er octobre 2026 ; les sources consultées ne confirment pas le démarrage du chantier. La mise en service du projet est visée vers 2030. La page actuelle des principes IDFM décrit des bus bi-articulés électriques de 24 m, d’environ 145 personnes ; la FAQ IDFM du 22 février 2024 en annonçait environ 150. Ces estimations de projet restent distinctes et la configuration finale n’est pas publiée. Le dossier de concertation IDFM d’octobre 2023 prévoyait pour le nouveau COB une emprise d’environ 32 000 m², destinée au remisage et à la maintenance des bus du BBM et d’autres lignes ; cette surface ne donne ni nombre de places, ni capacité opérationnelle. IDFM précise que les COB existants ne peuvent pas recevoir les futurs véhicules faute de place. Les capacités propres à chaque COB existant et les lignes supplémentaires du futur site restent à établir. Ce site est distinct de Frères-Lumière.",
+            sourceURL: futureBBDMPrinciplesURL,
+            evidenceTitle: "IDFM · principes d’aménagement et capacité prévisionnelle des bus · page consultée le 23 octobre 2026",
+            additionalEvidenceTitle: "IDFM · dossier de concertation 2023 · emprise prévue du futur COB",
+            additionalEvidenceURL: futureBBDMConsultationURL,
         )
     ]
 
@@ -793,6 +793,8 @@ enum DepotLineRoster {
     private static let futureBordsDeMarneProjectURL = URL(string: "https://www.iledefrance-mobilites.fr/le-reseau/projets/bus-bordsdemarne")!
     private static let futureCobUpdateURL = URL(string: "https://www.iledefrance-mobilites.fr/le-reseau/projets/bus-bordsdemarne/actualites/photo-de-la-couverture-de-la-lettre-dinfo")!
     private static let futureCobFAQURL = URL(string: "https://www.iledefrance-mobilites.fr/le-reseau/projets/bus-bordsdemarne/questions/materiel-roulant-cob")!
+    private static let futureBBDMPrinciplesURL = URL(string: "https://www.iledefrance-mobilites.fr/le-reseau/projets/bus-bordsdemarne/principes-amenagement-fonctionnement-bbdm")!
+    private static let futureBBDMConsultationURL = URL(string: "https://www.iledefrance-mobilites.fr/medias/portail-idfm/26367fc3-7fd7-4c5e-9c1c-6e2393bd9c3f_2023.10.12%2B-%2BDossier%2Bde%2Bconcertation%2BMECDU%2BBBM.pdf")!
     private static let futureCobNoticeURL = URL(string: "https://www.iledefrance-mobilites.fr/medias/portail-idfm-projets/Z3gGG5bqstJ99BnH_B_Notice_explicative.pdf")!
     private static let futureBordsDeMarneSchemeURL = URL(string: "https://www.iledefrance-mobilites.fr/medias/portail-idfm-projets/72537622-01f3-44cc-ae73-4f1771f19470_BBM_SDP_VFF.pdf")!
     private static let neuillyDepotURL = URL(string: "https://tc-infos.fr/exploitant/2975/depot/4663")!
@@ -1630,6 +1632,7 @@ enum DepotLineRoster {
             note: "Future liaison Val-de-Fontenay ↔ Chelles–Gournay, environ 8,5 km et 17 stations. Mise en service visée vers 2030 ; fréquence annoncée à titre prévisionnel (environ 4 min en pointe et 6 min en creuse). Aucun numéro commercial n’est publié. Ce sont des prévisions de projet, pas une grille horaire opérateur. Aucune ligne actuelle n’est publiquement affectée au futur COB ; les lignes mutualisées éventuelles restent à définir.",
             documents: [
                 DepotLineDocumentLink(title: "Notice explicative du projet de COB", type: "Dossier de projet", url: futureCobNoticeURL, validity: "Document de projet · édition à consulter dans le PDF", note: "Document de localisation et d’aménagement du site ; ce n’est ni un plan opérateur de ligne ni une grille horaire."),
+                DepotLineDocumentLink(title: "Dossier de concertation 2023 · futur COB d’environ 32 000 m²", type: "Dossier de projet", url: futureBBDMConsultationURL, validity: "Octobre 2023 · emprise de projet", note: "Surface prévisionnelle destinée au remisage et à la maintenance ; elle ne publie pas le nombre de places ni une capacité opérationnelle."),
                 DepotLineDocumentLink(title: "Schéma de principe du Bus Bords de Marne", type: "Document de projet", url: futureBordsDeMarneSchemeURL, validity: "Schéma de principe IDFM", note: "Présente le projet de transport et le futur site ; ne fournit pas de grille horaire opérateur."),
                 DepotLineDocumentLink(title: "Lignes susceptibles de partager le futur COB", type: "FAQ IDFM", url: futureCobFAQURL, validity: "Page projet IDFM", note: "IDFM indique que les autres lignes susceptibles d’être accueillies restent à définir.")
             ],
