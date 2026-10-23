@@ -287,6 +287,7 @@ struct DepotLinesWorkspaceView: View {
 
     @State private var searchText = ""
     @State private var timetableRoute: GTFSRouteSummary?
+    @State private var isGTFSQualificationExpanded = false
 
     private var selectedSite: DepotLineRosterSite? {
         DepotLineRoster.selectableSites.first { $0.id == depotID }
@@ -314,6 +315,39 @@ struct DepotLinesWorkspaceView: View {
         }
     }
 
+    private struct LineSection: Identifiable {
+        let title: String
+        let rows: [DepotLineRosterRow]
+
+        var id: String { title }
+    }
+
+    private var lineSections: [LineSection] {
+        let groups: [(String, Set<DepotLineEvidenceStatus>)] = [
+            ("Rattachement confirmé", [.confirmed]),
+            ("Candidats historiques ou probables", [.candidate]),
+            ("Partagées, partielles ou observées", [.shared, .partial, .observedPool]),
+            ("Non attribuées ou contradictoires", [.unresolved, .conflict]),
+            ("Sites en projet", [.planned])
+        ]
+
+        return groups.compactMap { title, statuses in
+            let rows = lineRows.filter { statuses.contains($0.evidenceStatus(on: serviceDate)) }
+            return rows.isEmpty ? nil : LineSection(title: title, rows: rows)
+        }
+    }
+
+    private var unqualifiedGTFSRows: [DepotLineRosterRow] {
+        lineRows.filter { row in
+            let status = row.evidenceStatus(on: serviceDate)
+            return status != .confirmed && status != .planned && !routeIDs(for: row).isEmpty
+        }
+    }
+
+    private var unqualifiedGTFSCoverageCount: Int {
+        Set(unqualifiedGTFSRows.flatMap(routeIDs(for:))).count
+    }
+
     private var activeLineIDs: [String] { lineRows.map(\.id) }
 
     private var selectedLine: DepotLineRosterRow? {
@@ -335,6 +369,53 @@ struct DepotLinesWorkspaceView: View {
         }
         let ids = Set(matches.map { LineReferenceMatcher.canonicalIdentifier($0.idLine) })
         return ids.count == 1 ? ids.first : nil
+    }
+
+    private var selectedLineReferenceMessage: String? {
+        guard let selectedLine else { return nil }
+        let activeReferences = library.lineReferences.filter { $0.isActive(on: serviceDate) == true }
+        if let canonicalLineID = selectedLine.canonicalLineID {
+            let identifier = LineReferenceMatcher.canonicalIdentifier(canonicalLineID)
+            guard activeReferences.contains(where: {
+                LineReferenceMatcher.canonicalIdentifier($0.idLine) == identifier
+            }) else {
+                return "Référence IDFM absente du référentiel chargé pour l’ID \(identifier). L’ID du roster est conservé pour la recherche GTFS exacte."
+            }
+            return nil
+        }
+
+        let normalizedName = selectedLine.line.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let matches = activeReferences.filter {
+            $0.shortNameLine.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() == normalizedName
+        }
+        guard !matches.isEmpty else {
+            return "Aucune référence IDFM active trouvée pour « \(selectedLine.line) » à cette date."
+        }
+        let ids = Set(matches.map { LineReferenceMatcher.canonicalIdentifier($0.idLine) })
+        guard ids.count == 1 else {
+            return "Plusieurs références IDFM actives portent le nom « \(selectedLine.line) »; aucun ID n’est choisi automatiquement."
+        }
+        return nil
+    }
+
+    private func routeIDs(for row: DepotLineRosterRow) -> [String] {
+        let identifier: String?
+        if let canonicalLineID = row.canonicalLineID {
+            identifier = LineReferenceMatcher.canonicalIdentifier(canonicalLineID)
+        } else {
+            let normalizedName = row.line.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+            let matches = library.lineReferences.filter {
+                $0.isActive(on: serviceDate) == true
+                    && $0.shortNameLine.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() == normalizedName
+            }
+            let ids = Set(matches.map { LineReferenceMatcher.canonicalIdentifier($0.idLine) })
+            identifier = ids.count == 1 ? ids.first : nil
+        }
+        guard let identifier else { return [] }
+        return library.busRoutes
+            .filter { LineReferenceMatcher.canonicalIdentifier($0.routeID) == identifier }
+            .map(\.routeID)
+            .sorted { $0.localizedStandardCompare($1) == .orderedAscending }
     }
 
     private var selectedRoutes: [GTFSRouteSummary] {
@@ -449,14 +530,64 @@ struct DepotLinesWorkspaceView: View {
 
             Divider()
             ScrollView {
-                LazyVStack(spacing: 3) {
-                    ForEach(lineRows) { row in
-                        Button {
-                            selectedLineID = row.id
-                        } label: {
-                            lineListRow(row)
+                LazyVStack(alignment: .leading, spacing: 12) {
+                    ForEach(lineSections) { section in
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text(section.title.uppercased())
+                                    .font(.caption2.weight(.bold))
+                                    .foregroundStyle(.secondary)
+                                Spacer(minLength: 0)
+                                Text("\(section.rows.count)")
+                                    .font(.caption2.monospacedDigit())
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .padding(.horizontal, 5)
+
+                            ForEach(section.rows) { row in
+                                Button {
+                                    selectedLineID = row.id
+                                } label: {
+                                    lineListRow(row)
+                                }
+                                .buttonStyle(.plain)
+                            }
                         }
-                        .buttonStyle(.plain)
+                    }
+
+                    if !unqualifiedGTFSRows.isEmpty {
+                        DisclosureGroup(isExpanded: $isGTFSQualificationExpanded) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Présence dans le snapshot chargé; cela ne prouve pas un service à la date choisie.")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .padding(.bottom, 3)
+                                ForEach(unqualifiedGTFSRows) { row in
+                                    Button {
+                                        selectedLineID = row.id
+                                    } label: {
+                                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                                            Text(row.line)
+                                                .font(.caption.weight(.semibold).monospaced())
+                                            Text(routeIDs(for: row).joined(separator: ", "))
+                                                .font(.caption2.monospaced())
+                                                .foregroundStyle(.secondary)
+                                                .lineLimit(1)
+                                                .truncationMode(.middle)
+                                        }
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .contentShape(Rectangle())
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                            .padding(.top, 4)
+                        } label: {
+                            Label("GTFS chargé · COB à qualifier (\(unqualifiedGTFSCoverageCount))", systemImage: "arrow.triangle.branch")
+                                .font(.caption.weight(.semibold))
+                        }
+                        .padding(.horizontal, 5)
                     }
                 }
                 .padding(8)
@@ -469,6 +600,7 @@ struct DepotLinesWorkspaceView: View {
     private func lineListRow(_ row: DepotLineRosterRow) -> some View {
         let isSelected = selectedLine?.id == row.id
         let status = row.evidenceStatus(on: serviceDate)
+        let routeIdentifiers = routeIDs(for: row)
         return HStack(spacing: 10) {
             Text(row.line)
                 .font(.system(size: 17, weight: .bold, design: .rounded).monospaced())
@@ -481,6 +613,14 @@ struct DepotLinesWorkspaceView: View {
                     .font(.caption2)
                     .foregroundStyle(evidenceColor(status))
                     .lineLimit(1)
+                if !routeIdentifiers.isEmpty {
+                    Text("GTFS · \(routeIdentifiers.joined(separator: ", "))")
+                        .font(.caption2.monospaced())
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .help("ID de route présent(s) dans le snapshot GTFS chargé : \(routeIdentifiers.joined(separator: ", ")). La date de service est vérifiée dans la grille horaire.")
+                }
             }
             Spacer(minLength: 0)
         }
@@ -530,6 +670,24 @@ struct DepotLinesWorkspaceView: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
 
+                    if let selectedLineReferenceMessage {
+                        Label("Référence IDFM à vérifier", systemImage: "exclamationmark.circle")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(.orange)
+                        Text(selectedLineReferenceMessage)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    if let selectedEvidenceStatus,
+                       selectedEvidenceStatus != .confirmed,
+                       selectedEvidenceStatus != .planned {
+                        Label("Rattachement au COB non confirmé pour l’exploitation", systemImage: "questionmark.circle")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(.orange)
+                    }
+
                     if !selectedManifestEntries.isEmpty {
                         manifestSection(selectedManifestEntries)
                     }
@@ -569,7 +727,12 @@ struct DepotLinesWorkspaceView: View {
                     .font(.subheadline)
 
                     if selectedRoutes.isEmpty {
-                        Label("Aucune variante GTFS exacte trouvée pour cette ligne à la date choisie.", systemImage: "exclamationmark.circle")
+                        Label(
+                            selectedLineIDFM == nil
+                                ? "Aucune recherche GTFS exacte possible tant que la référence IDFM reste ambiguë ou absente."
+                                : "Aucune variante GTFS portant exactement cet ID_Line dans le snapshot chargé.",
+                            systemImage: "exclamationmark.circle"
+                        )
                             .font(.callout)
                             .foregroundStyle(.orange)
                     } else {
@@ -659,7 +822,8 @@ struct DepotLinesWorkspaceView: View {
                     .font(.headline)
 
                 if curatedDocuments.isEmpty && importedDocuments.isEmpty {
-                    Text("Aucun document de ce type n’est relié à cette ligne dans le catalogue chargé.")
+                    Text(selectedLineReferenceMessage.map { "Documents non vérifiables : \($0)" }
+                         ?? "Aucun document de ce type n’est relié à cette ligne dans le catalogue chargé.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 } else {
