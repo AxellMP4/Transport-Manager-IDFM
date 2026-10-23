@@ -48,14 +48,15 @@ Implementation note: before a career, only dated `.confirmed` route IDs are incl
 
 ### 5. Audit and verification
 
-- [ ] Audit all rostered depots against the bundled line reference, GTFS services, route geometries, plans, and timetable PDFs.
+- [x] Add an in-app regional audit across all non-planned sites for the bundled line reference, date-scoped GTFS service, commercial route geometries, plans, and timetable PDFs; retain source-version and unknown states.
+- [ ] Run and review the regional audit against the bundled data, record the remaining per-site discrepancies, and confirm the source gaps are not mistaken for COB assignments.
 - [x] Show date-scoped scheduled-departure counts for exact ID_Line matches when inspecting a depot; keep missing, ambiguous, out-of-validity, and no-service states distinct.
 - [x] Bind route, geometry, reference, and document coverage counts to the source versions actually loaded; show loading or unknown states instead of treating missing indexes as zero coverage.
 - [ ] Check legacy save decoding and multi-depot context changes interactively in the app; optional depot fields retain the old save fallback, but still need an app-level restoration check.
 - [x] Compile the macOS target from a frozen source/data snapshot without running tests; verify that the GTFS, route geometries, line reference, documents, and contract contours are present in the app bundle.
 - [x] Publish the remaining source gaps by depot instead of claiming full coverage.
 
-Audit note: the 2026-10-20 contract-contour snapshot has 66 contract features. DSP 46 and 47 are absent from it, but their active line-reference rows map to 23 and 28 GTFS route IDs respectively. Career start now allows that published line scope without drawing a contract boundary; the full depot-by-depot document and geometry audit remains open.
+Audit note: the 2026-10-20 contract-contour snapshot has 66 contract features. DSP 46 and 47 are absent from it, but their active line-reference rows map to 23 and 28 GTFS route IDs respectively. Career start now allows that published line scope without drawing a contract boundary. The regional audit view now assembles the date-scoped reference, service, geometry and document comparison for every registered non-planned site; review of its resulting table and source gaps remains open.
 
 Map fallback note: in the bundled GTFS on 2026-10-21, 1,449 route IDs have active service. Comparing canonical IDs with the commercial geometry snapshot leaves 83 active route IDs without a direct commercial line geometry; 81 have GTFS trip shapes and can now appear as indicative dashed paths.
 
