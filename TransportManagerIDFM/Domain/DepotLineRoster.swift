@@ -373,8 +373,11 @@ enum DepotLineRoster {
             locality: "Neuilly-sur-Marne",
             status: "Projet IDFM · mise en service visée vers 2030",
             availability: .planned,
-            evidenceNote: "Les études d’avant-projet étaient en cours selon l’actualité IDFM du 1er octobre 2026 ; les sources consultées ne confirment pas le démarrage du chantier. La mise en service du projet est visée vers 2030. Seul le futur Bus Bords de Marne est explicitement prévu pour ce COB ; les autres lignes susceptibles de le partager restent à définir. Ce site est distinct de Frères-Lumière.",
-            sourceURL: URL(string: "https://www.iledefrance-mobilites.fr/le-reseau/projets/bus-bordsdemarne/localisation-cob-bbdm")
+            evidenceNote: "Les études d’avant-projet étaient en cours selon l’actualité IDFM du 1er octobre 2026 ; les sources consultées ne confirment pas le démarrage du chantier. La mise en service du projet est visée vers 2030. La FAQ IDFM du 22 février 2024 décrit les futurs bus Bords de Marne comme bi-articulés électriques de 24 m, d’environ 150 voyageurs, et indique que les COB existants ne peuvent pas les accueillir faute de capacité. Le nouveau COB doit assurer leur entretien, leur nettoyage et leur stationnement en fin de service. La source ne nomme pas chaque COB existant ni ne chiffre leurs capacités ; les autres lignes susceptibles de partager le futur site restent à définir. Ce site est distinct de Frères-Lumière.",
+            sourceURL: futureCobFAQURL,
+            evidenceTitle: "IDFM · matériel roulant et rôle du nouveau COB · 22 février 2024",
+            additionalEvidenceTitle: "IDFM · localisation du COB Bords de Marne",
+            additionalEvidenceURL: URL(string: "https://www.iledefrance-mobilites.fr/le-reseau/projets/bus-bordsdemarne/localisation-cob-bbdm")
         )
     ]
 
