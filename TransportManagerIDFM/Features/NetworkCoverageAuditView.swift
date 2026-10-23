@@ -1172,6 +1172,45 @@ private struct NetworkCoverageAssignmentView: View {
     }
 }
 
+private enum GTFSTripQualityDisplayMode: String, CaseIterable, Identifiable {
+    case courses
+    case motifs
+
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .courses: "Courses"
+        case .motifs: "Motifs"
+        }
+    }
+}
+
+private struct GTFSTripIssueMotifKey: Hashable {
+    let routeID: String
+    let shapeID: String?
+    let orderedStopSequence: [GTFSStopSequenceEntry]?
+    let fallbackIssueKinds: Set<GTFSImportTripIssueKind>?
+    let fallbackUnmatchedStopIDs: [String]?
+    let fallbackProjectionDiagnostics: [GTFSStopShapeProjectionDiagnostic]?
+
+    init(issue: GTFSImportTripIssue) {
+        routeID = issue.routeID
+        shapeID = issue.shapeID
+        orderedStopSequence = issue.orderedStopSequence
+        fallbackIssueKinds = issue.orderedStopSequence == nil ? issue.issueKinds : nil
+        fallbackUnmatchedStopIDs = issue.orderedStopSequence == nil ? issue.stopIDsNotMatchedToShape : nil
+        fallbackProjectionDiagnostics = issue.orderedStopSequence == nil ? issue.stopProjectionDiagnostics : nil
+    }
+}
+
+private struct GTFSTripIssueMotif: Identifiable {
+    let key: GTFSTripIssueMotifKey
+    let issues: [GTFSImportTripIssue]
+
+    var id: GTFSTripIssueMotifKey { key }
+    var representative: GTFSImportTripIssue { issues[0] }
+}
+
 private struct GTFSTripQualityAuditSection: View {
     @ObservedObject var library: NetworkLibrary
     let version: NetworkVersion?
@@ -1180,6 +1219,7 @@ private struct GTFSTripQualityAuditSection: View {
     @State private var isExpanded = false
     @State private var selectedIssueKind: GTFSImportTripIssueKind?
     @State private var selectedIssue: GTFSImportTripIssue?
+    @State private var displayMode: GTFSTripQualityDisplayMode = .courses
     @State private var query = ""
     @State private var visibleIssueLimit = 100
 
@@ -1197,6 +1237,20 @@ private struct GTFSTripQualityAuditSection: View {
                 || issue.tripID.localizedCaseInsensitiveContains(search)
                 || (issue.shapeID ?? "").localizedCaseInsensitiveContains(search)
                 || stopIDs.contains { $0.localizedCaseInsensitiveContains(search) }
+        }
+    }
+
+    private var filteredMotifs: [GTFSTripIssueMotif] {
+        let grouped = Dictionary(grouping: filteredIssues) { GTFSTripIssueMotifKey(issue: $0) }
+        return grouped.map { key, issues in
+            GTFSTripIssueMotif(key: key, issues: issues.sorted { $0.tripID < $1.tripID })
+        }
+        .sorted { lhs, rhs in
+            let routeOrder = lhs.key.routeID.localizedStandardCompare(rhs.key.routeID)
+            if routeOrder != .orderedSame { return routeOrder == .orderedAscending }
+            let shapeOrder = (lhs.key.shapeID ?? "").localizedStandardCompare(rhs.key.shapeID ?? "")
+            if shapeOrder != .orderedSame { return shapeOrder == .orderedAscending }
+            return lhs.representative.tripID < rhs.representative.tripID
         }
     }
 
@@ -1224,6 +1278,34 @@ private struct GTFSTripQualityAuditSection: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
+
+                    if quality.tripIssues?.contains(where: { $0.orderedStopSequence == nil }) == true,
+                       let versionID = version?.id {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Cette ancienne version ne conserve pas encore toutes les séquences d’arrêts. Pour obtenir des motifs exacts, l’application peut recalculer l’audit depuis l’archive locale déjà importée.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Button {
+                                Task { await library.refreshTripIssueSequences(for: versionID) }
+                            } label: {
+                                Label("Préparer les motifs exacts depuis l’archive locale", systemImage: "arrow.clockwise")
+                            }
+                            .disabled(library.isRefreshingTripIssueSequences || library.importState.isImporting)
+                            if library.isRefreshingTripIssueSequences {
+                                ProgressView("Relecture locale des courses et des arrêts…")
+                                    .font(.caption)
+                            }
+                            if let error = library.tripIssueSequenceRefreshError {
+                                Label("Actualisation impossible · \(error)", systemImage: "exclamationmark.triangle")
+                                    .font(.caption)
+                                    .foregroundStyle(.orange)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                        .padding(9)
+                        .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 8))
+                    }
 
                     if let issues = quality.tripIssues {
                         if issues.isEmpty {
@@ -1275,6 +1357,14 @@ private struct GTFSTripQualityAuditSection: View {
     private func issueList(_ issues: [GTFSImportTripIssue]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 10) {
+                Picker("Vue", selection: $displayMode) {
+                    ForEach(GTFSTripQualityDisplayMode.allCases) { mode in
+                        Text(mode.title).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .fixedSize()
+
                 Picker("Type d’anomalie", selection: $selectedIssueKind) {
                     Text("Tous les types").tag(Optional<GTFSImportTripIssueKind>.none)
                     ForEach(GTFSImportTripIssueKind.allCases, id: \.self) { kind in
@@ -1287,37 +1377,133 @@ private struct GTFSTripQualityAuditSection: View {
                     .textFieldStyle(.roundedBorder)
             }
 
-            if filteredIssues.isEmpty {
-                Text("Aucune course ne correspond au filtre.")
+            let routeNamesByID = Dictionary(
+                routes.map { ($0.routeID, $0.displayName) },
+                uniquingKeysWith: { first, _ in first }
+            )
+            if displayMode == .courses {
+                if filteredIssues.isEmpty {
+                    Text("Aucune course ne correspond au filtre.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    LazyVStack(spacing: 6) {
+                        ForEach(Array(filteredIssues.prefix(visibleIssueLimit))) { issue in
+                            GTFSTripQualityAuditRow(
+                                issue: issue,
+                                routeName: routeNamesByID[issue.routeID],
+                                onInspect: { selectedIssue = issue }
+                            )
+                        }
+                    }
+                    issueListFooter(shown: min(visibleIssueLimit, filteredIssues.count), total: filteredIssues.count, noun: "courses")
+                }
+            } else if filteredMotifs.isEmpty {
+                Text("Aucun motif ne correspond au filtre.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
-                let routeNamesByID = Dictionary(
-                    routes.map { ($0.routeID, $0.displayName) },
-                    uniquingKeysWith: { first, _ in first }
-                )
                 LazyVStack(spacing: 6) {
-                    ForEach(Array(filteredIssues.prefix(visibleIssueLimit))) { issue in
-                        GTFSTripQualityAuditRow(
-                            issue: issue,
-                            routeName: routeNamesByID[issue.routeID],
-                            onInspect: { selectedIssue = issue }
+                    ForEach(Array(filteredMotifs.prefix(visibleIssueLimit))) { motif in
+                        GTFSTripQualityMotifRow(
+                            motif: motif,
+                            routeName: routeNamesByID[motif.key.routeID],
+                            onInspect: { selectedIssue = $0 }
                         )
                     }
                 }
+                issueListFooter(shown: min(visibleIssueLimit, filteredMotifs.count), total: filteredMotifs.count, noun: "motifs")
+            }
+        }
+    }
 
-                HStack {
-                    Text("Affichage de \(min(visibleIssueLimit, filteredIssues.count)) sur \(filteredIssues.count) courses filtrées.")
-                        .font(.caption2)
+    private func issueListFooter(shown: Int, total: Int, noun: String) -> some View {
+        HStack {
+            Text("Affichage de \(shown) sur \(total) \(noun) filtrés.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            Spacer()
+            if total > visibleIssueLimit {
+                Button("Afficher 100 de plus") { visibleIssueLimit += 100 }
+                    .font(.caption)
+            }
+        }
+    }
+}
+
+private struct GTFSTripQualityMotifRow: View {
+    let motif: GTFSTripIssueMotif
+    let routeName: String?
+    let onInspect: (GTFSImportTripIssue) -> Void
+
+    @State private var isExpanded = false
+
+    private var issueLabels: String {
+        GTFSImportTripIssueKind.allCases
+            .filter { kind in motif.issues.contains { $0.issueKinds.contains(kind) } }
+            .map(\.displayName)
+            .joined(separator: " · ")
+    }
+
+    var body: some View {
+        DisclosureGroup(isExpanded: $isExpanded) {
+            VStack(alignment: .leading, spacing: 5) {
+                if let orderedStopSequence = motif.key.orderedStopSequence {
+                    let firstStops = orderedStopSequence.prefix(8).map(\.stopID).joined(separator: ", ")
+                    Text("Séquence complète · \(orderedStopSequence.count) arrêts · \(firstStops)\(orderedStopSequence.count > 8 ? " …" : "")")
+                        .font(.caption2.monospaced())
                         .foregroundStyle(.secondary)
-                    Spacer()
-                    if filteredIssues.count > visibleIssueLimit {
-                        Button("Afficher 100 de plus") { visibleIssueLimit += 100 }
-                            .font(.caption)
+                        .textSelection(.enabled)
+                } else {
+                    Text("Séquence complète absente de cette ancienne version; regroupement basé sur les anomalies enregistrées.")
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Text("Anomalies · \(issueLabels.isEmpty ? "diagnostic non précisé" : issueLabels)")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+
+                ForEach(motif.issues) { issue in
+                    HStack(spacing: 8) {
+                        Label(issue.tripID, systemImage: "bus")
+                            .font(.caption2.monospaced())
+                            .textSelection(.enabled)
+                        Spacer(minLength: 8)
+                        Button("Carte", systemImage: "map") { onInspect(issue) }
+                            .labelStyle(.titleAndIcon)
+                            .controlSize(.small)
                     }
                 }
             }
+            .padding(.top, 4)
+        } label: {
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 8) {
+                    Text(routeName.map { "\($0) · \(motif.key.routeID)" } ?? motif.key.routeID)
+                        .font(.caption.weight(.semibold))
+                    Spacer(minLength: 8)
+                    Text("\(motif.issues.count) course\(motif.issues.count == 1 ? "" : "s")")
+                        .font(.caption.monospacedDigit().weight(.medium))
+                        .foregroundStyle(.secondary)
+                }
+                Text("shape_id · \(motif.key.shapeID ?? "absent")")
+                    .font(.caption2.monospaced())
+                    .foregroundStyle(.tertiary)
+                    if let orderedStopSequence = motif.key.orderedStopSequence {
+                        Text("Motif · \(orderedStopSequence.count) arrêts dans l’ordre")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("Motif estimé à partir du diagnostic")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+            }
         }
+        .padding(8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 7))
     }
 }
 
