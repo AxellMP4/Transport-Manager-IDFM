@@ -507,7 +507,7 @@ struct GTFSImportQuality: Codable, Hashable, Sendable {
     /// Trips whose geolocated stop sequence cannot be projected monotonically
     /// onto its referenced GTFS shape. Nil for catalogs imported by older builds.
     let tripsWithUnmatchedShapeStops: Int?
-    let referencedShapeCount:
+    let referencedShapeCount: Int
     let availableShapeCount: Int
     let invalidShapeCount: Int
     /// Shape identifiers rejected during import. Nil for catalogs imported by older builds.
