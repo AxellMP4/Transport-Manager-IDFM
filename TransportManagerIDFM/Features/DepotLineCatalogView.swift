@@ -1,7 +1,5 @@
 import SwiftUI
 
-import SwiftUI
-
 struct DepotGTFSServiceAuditCard: View {
     let audit: DepotGTFSServiceAudit
     let serviceDate: Date

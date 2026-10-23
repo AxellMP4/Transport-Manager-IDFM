@@ -87,6 +87,7 @@ enum DepotFacilityEvidenceCatalog {
         sourceTitle: "RATP · programme bus2025 · nouveau centre bus de Villiers-le-Bel",
         sourceURL: URL(string: "https://www.ratp.fr/programme-bus2025")!
     )
+
     static let neuillyPlaisanceHistorical = DepotFacilityObservation(
         id: "neuilly-plaisance-diagnostic-historique",
         periodLabel: "Diagnostic historique · références internes 2020–2022 · avant le transfert DSP45 du 1er novembre 2025",

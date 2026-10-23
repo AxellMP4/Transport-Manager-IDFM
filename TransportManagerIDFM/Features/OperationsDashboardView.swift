@@ -957,6 +957,9 @@ struct OperationsDashboardView: View {
                 fitSelectedDepotNetwork()
             }
         }
+        .onChange(of: careerStartMoment) { _, _ in
+            selectedCandidateCareerLineIDs.formIntersection(Set(selectedDepotMapLines.map(\.id)))
+        }
         .onChange(of: library.routeGeometries.count) { _, count in
             if count > 0, selectedDepotLineID == nil {
                 fitSelectedDepotNetwork()
@@ -968,7 +971,6 @@ struct OperationsDashboardView: View {
             }
         }
         .onChange(of: careerStartMoment) { _, _ in
-            selectedCandidateCareerLineIDs.formIntersection(Set(selectedDepotMapLines.map(\.id)))
             if !selectedDepotMapLines.contains(where: { $0.id == selectedDepotLineID }) {
                 selectedDepotLineID = nil
                 selectedRouteID = nil
@@ -3540,7 +3542,7 @@ struct OperationsDashboardView: View {
                                                     .textSelection(.enabled)
                                             }
                                             if let stopIDs = issue.stopIDsNotMatchedToShape, !stopIDs.isEmpty {
-                                                Text("Arrêts non projetés : \(stopIDs.joined(separator: ", "))")
+                                                Text("Arrêts non projetables sur la forme : \(stopIDs.joined(separator: ", "))")
                                                     .font(.caption2.monospaced())
                                                     .foregroundStyle(.orange)
                                                     .textSelection(.enabled)

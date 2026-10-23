@@ -21,22 +21,6 @@ struct DepotInspectorView: View {
     let serviceDate: Date
     var showsCloseButton = true
     @State private var isDepotLineRosterPresented = false
-    private var coverageSourceTaskID: String {
-        let geometryID = library.catalog.activeGeometryVersion?.id ?? "aucune-geometrie"
-        let documentsID = library.catalog.activeLineDocumentVersion?.id ?? "aucun-document"
-        return "\(geometryID)|\(documentsID)"
-    }
-
-    private func selectedSiteCoverageLabel(for coverage: DepotLineCoverage) -> String {
-        let lineLabel = coverage.hasLoadedLineReferenceCatalog
-            ? "\(coverage.uniqueLineCount) lignes uniques"
-            : "\(coverage.uniqueLineCount) lignes documentées"
-        let routeLabel = coverage.hasLoadedGTFSRouteCatalog
-            ? "\(coverage.routeVariantCount) variantes"
-            : "variantes GTFS inconnues"
-        return "\(lineLabel) · \(routeLabel)"
-    }
-
 
     var body: some View {
         VStack(spacing: 0) {
@@ -994,7 +978,6 @@ struct DepotDirectoryWorkspaceView: View {
     @State private var isLoadingSelectedSiteServiceAudit = false
     @State private var isPresentingRegionalCoverageAudit = false
 
-
     private var directorySelectedDepotID: String {
         selectionLocked ? (browseSelectionID ?? selectedDepotID) : selectedDepotID
     }
@@ -1041,6 +1024,22 @@ struct DepotDirectoryWorkspaceView: View {
     private var selectedSiteServiceAuditTaskID: String {
         let dateKey = GTFSServiceDate.key(for: serviceDate, timeZone: GTFSServiceDate.parisTimeZone) ?? -1
         return "\(directorySelectedDepotID)|\(dateKey)|\(library.catalog.activeVersion?.id ?? "aucun-gtfs")|\(library.catalog.activeLineReferenceVersion?.id ?? "aucune-reference")|\(library.busRoutesVersionID ?? "routes-en-attente")|\(library.lineReferenceVersionID ?? "references-en-attente")|\(library.busRoutes.count)|\(library.lineReferences.count)|\(library.isLoadingBusRoutes)|\(library.isLoadingLineReferences)"
+    }
+
+    private var coverageSourceTaskID: String {
+        let geometryID = library.catalog.activeGeometryVersion?.id ?? "aucune-geometrie"
+        let documentsID = library.catalog.activeLineDocumentVersion?.id ?? "aucun-document"
+        return "\(geometryID)|\(documentsID)"
+    }
+
+    private func selectedSiteCoverageLabel(for coverage: DepotLineCoverage) -> String {
+        let lineLabel = coverage.hasLoadedLineReferenceCatalog
+            ? "\(coverage.uniqueLineCount) lignes uniques"
+            : "\(coverage.uniqueLineCount) lignes documentées"
+        let routeLabel = coverage.hasLoadedGTFSRouteCatalog
+            ? "\(coverage.routeVariantCount) variantes"
+            : "variantes GTFS inconnues"
+        return "\(lineLabel) · \(routeLabel)"
     }
 
     var body: some View {
@@ -1471,6 +1470,7 @@ struct DepotDirectoryWorkspaceView: View {
         .padding(10)
         .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 9))
     }
+
     private func coverageMetricValue(
         _ value: String,
         isAvailable: Bool,
