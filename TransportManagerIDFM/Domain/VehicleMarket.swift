@@ -1319,9 +1319,9 @@ enum VehicleMarketCatalog {
             lastYear: nil,
             regionalEvidenceYear: 2024,
             regionalEvidenceLabel: "Paris-Saclay · Urbanway 18 GNV n° 2470",
-            referencePrice: nil,
-            priceReferenceYear: nil,
-            priceEstimateNote: nil,
+            referencePrice: 403_390,
+            priceReferenceYear: 2024,
+            priceEstimateNote: "Estimation de jeu 2024 : le repère CATP d’un autobus GNV standard 12 m est de 310 300 € HT ; une majoration de gabarit articulé de 30 % donne 403 390 €. La CATP ne publie pas le prix de l’Urbanway 18 ; cette base indicative n’est ni un prix individuel ni une offre commerciale.",
             technicalTitle: "CATP · fiche Autobus GNV articulé 18 m IVECO France Urbanway · accord-cadre 2023–32",
             technicalURL: "https://www.catp.fr/wp-content/uploads/2024/04/FP-IVECO-autobus-GNV-18m.pdf",
             technicalDataNote: "La fiche CATP publie un moteur de 265 kW, 43 places assises et une capacité maximale de 172 voyageurs pour la configuration de son accord-cadre, ainsi que les dimensions ci-dessus. La fiche secondaire du n° 2470 documente un autre aménagement : 37 places assises et 121 debout. Ces capacités restent des configurations distinctes et ne sont pas appliquées aux véhicules de Bords de Marne.",
@@ -1362,7 +1362,7 @@ enum VehicleMarketCatalog {
             ],
             fleetTitle: "TC Infos · Urbanway 18 GNV n° 2470 · réseau Paris-Saclay",
             fleetURL: "https://tc-infos.fr/vehicule/73566",
-            marketAvailabilityNote: "La fiche technique CATP consultée décrit des caractéristiques et capacités, sans publier de prix d’achat ; aucun repère de prix applicable à cette version articulée n’est confirmé. La présence du n° 2470 sur Paris-Saclay ne documente ni disponibilité à la vente ni affectation à Bords de Marne ; aucune offre n’est créée."
+            marketAvailabilityNote: "La fiche technique CATP de l’Urbanway articulé 18 m ne publie pas de prix. Le catalogue affiche seulement un repère de jeu obtenu en majorant de 30 % le prix CATP d’un autobus GNV standard 12 m ; ce calcul ne confirme ni le prix du modèle ni sa disponibilité à la vente. La présence du n° 2470 sur Paris-Saclay ne documente pas une affectation à Bords de Marne ; aucune offre n’est créée."
         ),
         model(
             id: "bluebus-12m-electric",
@@ -1539,9 +1539,9 @@ enum VehicleMarketCatalog {
             lastYear: nil,
             regionalEvidenceYear: nil,
             regionalEvidenceLabel: "Référence CATP · accord-cadre AC 2024-02 · fiche publiée en 2025",
-            referencePrice: nil,
-            priceReferenceYear: nil,
-            priceEstimateNote: nil,
+            referencePrice: 720_850,
+            priceReferenceYear: 2022,
+            priceEstimateNote: "Estimation de jeu : la CATP donne 554 500 € HT comme coût moyen d’acquisition d’un autobus électrique standard 12 m à charge lente, options moyennes comprises, valeur équivalente à février 2022. La majoration forfaitaire de 30 % retenue par le jeu pour le gabarit articulé donne une base de 720 850 €. La fiche du GX 437 Elec ne publie pas de prix ; ce calcul n’est ni un prix individuel ni une offre commerciale.",
             technicalTitle: "CATP · autobus électrique 18 m à charge lente · accord-cadre AC 2024-02",
             technicalURL: "https://www.catp.fr/wp-content/uploads/2025/05/Autobus-standard-18m-electrique-charge-lente-Fiche-vehicule-CATP-2024-02.pdf",
             technicalDataNote: "La fiche CATP donne une configuration de base à 485 kWh avec des options à 347, 416, 555 ou 624 kWh, et 330 kW continus / 550 kW en pointe. Les 40 assises et les 155 voyageurs (+ conducteur) correspondent à la version trois portes de la fiche. Ces données ne décrivent pas un véhicule d’Île-de-France ou de Bords de Marne.",
@@ -1564,7 +1564,7 @@ enum VehicleMarketCatalog {
             ],
             fleetTitle: "CATP · fiche véhicule Heuliez GX 437 Elec · AC 2024-02",
             fleetURL: "https://www.catp.fr/wp-content/uploads/2025/05/Autobus-standard-18m-electrique-charge-lente-Fiche-vehicule-CATP-2024-02.pdf",
-            marketAvailabilityNote: "Référence du catalogue CATP 2025 sous l’accord-cadre AC 2024-02, distincte du GX 437 Hybrid. La fiche consultée ne publie pas de prix et n’établit pas que l’accord-cadre est encore actif en 2026 ; aucune offre achetable n’est donc créée. Aucune présence en Île-de-France, affectation à Bords de Marne ou compatibilité avec ses dépôts n’est établie."
+            marketAvailabilityNote: "Référence du catalogue CATP 2025 sous l’accord-cadre AC 2024-02, distincte du GX 437 Hybrid. La fiche ne publie pas de prix et n’établit pas que l’accord-cadre est encore actif en 2026 ; le montant affiché est un repère de jeu calculé depuis une catégorie 12 m, pas un prix du GX 437 Elec. Aucune présence en Île-de-France, disponibilité à l’achat, affectation à Bords de Marne ou compatibilité avec ses dépôts n’est établie ; aucune offre n’est créée."
         ),
         model(
             id: "scania-citywide-18-gnv-ratp",
@@ -2085,6 +2085,13 @@ enum VehicleMarketCatalog {
         let yearsSinceReference = max(0, gameYear - (model.priceReferenceYear ?? referenceYear))
         let gamePriceIndex = pow(1 + annualPriceIndexRate, Double(yearsSinceReference))
         return roundedToNearestFiveThousand(Int((Double(referencePrice) * gamePriceIndex).rounded()))
+    }
+
+    static func estimatedNewPriceRange(for model: VehicleMarketModel, gameYear: Int) -> ClosedRange<Int>? {
+        guard let estimate = estimatedNewPrice(for: model, gameYear: gameYear) else { return nil }
+        let low = roundedToNearestFiveThousand(Int((Double(estimate) * 0.88).rounded()))
+        let high = roundedToNearestFiveThousand(Int((Double(estimate) * 1.12).rounded()))
+        return low...high
     }
 
     private static func model(
