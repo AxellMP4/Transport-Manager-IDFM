@@ -228,7 +228,8 @@ enum GTFSFeedInspector {
             shapesByID: Dictionary(uniqueKeysWithValues: busTripShapes.shapes.map { ($0.shapeID, $0) }),
             stopsByID: Dictionary(uniqueKeysWithValues: stopCollector.stops.map { ($0.stopID, $0) }),
             serviceIDsWithActiveDates: serviceIDsWithActiveDates,
-            invalidStopTimeRowsByTripID: stopRouteCollector.invalidStopTimeRowsByTripID
+            invalidStopTimeRowsByTripID: stopRouteCollector.invalidStopTimeRowsByTripID,
+            missingStopIDRowsByTripID: stopRouteCollector.missingStopIDRowsByTripID
         )
         let quality = GTFSImportQuality(
             busTripCount: tripIDs.count,
@@ -262,6 +263,7 @@ enum GTFSFeedInspector {
             availableShapeCount: busTripShapes.shapes.count,
             invalidShapeCount: invalidShapeIDs.count,
             invalidStopTimeRowCount: stopRouteCollector.invalidStopTimeRowCount,
+            missingStopIDRowCount: stopRouteCollector.missingStopIDRowCount,
             tripsWithoutActiveServiceDates: tripsWithoutActiveServiceDates,
             containsFrequenciesFile: archive.entry(named: "frequencies.txt") != nil,
             tripIssues: tripIssues
@@ -322,7 +324,8 @@ enum GTFSFeedInspector {
         shapesByID: [String: GTFSRouteShape],
         stopsByID: [String: GTFSStopSummary],
         serviceIDsWithActiveDates: Set<String>,
-        invalidStopTimeRowsByTripID: [String: Int]
+        invalidStopTimeRowsByTripID: [String: Int],
+        missingStopIDRowsByTripID: [String: Int]
     ) -> [GTFSImportTripIssue] {
         var shapeAlignmentCache: [GTFSStopShapeProjectionKey: GTFSShapeStopAlignment] = [:]
         return tripByID.keys.sorted().compactMap { tripID -> GTFSImportTripIssue? in
@@ -332,6 +335,7 @@ enum GTFSFeedInspector {
                 return $0.stopID < $1.stopID
             }
             let invalidRowCount = invalidStopTimeRowsByTripID[tripID, default: 0]
+            let missingStopIDRowCount = missingStopIDRowsByTripID[tripID, default: 0]
             let stopIDsWithoutCoordinates = stops.compactMap { stopTime in
                 stopsByID[stopTime.stopID] == nil ? stopTime.stopID : nil
             }
@@ -387,6 +391,7 @@ enum GTFSFeedInspector {
                 issueKinds.insert(.inactiveService)
             }
             if invalidRowCount > 0 { issueKinds.insert(.invalidStopTimeRows) }
+            if missingStopIDRowCount > 0 { issueKinds.insert(.missingStopID) }
 
             guard !issueKinds.isEmpty else { return nil }
             return GTFSImportTripIssue(
@@ -394,6 +399,7 @@ enum GTFSFeedInspector {
                 tripID: tripID,
                 issueKinds: issueKinds,
                 invalidStopTimeRowCount: invalidRowCount,
+                missingStopIDRowCount: missingStopIDRowCount > 0 ? missingStopIDRowCount : nil,
                 stopIDsWithoutCoordinates: stopIDsWithoutCoordinates.isEmpty ? nil : stopIDsWithoutCoordinates,
                 stopIDsNotMatchedToShape: stopIDsNotMatchedToShape
             )
@@ -549,6 +555,8 @@ private final class BusStopRouteCollector {
     private var stopTimesByTripID: [String: [GTFSServiceTripStopTime]] = [:]
     private(set) var invalidStopTimeRowCount = 0
     private(set) var invalidStopTimeRowsByTripID: [String: Int] = [:]
+    private(set) var missingStopIDRowCount = 0
+    private(set) var missingStopIDRowsByTripID: [String: Int] = [:]
 
     var routeIDsByStopID: [String: Set<String>] { routeIDsByStopIDStorage }
     var collectedStopTimesByTripID: [String: [GTFSServiceTripStopTime]] { stopTimesByTripID }
@@ -618,6 +626,8 @@ private final class BusStopRouteCollector {
         guard let stopID = row["stop_id"], !stopID.isEmpty else {
             invalidStopTimeRowCount += 1
             invalidStopTimeRowsByTripID[tripID, default: 0] += 1
+            missingStopIDRowCount += 1
+            missingStopIDRowsByTripID[tripID, default: 0] += 1
             return
         }
 
