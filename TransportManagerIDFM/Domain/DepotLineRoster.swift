@@ -342,7 +342,7 @@ enum DepotLineRoster {
     static let awardEvidenceURL = URL(string: "https://presse.iledefrance-mobilites.fr/mise-en-concurrence-des-transports-franciliens/?lang=fr")!
     static let wikipediaURL = URL(string: "https://fr.wikipedia.org/wiki/R%C3%A9seau_de_bus_Bord_de_Marne")!
     static let databusURL = URL(string: "https://busparisiens.fr/DataBus/tel/DB_liste.php")!
-    static let reorganizationURL = URL(string: "https://www.iledefrance-mobilites.fr/actualites/locales/detail/a-compter-du-1er-novembre-2026-ile-de-france-mobil")!
+    static let reorganizationURL = URL(string: "https://presse.iledefrance-mobilites.fr/ile-de-france-mobilites-restructure-et-reorganise-loffre-de-bus-sur-les-territoires-des-bords-de-marne-et-de-boucle-nord-de-seine/?lang=fr")!
     private static let reorganizationServiceSummaries: [String: String] = [
         "101": "Ajustements ponctuels des horaires annoncés ; la nouvelle grille détaillée n’est pas publiée ici.",
         "106": "Ajustements ponctuels des horaires annoncés ; la nouvelle grille détaillée n’est pas publiée ici.",
@@ -1078,8 +1078,8 @@ enum DepotLineRoster {
                 centerLabel: nil,
                 sourceTitle: "IDFM · évolution de l’offre de la ligne \(line) au 1er novembre 2026",
                 sourceURL: reorganizationURL,
-                sourceDate: Self.sourceDate(year: 2026, month: 10, day: 13),
-                sourceDateLabel: "Annonce du 13 octobre 2026",
+                sourceDate: Self.sourceDate(year: 2026, month: 10, day: 21),
+                sourceDateLabel: "Communiqué IDFM du 21 octobre 2026",
                 validFromKey: 20261101,
                 validThroughKey: nil,
                 note: "\(serviceSummary) Cette annonce décrit le service à compter du 1er novembre ; elle ne désigne aucun COB et ne remplace pas une grille horaire post-réorganisation."
@@ -1412,8 +1412,8 @@ enum DepotLineRoster {
                 centerLabel: nil,
                 sourceTitle: "IDFM · changement de parcours de la ligne 210",
                 sourceURL: reorganizationURL,
-                sourceDate: sourceDate(year: 2026, month: 10, day: 13),
-                sourceDateLabel: "Annonce du 13 octobre 2026",
+                sourceDate: sourceDate(year: 2026, month: 10, day: 21),
+                sourceDateLabel: "Communiqué IDFM du 21 octobre 2026",
                 validFromKey: 20261101,
                 validThroughKey: nil,
                 note: "L’annonce date un changement de parcours ; elle ne nomme pas le COB de la ligne après la réorganisation."
@@ -1429,8 +1429,8 @@ enum DepotLineRoster {
                 centerLabel: nil,
                 sourceTitle: "IDFM · maintien de la ligne 214 après la réorganisation",
                 sourceURL: reorganizationURL,
-                sourceDate: sourceDate(year: 2026, month: 10, day: 13),
-                sourceDateLabel: "Annonce du 13 octobre 2026",
+                sourceDate: sourceDate(year: 2026, month: 10, day: 21),
+                sourceDateLabel: "Communiqué IDFM du 21 octobre 2026",
                 validFromKey: 20261101,
                 validThroughKey: nil,
                 note: "L’annonce indique que la 214 continue avec fréquences renforcées et amplitude élargie ; seuls les arrêts de la ZI des Chanoux sont transférés à la 314. Cette preuve porte sur le service, pas sur le COB. Le GTFS daté du 20 octobre ne fournit pas les courses 214 annoncées après la date de changement."
@@ -1459,8 +1459,8 @@ enum DepotLineRoster {
                 centerLabel: nil,
                 sourceTitle: "IDFM · ligne 520 inchangée au 1er novembre 2026",
                 sourceURL: reorganizationURL,
-                sourceDate: sourceDate(year: 2026, month: 10, day: 13),
-                sourceDateLabel: "Annonce du 13 octobre 2026",
+                sourceDate: sourceDate(year: 2026, month: 10, day: 21),
+                sourceDateLabel: "Communiqué IDFM du 21 octobre 2026",
                 validFromKey: 20261101,
                 validThroughKey: nil,
                 note: "L’annonce confirme le maintien du service de la 520, pas son affectation à un COB après la réorganisation."
@@ -1519,8 +1519,8 @@ enum DepotLineRoster {
                     centerLabel: nil,
                     sourceTitle: "IDFM · ligne N33 inchangée au 1er novembre 2026",
                     sourceURL: reorganizationURL,
-                    sourceDate: sourceDate(year: 2026, month: 10, day: 13),
-                    sourceDateLabel: "Annonce du 13 octobre 2026",
+                    sourceDate: sourceDate(year: 2026, month: 10, day: 21),
+                    sourceDateLabel: "Communiqué IDFM du 21 octobre 2026",
                     validFromKey: 20261101,
                     validThroughKey: nil,
                     note: "IDFM annonce la continuité du service N33 ; cette preuve ne désigne aucun COB après le transfert DSP45."
@@ -1652,8 +1652,8 @@ enum DepotLineRoster {
             url: reorganizationURL,
             note: "Liaison Neuilly-Plaisance RER ↔ ZI des Chanoux, annoncée du lundi au vendredi (15 min en pointe, 60 min en creuse) à partir du 1er novembre 2026. Le plan IDFM 214/314 d’août 2026 est disponible, mais aucun PDF de grille horaire ni document d’affectation au COB n’a été retrouvé.",
             documents: documentsByLine["314"] ?? [],
-            sourceDate: sourceDate(year: 2026, month: 10, day: 13),
-            sourceDateLabel: "Annonce du 13 octobre 2026",
+            sourceDate: sourceDate(year: 2026, month: 10, day: 21),
+            sourceDateLabel: "Communiqué IDFM du 21 octobre 2026",
             validFromKey: 20261101,
             claims: [DepotLineRosterClaim(
                 kind: .announcedService,
@@ -1661,8 +1661,8 @@ enum DepotLineRoster {
                 centerLabel: nil,
                 sourceTitle: "IDFM · nouvelle ligne 314 annoncée sans COB publié",
                 sourceURL: reorganizationURL,
-                sourceDate: sourceDate(year: 2026, month: 10, day: 13),
-                sourceDateLabel: "Annonce du 13 octobre 2026",
+                sourceDate: sourceDate(year: 2026, month: 10, day: 21),
+                sourceDateLabel: "Communiqué IDFM du 21 octobre 2026",
                 validFromKey: 20261101,
                 validThroughKey: nil,
                 note: "L’annonce date le début du service, mais ne confirme pas son affectation à un COB."
@@ -1672,8 +1672,8 @@ enum DepotLineRoster {
                 centerLabel: nil,
                 sourceTitle: "IDFM · ligne 314 créée lors de la réorganisation DSP45",
                 sourceURL: reorganizationURL,
-                sourceDate: sourceDate(year: 2026, month: 10, day: 13),
-                sourceDateLabel: "Annonce du 13 octobre 2026",
+                sourceDate: sourceDate(year: 2026, month: 10, day: 21),
+                sourceDateLabel: "Communiqué IDFM du 21 octobre 2026",
                 validFromKey: 20261101,
                 validThroughKey: dsp45End,
                 note: "Le service de la 314 est annoncé dans la réorganisation ; aucune affectation à Saint-Maur ou Neuilly-Plaisance n’est publiée."
@@ -1683,8 +1683,8 @@ enum DepotLineRoster {
                 centerLabel: "COB Saint-Maur",
                 sourceTitle: "IDFM · ligne 314 candidate pour le périmètre DSP45",
                 sourceURL: reorganizationURL,
-                sourceDate: sourceDate(year: 2026, month: 10, day: 13),
-                sourceDateLabel: "Annonce du 13 octobre 2026",
+                sourceDate: sourceDate(year: 2026, month: 10, day: 21),
+                sourceDateLabel: "Communiqué IDFM du 21 octobre 2026",
                 validFromKey: 20261101,
                 validThroughKey: nil,
                 note: "La ligne est annoncée dans le réseau DSP45, mais aucune source publique ne la répartit entre Saint-Maur et Neuilly-Plaisance. Affectation affichée comme candidate."
@@ -1694,8 +1694,8 @@ enum DepotLineRoster {
                 centerLabel: "COB Neuilly-Plaisance",
                 sourceTitle: "IDFM · ligne 314 candidate pour le périmètre DSP45",
                 sourceURL: reorganizationURL,
-                sourceDate: sourceDate(year: 2026, month: 10, day: 13),
-                sourceDateLabel: "Annonce du 13 octobre 2026",
+                sourceDate: sourceDate(year: 2026, month: 10, day: 21),
+                sourceDateLabel: "Communiqué IDFM du 21 octobre 2026",
                 validFromKey: 20261101,
                 validThroughKey: nil,
                 note: "La ligne est annoncée dans le réseau DSP45, mais aucune source publique ne la répartit entre Saint-Maur et Neuilly-Plaisance. Affectation affichée comme candidate."
