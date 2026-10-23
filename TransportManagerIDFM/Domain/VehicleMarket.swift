@@ -1660,8 +1660,23 @@ enum VehicleMarketCatalog {
             priceEstimateNote: "Estimation de jeu à faible confiance : le comparable CATP d’un diesel standard 12 m vaut 293 400 € HT ; le jeu applique une majoration de gabarit articulé de 30 % (381 420 €), arrondie à 380 000 € en base 2024. Ce n’est ni un prix historique du Citaro G ni un prix d’occasion observé.",
             technicalTitle: "Mercedes-Benz Buses · fiche technique Citaro",
             technicalURL: "https://www.mercedes-benz-bus.com/int/en/models/citaro/facts-citaro.pdf",
-            technicalDataNote: "Bus & Car rapporte que les livraisons des 75 Citaro G à la RATP ont commencé au dernier trimestre 2014, notamment au dépôt d’Aubervilliers, et décrit le Citaro G essayé comme diesel. L’article ne qualifie pas chaque autobus livré. La fiche constructeur consultée décrit le Citaro G actuellement commercialisé ; ses caractéristiques sont affichées dans une variante distincte et ne sont pas attribuées à la série RATP 2014. La configuration réelle des exemplaires, leur prix individuel et une disponibilité d’occasion ne sont pas établis.",
+            technicalDataNote: "Bus & Car rapporte que les livraisons des 75 Citaro G à la RATP ont commencé au dernier trimestre 2014, notamment au dépôt d’Aubervilliers, et décrit le Citaro G essayé comme diesel. Une fiche secondaire documente un seul exemplaire RATP, le n° 5413, mis en service en novembre 2014 ; ses données sont isolées dans une variante distincte. La fiche constructeur décrit le Citaro G actuellement commercialisé et reste séparée des véhicules historiques. Ces références ne caractérisent pas l’ensemble des 75 livraisons ; le prix individuel et la disponibilité d’occasion ne sont pas établis.",
             technicalVariants: [
+                VehicleTechnicalVariant(
+                    id: "mercedes-citaro-g-c2-ratp-5413-2014",
+                    title: "Exemplaire RATP n° 5413 · Citaro G C2 (2014)",
+                    lengthMeters: 18.13,
+                    widthMeters: nil,
+                    heightMeters: nil,
+                    batteryCapacityKWh: nil,
+                    maximumPowerKilowatts: nil,
+                    maximumCapacity: nil,
+                    seatedCapacity: 33,
+                    rangeKilometers: nil,
+                    applicabilityNote: "Fiche secondaire de l’exemplaire mis en service en novembre 2014 (n° 5413, puis 242124/144138), avec 33 places assises et un moteur diesel OM470 de 360 ch, norme Euro VI et quatre portes. Elle indique aussi 126 places debout et deux emplacements UFR ; aucun total de capacité n’est repris ici. Son historique de dépôts cite Aubervilliers puis Thiais, sans rattachement à Bords de Marne. Ces caractéristiques ne sont pas généralisées aux autres Citaro G RATP.",
+                    evidenceTitle: "TC Infos · fiche individuelle Citaro G C2 n° 5413 / 242124 / 144138 · relevé du 8 avril 2026",
+                    evidenceURL: "https://tc-infos.fr/vehicule/5602"
+                ),
                 VehicleTechnicalVariant(
                     id: "mercedes-citaro-g-current-facts-2026",
                     title: "Fiche constructeur actuelle · Citaro G · consultée en 2026",
