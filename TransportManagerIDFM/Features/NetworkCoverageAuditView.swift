@@ -1219,7 +1219,7 @@ private struct GTFSTripQualityAuditSection: View {
     @State private var isExpanded = false
     @State private var selectedIssueKind: GTFSImportTripIssueKind?
     @State private var selectedIssue: GTFSImportTripIssue?
-    @State private var displayMode: GTFSTripQualityDisplayMode = .courses
+    @State private var displayMode: GTFSTripQualityDisplayMode = .motifs
     @State private var query = ""
     @State private var visibleIssueLimit = 100
 
@@ -1308,13 +1308,7 @@ private struct GTFSTripQualityAuditSection: View {
                     }
 
                     if let issues = quality.tripIssues {
-                        if issues.isEmpty {
-                            Text("Aucune course ne comporte d’anomalie enregistrée pour cette version.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        } else {
-                            issueList(issues)
-                        }
+                        issueList(issues)
                     } else {
                         Label("Cette archive précède le stockage des diagnostics par course. Réimportez-la pour les consulter.", systemImage: "info.circle")
                             .font(.caption)
@@ -1356,25 +1350,39 @@ private struct GTFSTripQualityAuditSection: View {
     @ViewBuilder
     private func issueList(_ issues: [GTFSImportTripIssue]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 10) {
+            if issues.isEmpty {
                 Picker("Vue", selection: $displayMode) {
-                    ForEach(GTFSTripQualityDisplayMode.allCases) { mode in
-                        Text(mode.title).tag(mode)
-                    }
+                    Text("Courses (0)").tag(GTFSTripQualityDisplayMode.courses)
+                    Text("Motifs (0)").tag(GTFSTripQualityDisplayMode.motifs)
                 }
                 .pickerStyle(.segmented)
                 .fixedSize()
 
-                Picker("Type d’anomalie", selection: $selectedIssueKind) {
-                    Text("Tous les types").tag(Optional<GTFSImportTripIssueKind>.none)
-                    ForEach(GTFSImportTripIssueKind.allCases, id: \.self) { kind in
-                        Text(kind.displayName).tag(Optional(kind))
+                Text(displayMode == .courses
+                    ? "Aucune course ne comporte d’anomalie enregistrée pour cette version."
+                    : "Aucun motif ne comporte d’anomalie enregistrée pour cette version.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                HStack(spacing: 10) {
+                    Picker("Vue", selection: $displayMode) {
+                        Text("Courses (\(filteredIssues.count))").tag(GTFSTripQualityDisplayMode.courses)
+                        Text("Motifs (\(filteredMotifs.count))").tag(GTFSTripQualityDisplayMode.motifs)
                     }
-                }
-                .pickerStyle(.menu)
+                    .pickerStyle(.segmented)
+                    .fixedSize()
 
-                TextField("Filtrer ligne, course, forme ou arrêt", text: $query)
-                    .textFieldStyle(.roundedBorder)
+                    Picker("Type d’anomalie", selection: $selectedIssueKind) {
+                        Text("Tous les types").tag(Optional<GTFSImportTripIssueKind>.none)
+                        ForEach(GTFSImportTripIssueKind.allCases, id: \.self) { kind in
+                            Text(kind.displayName).tag(Optional(kind))
+                        }
+                    }
+                    .pickerStyle(.menu)
+
+                    TextField("Filtrer ligne, course, forme ou arrêt", text: $query)
+                        .textFieldStyle(.roundedBorder)
+                }
             }
 
             let routeNamesByID = Dictionary(
