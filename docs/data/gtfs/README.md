@@ -87,6 +87,7 @@ L’archive conserve une source régionale datée pour l’import et l’audit. 
 
 - Une requête HTTP `HEAD` sur l’URL officielle du ZIP indique encore 150 257 397 octets, `Last-Modified: 23 octobre 2026 12:24:06 CEST` et ETag `6adb35c6-8f4bef5`, identiques au contrôle précédent. Cette réponse ne révèle pas de nouvelle version; elle ne remplace pas le contrôle SHA-256 complet du ZIP déjà téléchargé.
 - À 15:00 CEST, l’export public n’a donc apporté aucun nouvel élément sur les départs 214/314 après le 1er novembre. Le dernier ZIP contrôlé conserve le SHA-256 `6eb741b6eedb6b72d53bb3b76160ad3751aa33939357713759e0ca3ba96f8eb3`; #274 et #280 restent ouverts.
+- Recontrôle HTTP `HEAD` à 15:05 CEST : longueur, date `Last-Modified` du 23 octobre à 12:24:06 CEST et ETag restent identiques. Le ZIP complet n’a pas été retéléchargé; aucune mise à jour du flux public n’est signalée.
 
 ## Second motif géométrique de la ligne 127 — 23 octobre 2026
 
