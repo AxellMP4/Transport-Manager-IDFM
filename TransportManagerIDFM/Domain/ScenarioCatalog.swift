@@ -434,6 +434,11 @@ struct ScenarioDefinition: Identifiable, Hashable {
     let plannedDepots: [PlannedDepotReference]
     let networkChanges: [ScenarioNetworkChange]
 
+    var lineCountReconciliationNote: String? {
+        guard contractReportedLineCount != operatorReportLineCount else { return nil }
+        return "Les sources agrégées donnent \(contractReportedLineCount) lignes dans l’annonce IDFM à l’attribution et \(operatorReportLineCount) dans le rapport RATP 2025. Le rapport ne précise pas les identifiants qui expliquent l’écart; ces totaux ne permettent donc pas d’inférer quelles lignes diffèrent ni de modifier la liste datée du scénario."
+    }
+
     static let bordsDeMarne = ScenarioDefinition(
         id: "bords-de-marne",
         name: "Bords de Marne",

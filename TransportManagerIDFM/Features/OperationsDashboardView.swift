@@ -2178,6 +2178,18 @@ struct OperationsDashboardView: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+                if let lineCountReconciliationNote = scenario.lineCountReconciliationNote {
+                    Label {
+                        Text(lineCountReconciliationNote)
+                            .fixedSize(horizontal: false, vertical: true)
+                    } icon: {
+                        Image(systemName: "exclamationmark.circle.fill")
+                            .foregroundStyle(.orange)
+                    }
+                    .font(.caption2)
+                    .padding(9)
+                    .background(Color.orange.opacity(0.07), in: RoundedRectangle(cornerRadius: 9))
+                }
                 Link(scenario.contractSourceTitle, destination: scenario.contractSourceURL)
                     .font(.caption)
                 Link(scenario.operatorReportSourceTitle, destination: scenario.operatorReportSourceURL)
