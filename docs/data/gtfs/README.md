@@ -1,5 +1,12 @@
 # Archive GTFS IDFM
 
+## Contrôle du miroir après mise à jour de la ressource — 24 octobre 2026
+
+- La [fiche publique du Point d’Accès National](https://transport.data.gouv.fr/resources/80921?locale=fr) présente une couverture générale du 20 octobre au 21 novembre 2026 et annonce, pour « Bord de Marne », la période du 23 octobre au 8 novembre. Cette fenêtre descriptive ne prouve pas la présence de chaque ligne ni de chaque course.
+- Requête `HEAD` au ZIP lié par cette fiche (`https://eu.ftp.opendatasoft.com/stif/GTFS/IDFM-gtfs.zip`) : HTTP 200, 150 257 397 octets, `Last-Modified: 23 octobre 2026 12:24:06 CEST`, ETag `6adb35c6-8f4bef5`. Le téléchargement intégral du 24 octobre à 01:04 CEST produit le même SHA-256 que le contrôle antérieur, `6eb741b6eedb6b72d53bb3b76160ad3751aa33939357713759e0ca3ba96f8eb3`; `unzip -t` réussit. La page de ressource est plus récente, mais le binaire n’a pas changé.
+- Lecture ciblée de `routes.txt`, `trips.txt`, `calendar.txt` et `calendar_dates.txt` : une seule route 214, `IDFM:C01228`, avec 143 courses (109 actives le vendredi 30 octobre, 34 le samedi 31 octobre); aucune course 214 active le dimanche 1er novembre ou le lundi 2 novembre, et aucune route 314 dans `routes.txt`.
+- Cette copie publique ne fournit donc toujours pas les horaires GTFS post-réorganisation annoncés. Elle n’est pas intégrée au jeu; la version locale embarquée du 20 octobre reste inchangée. #280 reste ouvert jusqu’à l’inspection d’un fichier contenant réellement les courses requises. La fiche [PRIM GTFS](https://prim.iledefrance-mobilites.fr/fr/jeux-de-donnees/offre-horaires-tc-gtfs-idfm) relue le 24 octobre indique un dernier traitement au 23 octobre à 13:00; l’export demeure soumis à connexion authentifiée.
+
 ## Dernier réaudit global — 23 octobre 2026
 
 Le réaudit post-correction sur l’archive livrée du 20 octobre trouve **0 course, 0 visite et 0 motif d’arrêt non projetable** sur 433 197 courses bus, 1 971 routes et 33 599 arrêts. Les anciens chiffres de 17 318, puis 7 591 courses / 267 motifs sont historiques et supersédés pour ce snapshot. Voir le relevé complet à la fin de cette page. La géométrie reste à corroborer avec une source de terrain ou un export PRIM authentifié.
