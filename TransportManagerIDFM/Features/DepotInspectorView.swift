@@ -1699,7 +1699,7 @@ private struct DepotRegionalCoverageAuditView: View {
 
     @ViewBuilder
     private var sourceVersionSummary: some View {
-        let gtfs = library.catalog.activeVersion?.sourceTitle ?? "GTFS : aucune version active"
+        let gtfs = library.catalog.activeVersion?.displaySourceTitle ?? "GTFS : aucune version active"
         let lineReferences = library.catalog.activeLineReferenceVersion?.sourceTitle ?? "Références IDFM : aucune version active"
         let geometries = library.catalog.activeGeometryVersion?.sourceTitle ?? "Tracés : aucune version active"
         let documents = library.catalog.activeLineDocumentVersion?.sourceTitle ?? "Documents : aucun index actif"
