@@ -18,11 +18,18 @@ Le fichier `bords-de-marne-depot-roster.csv` est une base de travail datée pour
 - Le rapprochement des variantes avec les documents officiels confirme Pointe de Gournay sur le plan 113 de septembre 2025 et dans des courses 113 actives du GTFS du 20 octobre 2026; la version contient plusieurs terminus, dont Pointe de Gournay. Les anciennes variantes 118 vers Ledru-Rollin/OFPRA et la variante 306 vers 8 Mai 1945/Lycée Georges Clemenceau ne figurent ni sur les plans IDFM examinés ni dans les séquences GTFS actives de cette date; elles restent à confirmer, sans conclure qu’elles n’ont jamais existé.
 - Le référentiel de dépôts repose sur des preuves de niveaux différents : les neuf lignes régulières et N33 sont listées pour Saint-Maur dans l’ancien tableau RATP jusqu’au 31 octobre 2025 ; 210 et 520 sont rattachées au centre historique Bords de Marne, situé à Neuilly-Plaisance, sur cette même période. À partir du transfert du 1er novembre 2025, ces affirmations ne prouvent plus les COB des lignes. TC Infos signale des pools de matériel partagés ; 113 est observée sur plusieurs sites et son remisage partiel à Frères-Lumière n’est documenté que pour l’avant-transfert. Pour N32/N35, le centre de Créteil de l’ancien contrat et les observations TC Infos à Saint-Maur sont successifs dans le temps, pas contradictoires. Le futur COB de Neuilly-sur-Marne est distinct de Frères-Lumière et n’a pas d’affectation publiée.
 
+## Repère historique du centre bus à Neuilly-Plaisance
+
+Le schéma de principe IDFM du Bus Bords de Marne décrit l’ancien Centre bus des Bords de Marne (Maltournée), situé à Neuilly-Plaisance près du RER : emprise de 22 000 m², entretien et remisage d’environ 15 lignes, dont la 113 alors exploitée avec 27 autobus standards de 12 m. Le diagnostic indiquait que le site ne pouvait pas accueillir les autobus articulés à cette époque. L’emprise ne donne pas un nombre de places de stationnement, et les 27 autobus décrivent seulement la ligne 113, pas le parc total du site.
+
+Ces références historiques précèdent le transfert DSP45 au 1er novembre 2025. Elles documentent le site et un état d’exploitation antérieur, pas la capacité maximale ou les équipements présents aujourd’hui, ni les lignes désormais rattachées au COB. Le registre affiche ces chiffres comme observation historique distincte des comptages de parc TC Infos et des projets de futur COB.
+
 ## Sources
 
 - [IDFM · Attribution de la DSP 45, ses deux COB actuels et son périmètre annoncé](https://presse.iledefrance-mobilites.fr/mise-en-concurrence-des-transports-franciliens/?lang=fr)
 - [IDFM · Contrat bus 2025–2026 et lignes avec libellés de centres d’exploitation](https://www.iledefrance-mobilites.fr/medias/portail-idfm/aTFjzHNYClf9nz_6_ContratBUS2025-2026_vsigne%CC%81eLP.pdf)
 - [IDFM · Centre bus des Bords de Marne situé à Neuilly-Plaisance](https://www.iledefrance-mobilites.fr/le-reseau/projets/bus-bordsdemarne/questions/quelles-seront-les-caracteristiques-du-materiel-roulant)
+- [IDFM · Schéma de principe Bus Bords de Marne, diagnostic historique du centre bus](https://www.iledefrance-mobilites.fr/medias/portail-idfm-projets/e1b086d3-0a35-413f-978c-7919496a980b_BBM_SDP_VFFF.pdf)
 - [IDFM · Réorganisation et création de la ligne 314 au 1er novembre 2026](https://www.iledefrance-mobilites.fr/actualites/locales/detail/a-compter-du-1er-novembre-2026-ile-de-france-mobil)
 - [IDFM · Catalogue des plans et fiches horaires](https://data.iledefrance-mobilites.fr/explore/dataset/fiches-horaires-et-plans/)
 - [IDFM · Projet de Bus Bords de Marne et futur COB](https://www.iledefrance-mobilites.fr/le-reseau/projets/bus-bordsdemarne)

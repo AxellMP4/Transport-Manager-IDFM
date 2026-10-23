@@ -70,6 +70,7 @@ struct DepotLineRosterSite: Identifiable, Hashable, Sendable {
     let additionalEvidenceTitle: String?
     let additionalEvidenceURL: URL?
     let fleetObservation: DepotFleetObservation?
+    let facilityObservations: [DepotFacilityObservation]
 
     var isOperational: Bool { availability.isOperational }
 
@@ -92,7 +93,8 @@ struct DepotLineRosterSite: Identifiable, Hashable, Sendable {
         idfmBusContractID: String? = nil,
         additionalEvidenceTitle: String? = nil,
         additionalEvidenceURL: URL? = nil,
-        fleetObservation: DepotFleetObservation? = nil
+        fleetObservation: DepotFleetObservation? = nil,
+        facilityObservations: [DepotFacilityObservation] = []
     ) {
         self.id = id
         self.name = name
@@ -107,6 +109,7 @@ struct DepotLineRosterSite: Identifiable, Hashable, Sendable {
         self.additionalEvidenceTitle = additionalEvidenceTitle
         self.additionalEvidenceURL = additionalEvidenceURL
         self.fleetObservation = fleetObservation
+        self.facilityObservations = facilityObservations
     }
 }
 
@@ -441,7 +444,8 @@ enum DepotLineRoster {
                 comparisonNote: "La page récapitulative de l’exploitant TC Infos indique 201 véhicules pour ce site, tandis que sa fiche détaillée en compte 200 (148 diesel et 52 hybrides). Les deux pages donnent une période de parc « depuis novembre 2025 » sans date de mise à jour; le total détaillé reste une observation, pas une capacité certifiée.",
                 comparisonSourceTitle: "TC Infos · récapitulatif de l’exploitant (201 véhicules)",
                 comparisonSourceURL: URL(string: "https://tc-infos.fr/exploitant/2975")!
-            )
+            ),
+            facilityObservations: [DepotFacilityEvidenceCatalog.neuillyPlaisanceHistorical]
         ),
         DepotLineRosterSite(
             id: "freres-lumiere",
@@ -809,6 +813,10 @@ enum DepotLineRoster {
             additionalEvidenceTitle = supplemental.additionalEvidenceTitle
             additionalEvidenceURL = supplemental.additionalEvidenceURL
         }
+        var facilityObservations = preferred.facilityObservations
+        for observation in supplemental.facilityObservations where !facilityObservations.contains(where: { $0.id == observation.id }) {
+            facilityObservations.append(observation)
+        }
 
         return DepotLineRosterSite(
             id: preferred.id,
@@ -823,7 +831,8 @@ enum DepotLineRoster {
             idfmBusContractID: preferred.idfmBusContractID ?? supplemental.idfmBusContractID,
             additionalEvidenceTitle: additionalEvidenceTitle,
             additionalEvidenceURL: additionalEvidenceURL,
-            fleetObservation: preferred.fleetObservation ?? supplemental.fleetObservation
+            fleetObservation: preferred.fleetObservation ?? supplemental.fleetObservation,
+            facilityObservations: facilityObservations
         )
     }
 

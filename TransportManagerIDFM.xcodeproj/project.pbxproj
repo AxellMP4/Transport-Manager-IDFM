@@ -63,6 +63,8 @@
 		030000000000000000000039 /* idfm-route-geometries-2026-10-20.zip in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000036 /* idfm-route-geometries-2026-10-20.zip */; };
 		030000000000000000000041 /* DepotLineRosterManifest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000041 /* DepotLineRosterManifest.swift */; };
 		030000000000000000000042 /* bords-de-marne-depot-roster.csv in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000042 /* bords-de-marne-depot-roster.csv */; };
+		030000000000000000000116 /* DepotFacilityObservation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000116 /* DepotFacilityObservation.swift */; };
+		030000000000000000000117 /* DepotFacilityObservationCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000117 /* DepotFacilityObservationCard.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -122,6 +124,8 @@
 		020000000000000000000039 /* BusIllustrationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BusIllustrationView.swift; sourceTree = "<group>"; };
 		020000000000000000000041 /* DepotLineRosterManifest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DepotLineRosterManifest.swift; sourceTree = "<group>"; };
 		020000000000000000000042 /* bords-de-marne-depot-roster.csv */ = {isa = PBXFileReference; lastKnownFileType = text; path = docs/data/bords-de-marne-depot-roster.csv; sourceTree = SOURCE_ROOT; };
+		020000000000000000000116 /* DepotFacilityObservation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DepotFacilityObservation.swift; sourceTree = "<group>"; };
+		020000000000000000000117 /* DepotFacilityObservationCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DepotFacilityObservationCard.swift; sourceTree = "<group>"; };
 		020000000000000000000006 /* TransportManagerIDFM.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TransportManagerIDFM.entitlements; sourceTree = "<group>"; };
 		040000000000000000000001 /* TransportManagerIDFM.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TransportManagerIDFM.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -184,6 +188,7 @@
 				020000000000000000000037 /* CareerProgression.swift */,
 				020000000000000000000022 /* NetworkCoverageAudit.swift */,
 				020000000000000000000024 /* DepotLineRoster.swift */,
+				020000000000000000000116 /* DepotFacilityObservation.swift */,
 				020000000000000000000041 /* DepotLineRosterManifest.swift */,
 			);
 		};
@@ -196,6 +201,7 @@
 				020000000000000000000005 /* DepotInspectorView.swift */,
 				020000000000000000000023 /* NetworkCoverageAuditView.swift */,
 				020000000000000000000038 /* CareerProgressionView.swift */,
+				020000000000000000000117 /* DepotFacilityObservationCard.swift */,
 				020000000000000000000032 /* RouteDetourEditorView.swift */,
 				020000000000000000000035 /* StopClosureEditorView.swift */,
 				020000000000000000000039 /* BusIllustrationView.swift */,
@@ -341,7 +347,9 @@
 				030000000000000000000020 /* NetworkCoverageAudit.swift in Sources */,
 				030000000000000000000021 /* NetworkCoverageAuditView.swift in Sources */,
 				030000000000000000000022 /* DepotLineRoster.swift in Sources */,
+				030000000000000000000116 /* DepotFacilityObservation.swift in Sources */,
 				030000000000000000000041 /* DepotLineRosterManifest.swift in Sources */,
+				030000000000000000000117 /* DepotFacilityObservationCard.swift in Sources */,
 				030000000000000000000023 /* DepotLineCatalogView.swift in Sources */,
 				030000000000000000000024 /* GTFSRouteTimetableGridView.swift in Sources */,
 				030000000000000000000029 /* RouteDetourRouter.swift in Sources */,

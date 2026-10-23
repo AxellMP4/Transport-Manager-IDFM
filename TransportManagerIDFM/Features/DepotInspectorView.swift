@@ -332,6 +332,9 @@ struct DepotLineRosterView: View {
                         if let observation = selectedSite.fleetObservation {
                             DepotFleetObservationCard(observation: observation)
                         }
+                        ForEach(selectedSite.facilityObservations) { observation in
+                            DepotFacilityObservationCard(observation: observation)
+                        }
                         if let address = selectedSite.documentedAddress {
                             Text("Adresse publiée : \(address)")
                                 .font(.caption)
@@ -1148,6 +1151,9 @@ struct DepotDirectoryWorkspaceView: View {
                         .fixedSize(horizontal: false, vertical: true)
                     if let observation = selectedSite.fleetObservation {
                         DepotFleetObservationCard(observation: observation)
+                    }
+                    ForEach(selectedSite.facilityObservations) { observation in
+                        DepotFacilityObservationCard(observation: observation)
                     }
                     if let evidenceTitle = selectedSite.evidenceTitle, let sourceURL = selectedSite.sourceURL {
                         Link(evidenceTitle, destination: sourceURL)
