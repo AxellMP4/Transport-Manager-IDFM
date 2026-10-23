@@ -211,6 +211,8 @@ struct NetworkCoverageAuditView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     sourceSummary
 
+                    GTFSTripQualityAuditSection(version: activeVersion, routes: library.busRoutes)
+
                     idfmToGTFSSection
 
                     if library.busRoutes.isEmpty {
@@ -1166,5 +1168,200 @@ private struct NetworkCoverageAssignmentView: View {
         case .activeVersions: "versions GTFS et contrat actives"
         case .differentVersions: "autres versions · enregistrement conservé"
         }
+    }
+}
+
+private struct GTFSTripQualityAuditSection: View {
+    let version: NetworkVersion?
+    let routes: [GTFSRouteSummary]
+
+    @State private var isExpanded = false
+    @State private var selectedIssueKind: GTFSImportTripIssueKind?
+    @State private var query = ""
+    @State private var visibleIssueLimit = 100
+
+    private var quality: GTFSImportQuality? { version?.gtfsQuality }
+
+    private var filteredIssues: [GTFSImportTripIssue] {
+        guard let issues = quality?.tripIssues else { return [] }
+        let search = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        return issues.filter { issue in
+            if let selectedIssueKind, !issue.issueKinds.contains(selectedIssueKind) { return false }
+            guard !search.isEmpty else { return true }
+            let stopIDs = (issue.stopIDsWithoutCoordinates ?? []) + (issue.stopIDsNotMatchedToShape ?? [])
+            return issue.routeID.localizedCaseInsensitiveContains(search)
+                || issue.tripID.localizedCaseInsensitiveContains(search)
+                || (issue.shapeID ?? "").localizedCaseInsensitiveContains(search)
+                || stopIDs.contains { $0.localizedCaseInsensitiveContains(search) }
+        }
+    }
+
+    var body: some View {
+        DisclosureGroup(isExpanded: $isExpanded) {
+            if let quality {
+                VStack(alignment: .leading, spacing: 10) {
+                    VStack(alignment: .leading, spacing: 5) {
+                        GTFSQualityMetricRow(title: "Courses sans référence de forme", value: quality.tripsWithoutShapeReference)
+                        GTFSQualityMetricRow(title: "Courses avec forme absente ou invalide", value: quality.tripsWithUnavailableShape)
+                        GTFSQualityMetricRow(title: "Formes invalides rejetées à l’import", value: quality.invalidShapeCount)
+                        GTFSQualityMetricRow(title: "Courses avec arrêts non projetables", value: quality.tripsWithUnmatchedShapeStops ?? 0)
+                        GTFSQualityMetricRow(title: "Courses avec arrêts sans coordonnées", value: quality.tripsWithMissingStopCoordinates)
+                        GTFSQualityMetricRow(title: "Lignes stop_times sans stop_id", value: quality.missingStopIDRowCount ?? 0)
+                    }
+
+                    if let invalidShapeIDs = quality.invalidShapeIDs, !invalidShapeIDs.isEmpty {
+                        Text("Identifiants des formes rejetées · \(invalidShapeIDs.prefix(20).joined(separator: ", "))\(invalidShapeIDs.count > 20 ? " · +\(invalidShapeIDs.count - 20)" : "")")
+                            .font(.caption2.monospaced())
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                    }
+
+                    Text("Ces indicateurs sont des diagnostics structurels calculés à l’import. Une forme absente, invalide ou un arrêt non projetable doit être examiné avec le tracé et la carte; ce résultat ne prouve pas à lui seul que l’itinéraire réel est erroné.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    if let issues = quality.tripIssues {
+                        if issues.isEmpty {
+                            Text("Aucune course ne comporte d’anomalie enregistrée pour cette version.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            issueList(issues)
+                        }
+                    } else {
+                        Label("Cette archive précède le stockage des diagnostics par course. Réimportez-la pour les consulter.", systemImage: "info.circle")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(.top, 8)
+            } else {
+                Label("Aucun relevé de qualité n’est disponible pour cette version GTFS.", systemImage: "questionmark.circle")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 8)
+            }
+        } label: {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Qualité des formes et séquences d’arrêts")
+                    .font(.subheadline.weight(.semibold))
+                if let quality {
+                    Text("\(quality.tripIssues?.count.formatted() ?? "—") courses signalées · \(quality.invalidShapeCount) formes invalides · GTFS \(version?.id ?? "inconnu")")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("Diagnostics indisponibles pour l’archive active")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(12)
+        .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 10))
+        .onChange(of: selectedIssueKind) { _, _ in visibleIssueLimit = 100 }
+        .onChange(of: query) { _, _ in visibleIssueLimit = 100 }
+    }
+
+    @ViewBuilder
+    private func issueList(_ issues: [GTFSImportTripIssue]) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                Picker("Type d’anomalie", selection: $selectedIssueKind) {
+                    Text("Tous les types").tag(Optional<GTFSImportTripIssueKind>.none)
+                    ForEach(GTFSImportTripIssueKind.allCases, id: \.self) { kind in
+                        Text(kind.displayName).tag(Optional(kind))
+                    }
+                }
+                .pickerStyle(.menu)
+
+                TextField("Filtrer ligne, course, forme ou arrêt", text: $query)
+                    .textFieldStyle(.roundedBorder)
+            }
+
+            if filteredIssues.isEmpty {
+                Text("Aucune course ne correspond au filtre.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                let routeNamesByID = Dictionary(
+                    routes.map { ($0.routeID, $0.displayName) },
+                    uniquingKeysWith: { first, _ in first }
+                )
+                LazyVStack(spacing: 6) {
+                    ForEach(Array(filteredIssues.prefix(visibleIssueLimit))) { issue in
+                        GTFSTripQualityAuditRow(issue: issue, routeName: routeNamesByID[issue.routeID])
+                    }
+                }
+
+                HStack {
+                    Text("Affichage de \(min(visibleIssueLimit, filteredIssues.count)) sur \(filteredIssues.count) courses filtrées.")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    if filteredIssues.count > visibleIssueLimit {
+                        Button("Afficher 100 de plus") { visibleIssueLimit += 100 }
+                            .font(.caption)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct GTFSQualityMetricRow: View {
+    let title: String
+    let value: Int
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 8)
+            Text(value.formatted())
+                .font(.caption.monospacedDigit().weight(.semibold))
+        }
+    }
+}
+
+private struct GTFSTripQualityAuditRow: View {
+    let issue: GTFSImportTripIssue
+    let routeName: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(routeName.map { "\($0) · \(issue.routeID)" } ?? issue.routeID)
+                    .font(.caption.weight(.semibold))
+                Spacer(minLength: 8)
+                Text(issue.tripID)
+                    .font(.caption2.monospaced())
+                    .textSelection(.enabled)
+            }
+            Text(issue.summary)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            Text("shape_id · \(issue.shapeID ?? "absent")")
+                .font(.caption2.monospaced())
+                .foregroundStyle(.tertiary)
+                .textSelection(.enabled)
+            if let stopIDs = issue.stopIDsNotMatchedToShape, !stopIDs.isEmpty {
+                Text("Arrêts non projetés · \(stopIDs.prefix(8).joined(separator: ", "))\(stopIDs.count > 8 ? " · +\(stopIDs.count - 8)" : "")")
+                    .font(.caption2.monospaced())
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+            }
+            if let stopIDs = issue.stopIDsWithoutCoordinates, !stopIDs.isEmpty {
+                Text("Arrêts sans coordonnées · \(stopIDs.prefix(8).joined(separator: ", "))\(stopIDs.count > 8 ? " · +\(stopIDs.count - 8)" : "")")
+                    .font(.caption2.monospaced())
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+            }
+        }
+        .padding(8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 7))
     }
 }
