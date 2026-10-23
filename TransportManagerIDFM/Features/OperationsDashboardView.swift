@@ -1336,6 +1336,10 @@ struct OperationsDashboardView: View {
                 Link(evidenceTitle, destination: sourceURL)
                     .font(.callout)
             }
+            if let title = site.additionalEvidenceTitle, let url = site.additionalEvidenceURL {
+                Link(title, destination: url)
+                    .font(.callout)
+            }
             Divider()
             if let contractID = site.idfmBusContractID {
                 Text("\(selectedDepotMapLines.count) lignes du contrat DSP \(contractID) visibles · rattachement COB à confirmer selon la source")
