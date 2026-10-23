@@ -1644,10 +1644,19 @@ enum NetworkVersionStore {
             var projectionCandidate: (errorMeters: Double, progress: Double, segment: Int)?
             if canUseShapeMeasures,
                let measuredDistance = stopTime.shapeDistanceTraveled {
-                position = shapeProgress(forShapeDistance: measuredDistance, shape: shape, cumulative: cumulative)
+                let measuredPosition = shapeProgress(forShapeDistance: measuredDistance, shape: shape, cumulative: cumulative)
+                if let measuredPosition, measuredPosition.progress + 0.000_001 >= previousProgress {
+                    position = measuredPosition
+                }
             }
             if position == nil {
-                projectionCandidate = project(stop: stop, onto: shape.points, cumulative: cumulative, fromSegment: firstAllowedSegment)
+                projectionCandidate = project(
+                    stop: stop,
+                    onto: shape.points,
+                    cumulative: cumulative,
+                    fromSegment: firstAllowedSegment,
+                    notBeforeProgress: previousProgress
+                )
                 if let projectionCandidate,
                    projectionCandidate.errorMeters <= projectionToleranceMeters {
                     position = (projectionCandidate.progress, projectionCandidate.segment)
@@ -1727,12 +1736,17 @@ enum NetworkVersionStore {
         stop: GTFSStopSummary,
         onto points: [GTFSShapePoint],
         cumulative: [Double],
-        fromSegment firstAllowedSegment: Int
+        fromSegment firstAllowedSegment: Int,
+        notBeforeProgress minimumProgress: Double
     ) -> (errorMeters: Double, progress: Double, segment: Int)? {
         guard points.count >= 2, cumulative.count == points.count,
               let totalDistance = cumulative.last, totalDistance > 0 else { return nil }
         let latitudeScale = cos(stop.latitude * .pi / 180)
         var best: (errorMeters: Double, progress: Double, segment: Int)?
+        var minimumErrorMeters = Double.infinity
+        // GTFS shape coordinates are rounded to 1e-6 degrees. Within that sub-meter range,
+        // prefer the earliest forward occurrence so repeated stops stay in sequence.
+        let coordinatePrecisionTieToleranceMeters = 0.25
         for segment in max(0, firstAllowedSegment)..<(points.count - 1) {
             let start = points[segment]
             let end = points[segment + 1]
@@ -1752,8 +1766,20 @@ enum NetworkVersionStore {
             let errorMeters = hypot(errorX, errorY) * 111_320
             let segmentLength = cumulative[segment + 1] - cumulative[segment]
             let distance = cumulative[segment] + segmentLength * fraction
-            let projected = (errorMeters, distance / totalDistance, segment)
-            if best == nil || projected.0 < best!.errorMeters { best = projected }
+            let progress = distance / totalDistance
+            guard progress + 0.000_001 >= minimumProgress else { continue }
+            let projected = (errorMeters, progress, segment)
+            if errorMeters < minimumErrorMeters {
+                minimumErrorMeters = errorMeters
+                if best == nil || best!.errorMeters > minimumErrorMeters + coordinatePrecisionTieToleranceMeters {
+                    best = projected
+                } else if progress < best!.progress {
+                    best = projected
+                }
+            } else if errorMeters <= minimumErrorMeters + coordinatePrecisionTieToleranceMeters,
+                      best == nil || progress < best!.progress {
+                best = projected
+            }
         }
         guard let best else { return nil }
         return (best.errorMeters, best.progress, best.segment)
