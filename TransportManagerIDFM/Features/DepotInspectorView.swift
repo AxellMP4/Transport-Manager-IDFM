@@ -638,6 +638,12 @@ private struct DepotFleetObservationCard: View {
                 Text("\(observation.totalVehicleCount) véhicules")
                     .font(.caption.weight(.semibold).monospacedDigit())
             }
+            if compact, let comparisonNote = observation.comparisonNote {
+                Label("Total à vérifier", systemImage: "exclamationmark.triangle")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.orange)
+                    .help(comparisonNote)
+            }
             Text(energySummary)
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -658,6 +664,20 @@ private struct DepotFleetObservationCard: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+                if let comparisonNote = observation.comparisonNote {
+                    Label("Écart entre les vues de la source", systemImage: "exclamationmark.triangle")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.orange)
+                    Text(comparisonNote)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if let title = observation.comparisonSourceTitle,
+                       let url = observation.comparisonSourceURL {
+                        Link(title, destination: url)
+                            .font(.caption2)
+                    }
+                }
             }
             Link(observation.sourceTitle, destination: observation.sourceURL)
                 .font(compact ? .caption2 : .caption)
