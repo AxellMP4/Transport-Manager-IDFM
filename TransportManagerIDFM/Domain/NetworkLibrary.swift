@@ -1085,6 +1085,8 @@ final class NetworkLibrary: ObservableObject {
         var missingReferenceCount = 0
         var missingGTFSCount = 0
         var unconfirmedEvidenceCount = 0
+        var routesWithoutPlansByID: [String: DepotRouteDocumentGap] = [:]
+        var routesWithoutTimetablesByID: [String: DepotRouteDocumentGap] = [:]
 
         for (key, record) in records {
             let lineID = record.referenceIDs.count == 1 ? record.referenceIDs.first : nil
@@ -1128,8 +1130,28 @@ final class NetworkLibrary: ObservableObject {
                 return document.type.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
             }
             if allDocumentTypes.contains("PLAN") { planLineKeys.insert(key) }
-            if !Set(allDocumentTypes).isDisjoint(with: ["HORAIRE", "FICHE HORAIRE"]) {
+            let hasTimetableDocument = !Set(allDocumentTypes).isDisjoint(with: ["HORAIRE", "FICHE HORAIRE"])
+            if hasTimetableDocument {
                 timetableLineKeys.insert(key)
+            }
+            let lineName = record.rows.map(\.line).sorted {
+                $0.localizedStandardCompare($1) == .orderedAscending
+            }.first ?? activeBusReferences.first(where: {
+                LineReferenceMatcher.canonicalIdentifier($0.idLine) == (lineID ?? "")
+            })?.displayName ?? lineID ?? key
+            for route in matchingRoutes {
+                if !allDocumentTypes.contains("PLAN") {
+                    routesWithoutPlansByID[route.routeID] = DepotRouteDocumentGap(
+                        lineName: lineName,
+                        routeID: route.routeID
+                    )
+                }
+                if !hasTimetableDocument {
+                    routesWithoutTimetablesByID[route.routeID] = DepotRouteDocumentGap(
+                        lineName: lineName,
+                        routeID: route.routeID
+                    )
+                }
             }
 
             let rosterConfirmed = record.rows.contains { $0.evidenceStatus(on: serviceDate) == .confirmed }
@@ -1154,7 +1176,19 @@ final class NetworkLibrary: ObservableObject {
             ambiguousReferenceCount: ambiguousReferenceCount,
             missingReferenceCount: missingReferenceCount,
             missingGTFSCount: missingGTFSCount,
-            unconfirmedDepotEvidenceCount: unconfirmedEvidenceCount
+            unconfirmedDepotEvidenceCount: unconfirmedEvidenceCount,
+            routesWithoutPlans: routesWithoutPlansByID.values.sorted {
+                if $0.lineName != $1.lineName {
+                    return $0.lineName.localizedStandardCompare($1.lineName) == .orderedAscending
+                }
+                return $0.routeID.localizedStandardCompare($1.routeID) == .orderedAscending
+            },
+            routesWithoutTimetables: routesWithoutTimetablesByID.values.sorted {
+                if $0.lineName != $1.lineName {
+                    return $0.lineName.localizedStandardCompare($1.lineName) == .orderedAscending
+                }
+                return $0.routeID.localizedStandardCompare($1.routeID) == .orderedAscending
+            }
         )
     }
 
