@@ -950,6 +950,7 @@ Vérification : `xcodebuild -project TransportManagerIDFM.xcodeproj -scheme Tran
 - Une requête HTTP `HEAD` à l’URL officielle du miroir renvoie toujours 150 257 397 octets, `Last-Modified: 23 octobre 2026 12:24:06 CEST` et l’ETag `6adb35c6-8f4bef5` déjà observés. Aucun nouveau contenu n’est indiqué par ces métadonnées; aucun ZIP n’a été retéléchargé à ce contrôle.
 - Le dernier ZIP intégralement téléchargé reste celui de 14:39 CEST (SHA-256 `6eb741b6eedb6b72d53bb3b76160ad3751aa33939357713759e0ca3ba96f8eb3`) : 0 départ 214 le 1er novembre et route 314 absente. Les critères #274 et #280 ne progressent pas faute d’archive post-réorganisation adéquate.
 - Contrôle effectué en lecture seule à 15:00 CEST; aucune donnée n’a été incorporée ni remplacée. Progression inchangée : 133/139 (95,7 %).
+- Recontrôle en lecture seule à 15:05 CEST : `HEAD` renvoie toujours 150 257 397 octets, `Last-Modified: 23 octobre 2026 12:24:06 CEST` et l’ETag `6adb35c6-8f4bef5`; aucune nouvelle version n’est signalée.
 
 ## Second motif géométrique de la ligne 127 — 23 octobre 2026
 
