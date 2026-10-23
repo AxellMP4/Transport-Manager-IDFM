@@ -277,6 +277,7 @@ struct OperationsDashboardView: View {
 
     @AppStorage("transportManager.selectedDepotID") private var selectedDepotID = "saint-maur"
     @State private var careerStartMoment = Date.now
+    @State private var selectedCandidateCareerLineIDs = Set<String>()
     @State private var breakdownFrequency: VehicleIncidentFrequency = .standard
     @State private var careerStartError: String?
     @State private var isPreparingTimetable = false
@@ -498,7 +499,13 @@ struct OperationsDashboardView: View {
         if let session = simulation.session {
             return session.effectiveOperatedRouteIDs(for: selectedDepotID)
         }
-        return Set(selectedDepotMapLines.flatMap(\.routes).map(\.routeID))
+        let confirmedRouteIDs = Set(selectedDepotMapLines
+            .filter { $0.row.evidenceStatus(on: selectedDepotRosterDate) == .confirmed }
+            .flatMap { $0.routes.map(\.routeID) })
+        let playerSelectedRouteIDs = Set(selectedDepotMapLines
+            .filter { selectedCandidateCareerLineIDs.contains($0.id) }
+            .flatMap { $0.routes.map(\.routeID) })
+        return confirmedRouteIDs.union(playerSelectedRouteIDs)
     }
 
     private var selectedDepotLineCoverage: DepotLineCoverage {
@@ -938,6 +945,7 @@ struct OperationsDashboardView: View {
             await loadDepotFallbackShapes()
         }
         .onChange(of: selectedDepotID) { _, _ in
+            selectedCandidateCareerLineIDs.removeAll()
             browsedDepotID = nil
             selectedDepotLineID = nil
             selectedRouteID = nil
@@ -959,6 +967,7 @@ struct OperationsDashboardView: View {
             }
         }
         .onChange(of: careerStartMoment) { _, _ in
+            selectedCandidateCareerLineIDs.formIntersection(Set(selectedDepotMapLines.map(\.id)))
             if !selectedDepotMapLines.contains(where: { $0.id == selectedDepotLineID }) {
                 selectedDepotLineID = nil
                 selectedRouteID = nil
@@ -1508,7 +1517,7 @@ struct OperationsDashboardView: View {
     private var startCareerHelp: String {
         if catalog.activeVersion == nil { return "Le réseau GTFS intégré est encore en cours de chargement." }
         if !isSelectedDepotPlayable { return "Ce site reste consultable. Pour démarrer, il faut un dépôt relié publiquement à une DSP avec des lignes actives." }
-        if selectedDepotRouteIDs.isEmpty { return "Aucune ligne active de ce contrat ne correspond au référentiel IDFM à la date choisie." }
+        if selectedDepotRouteIDs.isEmpty { return "Choisis au moins une ligne confirmée ou coche une ligne candidate à exploiter. Les candidates ne sont pas affectées automatiquement." }
         if !isCareerStartWithinNetworkValidity { return "Choisis une date couverte par les horaires GTFS intégrés." }
         if catalog.activeGeometryVersion == nil { return "Les tracés officiels du réseau sont en cours de chargement." }
         let statusNote = selectedDepotSite?.availability == .currentStatusUnverified
@@ -1686,7 +1695,9 @@ struct OperationsDashboardView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Lignes du dépôt")
                         .font(.headline)
-                    Text("\(selectedDepotMapLines.count) lignes sur la carte")
+                    Text(simulation.session == nil
+                         ? "\(selectedDepotRouteIDs.count) variantes retenues · \(selectedDepotMapLines.count) lignes au catalogue"
+                         : "\(selectedDepotMapLines.count) lignes sur la carte")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -1703,6 +1714,23 @@ struct OperationsDashboardView: View {
             .padding(14)
 
             Divider()
+
+            if simulation.session == nil {
+                Text("Les lignes confirmées sont incluses. Utilise le bouton rond pour choisir les autres lignes que tu veux exploiter.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 9)
+            } else if simulation.session?.effectiveManagedDepotIDs.contains(selectedDepotID) == true,
+                      selectedDepotRouteIDs.isEmpty {
+                Text("Aucune ligne n’est encore affectée à ce dépôt. Ouvre une ligne et choisis « Exploiter cette ligne depuis ce dépôt ».")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 9)
+            }
 
             if selectedDepotMapLines.isEmpty {
                 ContentUnavailableView(
@@ -1721,12 +1749,38 @@ struct OperationsDashboardView: View {
                 ScrollView {
                     LazyVStack(spacing: 5) {
                         ForEach(selectedDepotMapLines) { line in
-                            Button {
-                                selectDepotLine(line)
-                            } label: {
-                                depotLineRow(line)
+                            HStack(spacing: 5) {
+                                Button {
+                                    selectDepotLine(line)
+                                } label: {
+                                    depotLineRow(line)
+                                }
+                                .buttonStyle(.plain)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+
+                                if simulation.session == nil,
+                                   !line.routes.isEmpty,
+                                   line.row.evidenceStatus(on: selectedDepotRosterDate) != .confirmed,
+                                   line.row.evidenceStatus(on: selectedDepotRosterDate) != .planned {
+                                    Button {
+                                        toggleCandidateCareerLine(line)
+                                    } label: {
+                                        Image(systemName: selectedCandidateCareerLineIDs.contains(line.id)
+                                            ? "checkmark.circle.fill"
+                                            : "circle")
+                                            .font(.title3)
+                                            .foregroundStyle(selectedCandidateCareerLineIDs.contains(line.id) ? Color.accentColor : Color.secondary)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .padding(.horizontal, 3)
+                                    .help(selectedCandidateCareerLineIDs.contains(line.id)
+                                        ? "Retirer cette ligne des affectations de départ"
+                                        : "Choisir cette ligne candidate pour la carrière")
+                                    .accessibilityLabel(selectedCandidateCareerLineIDs.contains(line.id)
+                                        ? "Retirer la ligne \(line.row.line) de la carrière"
+                                        : "Inclure la ligne \(line.row.line) dans la carrière")
+                                }
                             }
-                            .buttonStyle(.plain)
                             .contextMenu {
                                 Button {
                                     selectedDepotLineID = line.id
@@ -1739,6 +1793,23 @@ struct OperationsDashboardView: View {
                                         selectRoute(route)
                                     } label: {
                                         Label("Centrer la ligne sur la carte", systemImage: "scope")
+                                    }
+                                }
+                                if simulation.session == nil,
+                                   !line.routes.isEmpty,
+                                   line.row.evidenceStatus(on: selectedDepotRosterDate) != .confirmed,
+                                   line.row.evidenceStatus(on: selectedDepotRosterDate) != .planned {
+                                    Button {
+                                        toggleCandidateCareerLine(line)
+                                    } label: {
+                                        Label(
+                                            selectedCandidateCareerLineIDs.contains(line.id)
+                                                ? "Retirer de la carrière"
+                                                : "Inclure dans la carrière",
+                                            systemImage: selectedCandidateCareerLineIDs.contains(line.id)
+                                                ? "minus.circle"
+                                                : "checkmark.circle"
+                                        )
                                     }
                                 }
                                 if simulation.session?.effectiveManagedDepotIDs.contains(selectedDepotID) == true,
@@ -1869,32 +1940,17 @@ struct OperationsDashboardView: View {
         guard let session = simulation.session,
               !session.effectiveManagedDepotIDs.contains(depotID),
               DepotCareerScope.depotReference(for: depotID) != nil,
-              let site = DepotLineRoster.selectableSites.first(where: { $0.id == depotID }) else { return }
-        let routeIDs = routeIDs(for: site, on: session.simulatedAt)
-        let newRouteIDs = routeIDs.subtracting(session.operatedRouteIDs ?? [])
-        let horizonEnd = session.timetableHorizonEnd ?? session.simulatedAt.addingTimeInterval(48 * 60 * 60)
-        isPreparingTimetable = true
-        Task {
-            defer { isPreparingTimetable = false }
-            do {
-                let departures = newRouteIDs.isEmpty ? [] : try await library.loadScheduledDepartures(
-                    gtfsVersionID: session.networkVersions.gtfsID,
-                    routeIDs: newRouteIDs,
-                    from: session.simulatedAt,
-                    through: horizonEnd
-                )
-                try simulation.addManagedDepot(
-                    depotID,
-                    operatedRouteIDs: Array(newRouteIDs),
-                    scheduledDepartures: departures
-                )
-                selectedDepotID = depotID
-                browsedDepotID = nil
-                selectedDepotLineID = nil
-                selectedWorkspaceTab = .network
-            } catch {
-                careerStartError = "Impossible d’ajouter ce dépôt à la carrière : \(error.localizedDescription)"
-            }
+              let site = DepotLineRoster.selectableSites.first(where: { $0.id == depotID }),
+              site.hasPlayableContractScope,
+              site.availability != .planned else { return }
+        do {
+            try simulation.addManagedDepot(depotID, operatedRouteIDs: [])
+            selectedDepotID = depotID
+            browsedDepotID = nil
+            selectedDepotLineID = nil
+            selectedWorkspaceTab = .network
+        } catch {
+            careerStartError = "Impossible d’ajouter ce dépôt à la carrière : \(error.localizedDescription)"
         }
     }
 
@@ -1927,29 +1983,16 @@ struct OperationsDashboardView: View {
         }
     }
 
-    private func routeIDs(for site: DepotLineRosterSite, on serviceDate: Date) -> Set<String> {
-        let documentedRows = DepotLineRoster.rows.filter { $0.isVisible(atSite: site.id, on: serviceDate) }
-        let candidateRows = DepotContractLineScope.candidateRows(
-            for: site,
-            references: library.lineReferences,
-            serviceDate: serviceDate,
-            excluding: documentedRows
-        )
-        let rows = documentedRows + candidateRows
-        return Set(rows.flatMap { row -> [String] in
-            let normalizedName = row.line.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-            let referenceIDs = Set(library.lineReferences.compactMap { reference -> String? in
-                guard reference.isActive(on: serviceDate) == true,
-                      reference.shortNameLine.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() == normalizedName else { return nil }
-                return LineReferenceMatcher.canonicalIdentifier(reference.idLine)
-            })
-            let canonicalLineID = row.canonicalLineID
-                ?? (referenceIDs.count == 1 ? referenceIDs.first : nil)
-            guard let canonicalLineID else { return [] }
-            return library.busRoutes
-                .filter { LineReferenceMatcher.canonicalIdentifier($0.routeID) == canonicalLineID }
-                .map(\.routeID)
-        })
+    private func toggleCandidateCareerLine(_ line: DepotMapLine) {
+        guard simulation.session == nil,
+              !line.routes.isEmpty,
+              line.row.evidenceStatus(on: selectedDepotRosterDate) != .confirmed,
+              line.row.evidenceStatus(on: selectedDepotRosterDate) != .planned else { return }
+        if selectedCandidateCareerLineIDs.contains(line.id) {
+            selectedCandidateCareerLineIDs.remove(line.id)
+        } else {
+            selectedCandidateCareerLineIDs.insert(line.id)
+        }
     }
 
     private func startCareer() {
