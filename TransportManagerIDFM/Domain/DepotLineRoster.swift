@@ -727,8 +727,17 @@ enum DepotLineRoster {
     /// Physical sites and site candidates that can be browsed from the map selector.
     /// Unclassified labels (operators, networks or historical names) stay in the audit register.
     static var selectableSites: [DepotLineRosterSite] {
-        var result = sites + currentContractSites + publicRegionalDepotDirectorySites
-        var knownIDs = Set(result.map(\.id))
+        var result: [DepotLineRosterSite] = []
+        var resultIndexByID: [String: Int] = [:]
+        for candidate in sites + currentContractSites + publicRegionalDepotDirectorySites {
+            if let index = resultIndexByID[candidate.id] {
+                result[index] = mergeSiteMetadata(preferred: result[index], supplemental: candidate)
+            } else {
+                resultIndexByID[candidate.id] = result.count
+                result.append(candidate)
+            }
+        }
+        var knownIDs = Set(resultIndexByID.keys)
 
         for entry in RegionalDepotRegistry.browseableEntries {
             let siteID = entry.linkedDepotID ?? (entry.id == "bussy-annex-2022" ? "bussy" : entry.id)
@@ -770,6 +779,59 @@ enum DepotLineRoster {
         }
     }
 
+    private static func mergeSiteMetadata(
+        preferred: DepotLineRosterSite,
+        supplemental: DepotLineRosterSite
+    ) -> DepotLineRosterSite {
+        let preferredPriority = availabilityPriority(preferred.availability)
+        let supplementalPriority = availabilityPriority(supplemental.availability)
+        let currentSite = supplementalPriority > preferredPriority ? supplemental : preferred
+        let evidenceNote: String
+        if preferred.evidenceNote == supplemental.evidenceNote || supplemental.evidenceNote.isEmpty {
+            evidenceNote = preferred.evidenceNote
+        } else if preferred.evidenceNote.isEmpty {
+            evidenceNote = supplemental.evidenceNote
+        } else {
+            let supplementalTitle = supplemental.evidenceTitle.map { "\($0) · " } ?? ""
+            evidenceNote = "\(preferred.evidenceNote)\n\n\(supplementalTitle)\(supplemental.evidenceNote)"
+        }
+        let additionalEvidenceTitle: String?
+        let additionalEvidenceURL: URL?
+        if preferred.additionalEvidenceURL != nil {
+            additionalEvidenceTitle = preferred.additionalEvidenceTitle
+            additionalEvidenceURL = preferred.additionalEvidenceURL
+        } else if supplemental.sourceURL != nil, supplemental.sourceURL != preferred.sourceURL {
+            additionalEvidenceTitle = supplemental.evidenceTitle
+            additionalEvidenceURL = supplemental.sourceURL
+        } else {
+            additionalEvidenceTitle = supplemental.additionalEvidenceTitle
+            additionalEvidenceURL = supplemental.additionalEvidenceURL
+        }
+
+        return DepotLineRosterSite(
+            id: preferred.id,
+            name: preferred.name,
+            locality: preferred.locality,
+            status: currentSite.status,
+            availability: currentSite.availability,
+            evidenceNote: evidenceNote,
+            sourceURL: preferred.sourceURL ?? supplemental.sourceURL,
+            documentedAddress: preferred.documentedAddress ?? supplemental.documentedAddress,
+            evidenceTitle: preferred.evidenceTitle ?? supplemental.evidenceTitle,
+            idfmBusContractID: preferred.idfmBusContractID ?? supplemental.idfmBusContractID,
+            additionalEvidenceTitle: additionalEvidenceTitle,
+            additionalEvidenceURL: additionalEvidenceURL,
+            fleetObservation: preferred.fleetObservation ?? supplemental.fleetObservation
+        )
+    }
+
+    private static func availabilityPriority(_ availability: DepotSiteAvailability) -> Int {
+        switch availability {
+        case .operational: 2
+        case .currentStatusUnverified: 1
+        case .planned: 0
+        }
+    }
     private static func availabilityOrder(_ availability: DepotSiteAvailability) -> Int {
         switch availability {
         case .operational: 0
