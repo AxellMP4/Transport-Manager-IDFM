@@ -1394,7 +1394,7 @@ struct DepotDirectoryWorkspaceView: View {
         }
     }
 
-    private func depotCoverageMetric(    private func depotCoverageMetric(_ title: String, value: String, symbol: String) -> some View {
+    private func depotCoverageMetric(_ title: String, value: String, symbol: String) -> some View {
         VStack(alignment: .leading, spacing: 5) {
             Label(title, systemImage: symbol)
                 .font(.caption2.weight(.medium))
@@ -1697,6 +1697,19 @@ private struct DepotRegionalCoverageAuditView: View {
         }
 
         let sites = sitesToAudit
+        currentSiteName = "Lecture de l’index GTFS partagé…"
+        var serviceAudits: [String: DepotGTFSServiceAudit] = [:]
+        var sharedServiceAuditError: String?
+        do {
+            serviceAudits = try await library.depotGTFSServiceAudits(
+                depotIDs: sites.map(\.id),
+                serviceDate: serviceDate
+            )
+        } catch {
+            sharedServiceAuditError = error.localizedDescription
+        }
+        guard !Task.isCancelled, inputKey == auditInputKey else { return }
+
         for (index, site) in sites.enumerated() {
             guard !Task.isCancelled, inputKey == auditInputKey else { return }
             currentSiteName = site.name
@@ -1735,16 +1748,8 @@ private struct DepotRegionalCoverageAuditView: View {
                 serviceDate: serviceDate,
                 operatedRouteIDs: operatedRouteIDsForDepot(site.id)
             )
-            var serviceAudit: DepotGTFSServiceAudit?
-            var serviceAuditError: String?
-            do {
-                serviceAudit = try await library.depotGTFSServiceAudit(
-                    depotID: site.id,
-                    serviceDate: serviceDate
-                )
-            } catch {
-                serviceAuditError = error.localizedDescription
-            }
+            let serviceAudit = serviceAudits[site.id]
+            let serviceAuditError = sharedServiceAuditError
             guard !Task.isCancelled, inputKey == auditInputKey else { return }
 
             records.append(DepotRegionalCoverageAuditRecord(
