@@ -931,6 +931,7 @@ struct DepotDirectoryWorkspaceView: View {
     @State private var selectedSiteServiceAudit: DepotGTFSServiceAudit?
     @State private var selectedSiteServiceAuditError: String?
     @State private var isLoadingSelectedSiteServiceAudit = false
+    @State private var isPresentingRegionalCoverageAudit = false
 
 
     private var directorySelectedDepotID: String {
@@ -998,6 +999,21 @@ struct DepotDirectoryWorkspaceView: View {
             let taskID = selectedSiteServiceAuditTaskID
             await loadSelectedSiteServiceAudit(taskID: taskID)
         }
+        .sheet(isPresented: $isPresentingRegionalCoverageAudit) {
+            DepotRegionalCoverageAuditView(
+                library: library,
+                serviceDate: serviceDate,
+                operatedRouteIDsForDepot: operatedRouteIDsForDepot,
+                onSelect: { depotID in
+                    if selectionLocked {
+                        browseSelectionID = depotID
+                    } else {
+                        onSelect(depotID)
+                    }
+                    isPresentingRegionalCoverageAudit = false
+                }
+            )
+        }
     }
 
     private var directoryList: some View {
@@ -1011,6 +1027,16 @@ struct DepotDirectoryWorkspaceView: View {
             }
             .padding(.horizontal, 16)
             .padding(.top, 16)
+            .padding(.bottom, 8)
+
+            Button {
+                isPresentingRegionalCoverageAudit = true
+            } label: {
+                Label("Audit régional complet", systemImage: "checklist")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(.bordered)
+            .padding(.horizontal, 12)
             .padding(.bottom, 10)
 
             TextField("Nom du dépôt ou de la ville", text: $searchText)
@@ -1392,6 +1418,347 @@ struct DepotDirectoryWorkspaceView: View {
         if isLoading { return "Chargement…" }
         if error != nil { return "Indisponible" }
         return hasVersion ? "Non chargé" : "Aucune version"
+    }
+}
+
+private struct DepotRegionalCoverageAuditRecord: Identifiable {
+    let site: DepotLineRosterSite
+    let coverage: DepotLineCoverage
+    let serviceAudit: DepotGTFSServiceAudit?
+    let serviceAuditError: String?
+    let confirmedCobLineCount: Int
+    let otherCobEvidenceLineCount: Int
+    let candidateLineCount: Int
+
+    var id: String { site.id }
+}
+
+private struct DepotRegionalCoverageAuditView: View {
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject var library: NetworkLibrary
+    let serviceDate: Date
+    let operatedRouteIDsForDepot: (String) -> Set<String>
+    let onSelect: (String) -> Void
+
+    @State private var records: [DepotRegionalCoverageAuditRecord] = []
+    @State private var searchText = ""
+    @State private var currentSiteName: String?
+    @State private var completedSiteCount = 0
+    @State private var isAuditing = true
+    @State private var sourceLoadingError: String?
+    @State private var reloadToken = 0
+
+    private var auditInputKey: String {
+        let dateKey = GTFSServiceDate.key(for: serviceDate, timeZone: GTFSServiceDate.parisTimeZone) ?? -1
+        return [
+            String(dateKey),
+            library.catalog.activeVersion?.id ?? "aucun-gtfs",
+            library.catalog.activeLineReferenceVersion?.id ?? "aucune-reference",
+            library.catalog.activeGeometryVersion?.id ?? "aucune-geometrie",
+            library.catalog.activeLineDocumentVersion?.id ?? "aucun-document"
+        ].joined(separator: "|")
+    }
+
+    private var sitesToAudit: [DepotLineRosterSite] {
+        DepotLineRoster.selectableSites
+            .filter { $0.availability != .planned }
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
+
+    private var filteredRecords: [DepotRegionalCoverageAuditRecord] {
+        guard !searchText.isEmpty else { return records }
+        return records.filter {
+            $0.site.name.localizedCaseInsensitiveContains(searchText)
+                || $0.site.locality.localizedCaseInsensitiveContains(searchText)
+                || $0.site.idfmBusContractID?.localizedCaseInsensitiveContains(searchText) == true
+        }
+    }
+
+    private var plannedSiteCount: Int {
+        DepotLineRoster.selectableSites.count(where: { $0.availability == .planned })
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .top, spacing: 16) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Audit régional des dépôts")
+                        .font(.title2.weight(.semibold))
+                    Text("Couverture au \(serviceDate.formatted(date: .long, time: .omitted)) · \(sitesToAudit.count) sites hors projets")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button("Fermer") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+            }
+            .padding(20)
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Le tableau rapproche les lignes recensées, références IDFM, routes GTFS, géométries commerciales, plans et fiches horaires. Les départs ne sont associés qu’après une référence IDFM unique puis par `ID_Line` exact. Une appartenance au contrat ne confirme pas un rattachement au COB.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                sourceVersionSummary
+
+                HStack(spacing: 10) {
+                    TextField("Filtrer par dépôt, ville ou DSP", text: $searchText)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(maxWidth: 360)
+                    Spacer()
+                    if isAuditing {
+                        ProgressView(value: Double(completedSiteCount), total: Double(max(sitesToAudit.count, 1)))
+                            .frame(width: 150)
+                        Text("\(completedSiteCount)/\(sitesToAudit.count)")
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                        if let currentSiteName {
+                            Text(currentSiteName)
+                                .font(.caption)
+                                .lineLimit(1)
+                                .frame(maxWidth: 220, alignment: .leading)
+                        }
+                    } else {
+                        Button {
+                            reloadToken += 1
+                        } label: {
+                            Label("Relancer", systemImage: "arrow.clockwise")
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                }
+
+                if let sourceLoadingError {
+                    Label(sourceLoadingError, systemImage: "exclamationmark.triangle")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                if !isAuditing {
+                    Text("\(records.count) sites audités · \(plannedSiteCount) projets exclus de l’audit de service")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 14)
+
+            Divider()
+
+            Table(filteredRecords) {
+                TableColumn("Site") { record in
+                    Button {
+                        onSelect(record.site.id)
+                    } label: {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(record.site.name)
+                                .font(.subheadline.weight(.medium))
+                            Text("\(record.site.locality) · \(record.site.availability.shortLabel)")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .width(min: 210, ideal: 250)
+
+                TableColumn("COB documenté") { record in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("\(record.confirmedCobLineCount) confirmé(s)")
+                            .font(.caption.weight(.medium).monospacedDigit())
+                        Text("\(record.otherCobEvidenceLineCount) autre(s) preuve(s)")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        Text("\(record.candidateLineCount) candidat(s) de contrat")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .width(min: 135, ideal: 155)
+
+                TableColumn("ID_Line") { record in
+                    let uniqueReferences = max(0, record.coverage.uniqueLineCount
+                        - record.coverage.ambiguousReferenceCount
+                        - record.coverage.missingReferenceCount)
+                    Text(ratio(uniqueReferences, record.coverage.uniqueLineCount, loaded: record.coverage.hasLoadedLineReferenceCatalog))
+                        .font(.caption.monospacedDigit())
+                }
+                .width(min: 80, ideal: 90)
+
+                TableColumn("Routes GTFS") { record in
+                    Text(ratio(record.coverage.linesWithGTFS, record.coverage.uniqueLineCount, loaded: record.coverage.hasLoadedLineReferenceCatalog && record.coverage.hasLoadedGTFSRouteCatalog))
+                        .font(.caption.monospacedDigit())
+                }
+                .width(min: 95, ideal: 110)
+
+                TableColumn("Départs · date") { record in
+                    Text(serviceSummary(for: record))
+                        .font(.caption.monospacedDigit())
+                        .help(record.serviceAuditError ?? record.serviceAudit?.availability.summary ?? "Audit en attente")
+                }
+                .width(min: 120, ideal: 155)
+
+                TableColumn("Tracés") { record in
+                    Text(ratio(record.coverage.linesWithOfficialTraces, record.coverage.uniqueLineCount, loaded: record.coverage.hasLoadedGTFSRouteCatalog && record.coverage.hasLoadedRouteGeometryCatalog))
+                        .font(.caption.monospacedDigit())
+                }
+                .width(min: 75, ideal: 90)
+
+                TableColumn("Plans PDF") { record in
+                    Text(ratio(record.coverage.linesWithPlans, record.coverage.uniqueLineCount, loaded: record.coverage.hasLoadedLineReferenceCatalog && record.coverage.hasLoadedLineDocumentCatalog))
+                        .font(.caption.monospacedDigit())
+                }
+                .width(min: 80, ideal: 95)
+
+                TableColumn("Fiches horaires") { record in
+                    Text(ratio(record.coverage.linesWithTimetables, record.coverage.uniqueLineCount, loaded: record.coverage.hasLoadedLineReferenceCatalog && record.coverage.hasLoadedLineDocumentCatalog))
+                        .font(.caption.monospacedDigit())
+                }
+                .width(min: 105, ideal: 125)
+            }
+            .overlay {
+                if records.isEmpty && !isAuditing {
+                    ContentUnavailableView("Aucun résultat", systemImage: "building.2", description: Text("Aucun site ne correspond à cet audit."))
+                }
+            }
+        }
+        .frame(minWidth: 1120, minHeight: 680)
+        .task(id: "\(auditInputKey)|\(reloadToken)") {
+            await runAudit(inputKey: auditInputKey)
+        }
+    }
+
+    @ViewBuilder
+    private var sourceVersionSummary: some View {
+        let gtfs = library.catalog.activeVersion?.sourceTitle ?? "GTFS : aucune version active"
+        let lineReferences = library.catalog.activeLineReferenceVersion?.sourceTitle ?? "Références IDFM : aucune version active"
+        let geometries = library.catalog.activeGeometryVersion?.sourceTitle ?? "Tracés : aucune version active"
+        let documents = library.catalog.activeLineDocumentVersion?.sourceTitle ?? "Documents : aucun index actif"
+        Text("Sources actives — \(gtfs) · \(lineReferences) · \(geometries) · \(documents)")
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+            .lineLimit(2)
+            .textSelection(.enabled)
+    }
+
+    private func ratio(_ numerator: Int, _ denominator: Int, loaded: Bool) -> String {
+        guard loaded else { return "Inconnu" }
+        guard denominator > 0 else { return "Aucune ligne" }
+        return "\(numerator)/\(denominator)"
+    }
+
+    private func serviceSummary(for record: DepotRegionalCoverageAuditRecord) -> String {
+        guard let audit = record.serviceAudit else {
+            return record.serviceAuditError == nil ? "En attente" : "Erreur"
+        }
+        guard audit.availability == .ready else { return audit.availability.summary }
+        guard !audit.entries.isEmpty else { return "Aucune ligne" }
+        return "\(audit.totalScheduledDepartures.formatted()) · \(audit.linesWithScheduledService) lignes"
+    }
+
+    private func runAudit(inputKey: String) async {
+        records = []
+        completedSiteCount = 0
+        currentSiteName = "Chargement des catalogues…"
+        sourceLoadingError = nil
+        isAuditing = true
+        defer {
+            if !Task.isCancelled, inputKey == auditInputKey {
+                currentSiteName = nil
+                isAuditing = false
+            }
+        }
+
+        await library.loadBusRoutes()
+        await library.loadActiveLineReferences()
+        await library.loadActiveRouteGeometries()
+        await library.loadActiveLineDocuments()
+
+        while library.isLoadingBusRoutes || library.isLoadingLineReferences
+            || library.isLoadingRouteGeometries || library.isLoadingLineDocuments {
+            guard !Task.isCancelled, inputKey == auditInputKey else { return }
+            try? await Task.sleep(nanoseconds: 100_000_000)
+        }
+        guard !Task.isCancelled, inputKey == auditInputKey else { return }
+
+        let loadErrors = [
+            library.busRoutesError.map { "GTFS : \($0)" },
+            library.lineReferencesError.map { "Références IDFM : \($0)" },
+            library.routeGeometriesError.map { "Tracés : \($0)" },
+            library.lineDocumentsError.map { "Documents : \($0)" }
+        ].compactMap { $0 }
+        if !loadErrors.isEmpty {
+            sourceLoadingError = "Une ou plusieurs sources sont indisponibles; leurs cellules restent inconnues. " + loadErrors.joined(separator: " · ")
+        }
+
+        let sites = sitesToAudit
+        for (index, site) in sites.enumerated() {
+            guard !Task.isCancelled, inputKey == auditInputKey else { return }
+            currentSiteName = site.name
+
+            let documentedRows = DepotLineRoster.rows.filter {
+                $0.isVisible(atSite: site.id, on: serviceDate)
+            }
+            let candidateRows = library.lineReferenceVersionID == library.catalog.activeLineReferenceVersion?.id
+                && library.lineReferencesError == nil
+                ? DepotContractLineScope.candidateRows(
+                    for: site,
+                    references: library.lineReferences,
+                    serviceDate: serviceDate,
+                    excluding: documentedRows
+                )
+                : []
+            let rows = documentedRows + candidateRows
+            let confirmedLineIDs = Set(rows.compactMap { row -> String? in
+                guard row.evidenceStatus(on: serviceDate) == .confirmed else { return nil }
+                return row.canonicalLineID ?? row.id
+            })
+            let candidateLineIDs = Set(rows.compactMap { row -> String? in
+                guard row.evidenceStatus(on: serviceDate) == .candidate else { return nil }
+                return row.canonicalLineID ?? row.id
+            })
+            let otherCobEvidenceLineIDs = Set(rows.compactMap { row -> String? in
+                switch row.evidenceStatus(on: serviceDate) {
+                case .shared, .partial, .observedPool, .conflict:
+                    row.canonicalLineID ?? row.id
+                case .confirmed, .candidate, .unresolved, .planned:
+                    nil
+                }
+            })
+            let coverage = library.depotLineCoverage(
+                depotID: site.id,
+                serviceDate: serviceDate,
+                operatedRouteIDs: operatedRouteIDsForDepot(site.id)
+            )
+            var serviceAudit: DepotGTFSServiceAudit?
+            var serviceAuditError: String?
+            do {
+                serviceAudit = try await library.depotGTFSServiceAudit(
+                    depotID: site.id,
+                    serviceDate: serviceDate
+                )
+            } catch {
+                serviceAuditError = error.localizedDescription
+            }
+            guard !Task.isCancelled, inputKey == auditInputKey else { return }
+
+            records.append(DepotRegionalCoverageAuditRecord(
+                site: site,
+                coverage: coverage,
+                serviceAudit: serviceAudit,
+                serviceAuditError: serviceAuditError,
+                confirmedCobLineCount: confirmedLineIDs.count,
+                otherCobEvidenceLineCount: otherCobEvidenceLineIDs.count,
+                candidateLineCount: candidateLineIDs.count
+            ))
+            completedSiteCount = index + 1
+            await Task.yield()
+        }
     }
 }
 
