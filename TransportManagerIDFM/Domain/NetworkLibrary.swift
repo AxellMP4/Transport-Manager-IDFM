@@ -137,7 +137,7 @@ private enum BundledGTFSArchiveAssemblyError: LocalizedError {
 
 private enum BundledGTFSArchiveAssembler {
     private static let expectedByteCount: UInt64 = 149_753_099
-    private static let expectedSHA256 = "3c3fe0eb7e165dde283ff87489339b48b4c3dcf69be011cc7ae2bc78d1764500"
+    private static let expectedSHA256 = GTFSImportProvenance.bundledArchiveSHA256
     private static let partNames = (0..<18).map {
         String(format: "idfm-gtfs-2026-10-20-part-%02d", $0)
     }
