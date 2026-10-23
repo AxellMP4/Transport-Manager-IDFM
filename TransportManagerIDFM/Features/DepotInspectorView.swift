@@ -962,7 +962,7 @@ struct DepotDirectoryWorkspaceView: View {
 
     private var selectedSiteServiceAuditTaskID: String {
         let dateKey = GTFSServiceDate.key(for: serviceDate, timeZone: GTFSServiceDate.parisTimeZone) ?? -1
-        return "\(directorySelectedDepotID)|\(dateKey)|\(library.catalog.activeVersion?.id ?? "aucun-gtfs")|\(library.catalog.activeLineReferenceVersion?.id ?? "aucune-reference")|\(library.busRoutes.count)|\(library.lineReferences.count)"
+        return "\(directorySelectedDepotID)|\(dateKey)|\(library.catalog.activeVersion?.id ?? "aucun-gtfs")|\(library.catalog.activeLineReferenceVersion?.id ?? "aucune-reference")|\(library.busRoutesVersionID ?? "routes-en-attente")|\(library.lineReferenceVersionID ?? "references-en-attente")|\(library.busRoutes.count)|\(library.lineReferences.count)|\(library.isLoadingBusRoutes)|\(library.isLoadingLineReferences)"
     }
 
     var body: some View {
@@ -1259,6 +1259,12 @@ struct DepotDirectoryWorkspaceView: View {
             selectedSiteServiceAuditError = lineReferencesError
             return
         }
+        if library.isLoadingBusRoutes || library.isLoadingLineReferences
+            || library.busRoutesVersionID != library.catalog.activeVersion?.id
+            || (library.catalog.activeLineReferenceVersion != nil
+                && library.lineReferenceVersionID != library.catalog.activeLineReferenceVersion?.id) {
+            return
+        }
 
         do {
             let audit = try await library.depotGTFSServiceAudit(
@@ -1273,7 +1279,7 @@ struct DepotDirectoryWorkspaceView: View {
         }
     }
 
-    private func depotCoverageMetric(_ title: String, value: String, symbol: String) -> some View {
+    private func depotCoverageMetric(    private func depotCoverageMetric(_ title: String, value: String, symbol: String) -> some View {
         VStack(alignment: .leading, spacing: 5) {
             Label(title, systemImage: symbol)
                 .font(.caption2.weight(.medium))
