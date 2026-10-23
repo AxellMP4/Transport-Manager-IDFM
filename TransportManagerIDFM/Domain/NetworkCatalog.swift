@@ -466,6 +466,7 @@ enum GTFSImportTripIssueKind: String, Codable, CaseIterable, Hashable, Sendable 
 struct GTFSImportTripIssue: Codable, Hashable, Identifiable, Sendable {
     let routeID: String
     let tripID: String
+    let shapeID: String?
     let issueKinds: Set<GTFSImportTripIssueKind>
     let invalidStopTimeRowCount: Int
     let missingStopIDRowCount: Int?
@@ -509,6 +510,8 @@ struct GTFSImportQuality: Codable, Hashable, Sendable {
     let referencedShapeCount:
     let availableShapeCount: Int
     let invalidShapeCount: Int
+    /// Shape identifiers rejected during import. Nil for catalogs imported by older builds.
+    let invalidShapeIDs: [String]?
     let invalidStopTimeRowCount: Int
     /// Rows rejected specifically because stop_id was blank. Nil in older catalogs.
     let missingStopIDRowCount: Int?
