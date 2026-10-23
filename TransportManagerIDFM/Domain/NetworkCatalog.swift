@@ -451,6 +451,87 @@ struct DepotLineCoverage: Hashable, Sendable {
     var gtfsCoverage: String { "\(linesWithGTFS)/\(uniqueLineCount)" }
 }
 
+enum DepotLineReferenceAuditMatch: Hashable, Sendable {
+    case unique(idLine: String)
+    case missing
+    case ambiguous(idLines: [String])
+    case unavailable
+
+    var idLine: String? {
+        guard case let .unique(idLine) = self else { return nil }
+        return idLine
+    }
+
+    var summary: String {
+        switch self {
+        case let .unique(idLine): "ID_Line \(idLine)"
+        case .missing: "Aucune référence IDFM active"
+        case let .ambiguous(idLines): "ID_Line ambigus · \(idLines.joined(separator: ", "))"
+        case .unavailable: "Référentiel IDFM indisponible"
+        }
+    }
+}
+
+enum DepotGTFSServiceAuditAvailability: Hashable, Sendable {
+    case ready
+    case feedUnavailable
+    case validityUnknown
+    case outsideFeedValidity
+
+    var summary: String {
+        switch self {
+        case .ready: "Services GTFS vérifiés pour la date choisie"
+        case .feedUnavailable: "Aucune version GTFS active pour vérifier les départs"
+        case .validityUnknown: "Période de validité GTFS inconnue; l’offre reste indéterminée"
+        case .outsideFeedValidity: "Date hors de la période de validité de ce GTFS; l’offre reste indéterminée"
+        }
+    }
+}
+
+struct DepotLineServiceAuditEntry: Identifiable, Hashable, Sendable {
+    let lineName: String
+    let referenceMatch: DepotLineReferenceAuditMatch
+    let routeIDs: [String]
+    let scheduledDepartureCount: Int?
+    let evidenceStatuses: [DepotLineEvidenceStatus]
+
+    var id: String {
+        if let idLine = referenceMatch.idLine { return "id:\(idLine)" }
+        return "name:\(lineName.uppercased())|\(referenceMatch.summary)"
+    }
+
+    func serviceSummary(availability: DepotGTFSServiceAuditAvailability) -> String {
+        guard availability == .ready else { return "Service inconnu" }
+        guard !routeIDs.isEmpty else {
+            return referenceMatch.idLine == nil ? "Service non vérifiable" : "Aucune route GTFS exacte"
+        }
+        guard let scheduledDepartureCount else { return "Service inconnu" }
+        return scheduledDepartureCount == 0
+            ? "Aucun départ GTFS"
+            : "\(scheduledDepartureCount.formatted()) départ(s) GTFS"
+    }
+
+    var serviceSymbol: String {
+        guard let scheduledDepartureCount else { return "questionmark.circle" }
+        return scheduledDepartureCount == 0 ? "minus.circle" : "bus.fill"
+    }
+}
+
+struct DepotGTFSServiceAudit: Hashable, Sendable {
+    let depotID: String
+    let serviceDateKey: Int?
+    let gtfsVersionID: String?
+    let lineReferenceVersionID: String?
+    let availability: DepotGTFSServiceAuditAvailability
+    let entries: [DepotLineServiceAuditEntry]
+
+    var linesWithExactRoutes: Int { entries.count(where: { !$0.routeIDs.isEmpty }) }
+    var linesWithScheduledService: Int { entries.count(where: { ($0.scheduledDepartureCount ?? 0) > 0 }) }
+    var linesWithoutScheduledService: Int { entries.count(where: { $0.scheduledDepartureCount == 0 }) }
+    var linesWithUnknownService: Int { entries.count(where: { $0.scheduledDepartureCount == nil }) }
+    var totalScheduledDepartures: Int { entries.reduce(0) { $0 + ($1.scheduledDepartureCount ?? 0) } }
+}
+
 struct DepotRouteDocumentGap: Identifiable, Hashable, Sendable {
     let lineName: String
     let routeID: String
