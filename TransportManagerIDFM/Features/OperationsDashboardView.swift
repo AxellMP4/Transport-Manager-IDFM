@@ -3082,7 +3082,8 @@ struct OperationsDashboardView: View {
                                 .foregroundStyle(.secondary)
                         }
                         if quality.hasScheduleIssues {
-                            Text("À contrôler : \(quality.tripsWithIncompleteTimes) horaires incomplets, \(quality.tripsWithInvalidChronology) chronologies incohérentes, \(quality.tripsWithMissingStopCoordinates) courses avec arrêts sans coordonnées, \(quality.tripsWithTooFewStops) courses avec moins de deux arrêts, \(quality.tripsWithInvalidStopSequence) séquences dupliquées et \(quality.invalidStopTimeRowCount) lignes de passages invalides.")
+                            let missingStopIDDetail = quality.missingStopIDRowCount.map { ", dont \($0) sans stop_id" } ?? ""
+                            Text("À contrôler : \(quality.tripsWithIncompleteTimes) horaires incomplets, \(quality.tripsWithInvalidChronology) chronologies incohérentes, \(quality.tripsWithMissingStopCoordinates) courses avec arrêts sans coordonnées, \(quality.tripsWithTooFewStops) courses avec moins de deux arrêts, \(quality.tripsWithInvalidStopSequence) séquences dupliquées et \(quality.invalidStopTimeRowCount) lignes de passage invalides\(missingStopIDDetail).")
                                 .foregroundStyle(.orange)
                         } else {
                             Text("Aucun défaut de séquence, horaire ou coordonnées détecté dans ces contrôles.")
