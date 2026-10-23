@@ -70,7 +70,7 @@ struct GTFSRouteTimetableGridView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Grille théorique · ligne \(route.shortName)")
                         .font(.title2.weight(.semibold))
-                    Text("Route GTFS \(route.routeID) · \(version.sourceTitle)")
+                    Text("Route GTFS \(route.routeID) · \(version.displaySourceTitle)")
                         .font(.caption.monospaced())
                         .foregroundStyle(.secondary)
                 }
