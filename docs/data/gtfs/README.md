@@ -13,7 +13,7 @@
 - La version intégrée au premier lancement est attribuée explicitement au jeu PRIM dont elle provient.
 - Pour un ZIP choisi manuellement, l’interface permet de déclarer un export PRIM, le miroir public transport.data.gouv.fr ou une autre archive dont la provenance reste inconnue. Les imports génériques utilisent par défaut « source à vérifier » et ne déclarent aucune licence tant que l’utilisateur n’a pas choisi une source.
 - Le miroir public conserve son identifiant de jeu, sa page de référence et la Licence Mobilité affichée par le Point d’Accès National. La source déclarée est une indication de l’utilisateur; l’application ne peut pas authentifier l’origine des octets du fichier sélectionné.
-- Les catalogues sauvegardés avant cette correction ne sont pas réattribués automatiquement. Sans ZIP original ou preuve d’export, l’application ne peut pas distinguer une ancienne importation PRIM d’un autre fichier.
+- Les catalogues sauvegardés avant cette correction conservent leurs métadonnées, mais leur provenance s’affiche maintenant « à vérifier » sauf pour l’identifiant PRIM et le SHA-256 exacts de l’archive GTFS intégrée. Une ancienne source ne peut pas être rétablie sans ZIP original ou preuve d’export; l’utilisateur peut réimporter le fichier en déclarant explicitement sa source.
 
 ## Version du 20 octobre 2026
 
