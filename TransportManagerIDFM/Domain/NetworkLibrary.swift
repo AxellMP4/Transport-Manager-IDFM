@@ -202,6 +202,8 @@ final class NetworkLibrary: ObservableObject {
     @Published private(set) var serviceCalendarsByID: [String: Set<Int>] = [:]
     @Published private(set) var isLoadingServiceCalendars = false
     @Published private(set) var serviceCalendarsError: String?
+    @Published private(set) var isRefreshingTripIssueSequences = false
+    @Published private(set) var tripIssueSequenceRefreshError: String?
     @Published private(set) var routeGeometries: [NetworkRouteGeometry] = []
     @Published private(set) var routeGeometryVersionID: String?
     @Published private(set) var geometryImportState: NetworkImportState = .idle
@@ -424,6 +426,25 @@ final class NetworkLibrary: ObservableObject {
             } catch {
                 importState = .failed(error.localizedDescription)
             }
+        }
+    }
+
+    func refreshTripIssueSequences(for versionID: String) async {
+        guard !isRefreshingTripIssueSequences,
+              !importState.isImporting,
+              catalog.activeVersion?.id == versionID else { return }
+        isRefreshingTripIssueSequences = true
+        tripIssueSequenceRefreshError = nil
+        defer { isRefreshingTripIssueSequences = false }
+
+        do {
+            let refreshedCatalog = try await Task.detached(priority: .utility) {
+                try NetworkVersionStore.refreshTripIssueSequences(for: versionID)
+            }.value
+            guard catalog.activeVersion?.id == versionID else { return }
+            catalog = refreshedCatalog
+        } catch {
+            tripIssueSequenceRefreshError = error.localizedDescription
         }
     }
 
@@ -1203,9 +1224,7 @@ final class NetworkLibrary: ObservableObject {
             routeVariantIDs.formUnion(routeIDs)
             if !matchingRoutes.isEmpty {
                 linesWithGTFS += 1
-                if hasLoadedRouteGeometryCatalog && matchingRoutes.contains(where: {
-                    !RouteGeometryMatcher.matches(route: $0, among: busRoutes, geometries: routeGeometries).isEmpty
-                }) {
+                if matchingRoutes.contains(where: { tracedRouteIDs.contains($0.routeID) }) {
                     tracedLineKeys.insert(key)
                 }
             } else if lineID != nil {
@@ -1488,6 +1507,7 @@ final class NetworkLibrary: ObservableObject {
         }
         return audits
     }
+
     func clearLineDocumentError() {
         if case .failed = lineDocumentImportState { lineDocumentImportState = .idle }
         lineDocumentsError = nil
