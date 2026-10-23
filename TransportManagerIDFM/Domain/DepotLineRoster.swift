@@ -449,8 +449,10 @@ enum DepotLineRoster {
             locality: "Neuilly-sur-Marne · ZI des Chanoux",
             status: "Site d’appui de la ligne 113 · flotte observée",
             availability: .operational,
-            evidenceNote: "La décision IDFM de 2023 documente un remisage d’appui pour une partie des articulés de la 113. Le parc actuel TC Infos recense 12 Irisbus Citelis 18 diesel sur ce site au relevé du 23 octobre 2026, sans attribuer d’autres lignes. La date de mise à jour du parc n’est pas publiée et ce nombre ne représente pas la capacité maximale. Ce site est distinct du futur COB de Neuilly-sur-Marne.",
+            evidenceNote: "La décision IDFM de 2023 documente un remisage d’appui pour une partie des articulés de la 113. Le parc actuel TC Infos recense 12 Irisbus Citelis 18 diesel sur ce site au relevé du 23 octobre 2026, sans attribuer d’autres lignes. La date de mise à jour du parc n’est pas publiée et ce nombre ne représente pas la capacité maximale. La carte RATP Cap de mars 2026 identifie aussi un COB à Neuilly-sur-Marne sans préciser son nom ni son adresse : elle corrobore un COB dans la commune, mais ne permet pas de confirmer que son symbole désigne ce site Frères-Lumière. Celui-ci reste distinct du futur COB IDFM.",
             sourceURL: URL(string: "https://www.iledefrance-mobilites.fr/medias/portail-idfm/1c3d876c-ef6f-4f9f-ae60-8756ae273ba7_RAA_153-2.pdf"),
+            additionalEvidenceTitle: "RATP Cap · carte des réseaux et COB · mars 2026 (adresse à confirmer)",
+            additionalEvidenceURL: URL(string: "https://www.ratpcap.com/wp-content/uploads/2026/03/Carte_Reseaux_RATPCap_mars2026_compressed.pdf"),
             fleetObservation: DepotFleetObservation(
                 totalVehicleCount: 12,
                 energyCounts: [DepotFleetEnergyCount(energyTitle: "Diesel", vehicleCount: 12)],
