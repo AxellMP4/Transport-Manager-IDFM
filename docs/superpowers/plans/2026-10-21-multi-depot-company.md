@@ -49,6 +49,7 @@ Implementation note: before a career, only dated `.confirmed` route IDs are incl
 ### 5. Audit and verification
 
 - [ ] Audit all rostered depots against the bundled line reference, GTFS services, route geometries, plans, and timetable PDFs.
+- [x] Show date-scoped scheduled-departure counts for exact ID_Line matches when inspecting a depot; keep missing, ambiguous, out-of-validity, and no-service states distinct.
 - [ ] Check legacy save decoding and multi-depot context changes interactively in the app; optional depot fields retain the old save fallback, but still need an app-level restoration check.
 - [x] Compile the macOS target from a frozen source/data snapshot without running tests; verify that the GTFS, route geometries, line reference, documents, and contract contours are present in the app bundle.
 - [x] Publish the remaining source gaps by depot instead of claiming full coverage.
@@ -58,3 +59,5 @@ Audit note: the 2026-10-20 contract-contour snapshot has 66 contract features. D
 Map fallback note: in the bundled GTFS on 2026-10-21, 1,449 route IDs have active service. Comparing canonical IDs with the commercial geometry snapshot leaves 83 active route IDs without a direct commercial line geometry; 81 have GTFS trip shapes and can now appear as indicative dashed paths.
 
 Verification record — 2026-10-23: a macOS Debug build succeeded after separating contract-wide candidate lines from the player's operational assignments. Code commit: 7295e4235e4e9cc122bda782b6a10da44c8b387b. Interactive legacy-save restoration and the complete depot-by-depot source audit remain open.
+
+Service audit note — 2026-10-23: the regional directory now queries scheduled departures for the selected depot and Paris service date by exact active \`ID_Line\`, bounded by the GTFS validity window. This makes the service check available per site; the full manual source audit across all rostered depots remains open. Code commits: \`1957302307a0d0ecf4bbe2eed0b1b6a145c02b1b\`, \`1e36ea60f216651e02377005c90b95a49b50b671\`, \`175d2e599491ca60bce315ec04e42de743590f4d\`, \`814f8ed4c95c5511fbe5756b7b2a9d40a98bb6ad\`.
