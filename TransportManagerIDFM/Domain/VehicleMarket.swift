@@ -1405,9 +1405,10 @@ enum VehicleMarketCatalog {
             fleetURL: "https://www.ratp.fr/mediateur/sites/default/files/2017-06/raddratp2016fr_0.pdf"
         ),
         model(
+            // Keep this identifier for saved careers; the sourced manufacturer is Van Hool.
             id: "hess-tzen4-biarticulated-electric",
-            manufacturer: "HESS",
-            commercialName: "Bi-articulé TZen 4 · 24 m",
+            manufacturer: "Van Hool",
+            commercialName: "Bi-articulé électrique TZen 4 · 24 m",
             vehicleClass: .articulated,
             length: 24,
             energy: .electric,
@@ -1419,11 +1420,14 @@ enum VehicleMarketCatalog {
             referencePrice: nil,
             priceReferenceYear: nil,
             priceEstimateNote: nil,
-            technicalTitle: "Île-de-France Mobilités · mise en service du TZen 4 et caractéristiques des bus",
-            technicalURL: "https://presse.iledefrance-mobilites.fr/mise-en-service-du-tzen-4-la-nouvelle-ligne-de-bus-100-electrique-et-en-site-propre-dile-de-france/?lang=fr",
-            fleetTitle: "Île-de-France Mobilités · 30 bus bi-articulés HESS affectés au TZen 4",
-            fleetURL: "https://presse.iledefrance-mobilites.fr/mise-en-service-du-tzen-4-la-nouvelle-ligne-de-bus-100-electrique-et-en-site-propre-dile-de-france/?lang=fr",
-            marketAvailabilityNote: "Modèle conçu pour le TZen 4 : recharge statique au sol (SRS) aux terminus en moins de 5 min. Aucune compatibilité avec un dépôt ou une ligne Bords de Marne ni aucun prix individuel ne sont documentés ; aucune offre d’achat n’est proposée."
+            technicalTitle: "IDFM · présentation des bus TZen 4 et TZen 5",
+            technicalURL: "https://www.iledefrance-mobilites.fr/actualites/t-zen-4-t-zen-5-bus-24-metres-100-pourcent-electriques-ile-de-france",
+            technicalDataNote: "IDFM décrit un autobus bi-articulé de 24 m, électrique, rechargeable par contact au sol, pouvant transporter 140 passagers, et indique avoir retenu le groupement Van Hool / Kiepe Electric / Alstom pour sa conception et sa fabrication. Les sources consultées ne donnent ni capacité de batterie, ni places assises, ni prix unitaire. La lettre IDFM de novembre 2024 précise que Van Hool avait livré 5 des 30 bus avant sa faillite et que HESS avait reçu le contrat pour achever les 25 restants ; HESS est donc documenté comme partenaire de reprise de fabrication.",
+            additionalEvidenceTitle: "IDFM · délibération n° 20241211-267, marché n° 2024-070",
+            additionalEvidenceURL: "https://www.iledefrance-mobilites.fr/medias/portail-idfm/Z2Kq5JbqstJ98og7_RAA160-1-D%C3%A9lib%C3%A9rations.pdf",
+            fleetTitle: "IDFM · lettre n° 13 : 5 bus livrés, HESS chargé des 25 restants",
+            fleetURL: "https://www.iledefrance-mobilites.fr/medias/portail-idfm-projets/Z0bkO5bqstJ97zrk_Tzen4_LIR_n%C2%B013_BD.pdf",
+            marketAvailabilityNote: "Le marché IDFM n° 2024-070 porte, pour le TZen 4, sur la reprise de fabrication du matériel roulant électrique et des systèmes de charge associés ; il est forfaitaire, de 11 510 400 € HT sur 24 mois. Ce montant couvre un lot de reprise et les systèmes associés, pas un prix unitaire de bus. L’offre reste absente faute de prix individuel ou de disponibilité commerciale documentés ; aucune compatibilité avec un dépôt ou une ligne Bords de Marne n’est déduite."
         ),
         model(
             id: "solaris-urbino-18-iv-cng",
