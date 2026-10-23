@@ -429,19 +429,19 @@ enum DepotLineRoster {
             additionalEvidenceTitle: "RATP Group · répartition des lignes du lot 45 par centre-bus · 29 mars 2022",
             additionalEvidenceURL: ratpDSP45DepotSplitURL,
             fleetObservation: DepotFleetObservation(
-                totalVehicleCount: 200,
+                totalVehicleCount: 201,
                 energyCounts: [
-                    DepotFleetEnergyCount(energyTitle: "Diesel", vehicleCount: 148),
+                    DepotFleetEnergyCount(energyTitle: "Diesel", vehicleCount: 149),
                     DepotFleetEnergyCount(energyTitle: "Hybride", vehicleCount: 52)
                 ],
-                averageFleetAgeYears: 12.6,
+                averageFleetAgeYears: 12.7,
                 airConditionedVehicleSharePercent: 0,
-                reviewedOnLabel: "Page consultée le 23 octobre 2026 · actualisation source non datée",
-                sourceFreshnessNote: "TC Infos présente le parc comme actuel, sans indiquer la date de mise à jour de son inventaire.",
+                reviewedOnLabel: "Résultat indexé consulté le 23 octobre 2026 · actualisation source non datée",
+                sourceFreshnessNote: "Le résultat de recherche du 23 octobre donne 201 véhicules, 149 diesel et 52 hybrides. L’ouverture textuelle de la même fiche renvoie encore un instantané antérieur à 200 véhicules, 148 diesel et 52 hybrides; TC Infos ne date pas l’inventaire.",
                 limitationNote: "Comptage de véhicules observés; il ne donne ni la capacité maximale du site, ni ses postes d’atelier ou de ravitaillement, ni les lignes auxquelles chaque véhicule est affecté.",
                 sourceTitle: "TC Infos · parc actuel du COB Neuilly-Plaisance",
                 sourceURL: neuillyDepotURL,
-                comparisonNote: "La page récapitulative de l’exploitant TC Infos indique 201 véhicules pour ce site, tandis que sa fiche détaillée en compte 200 (148 diesel et 52 hybrides). Les deux pages donnent une période de parc « depuis novembre 2025 » sans date de mise à jour; le total détaillé reste une observation, pas une capacité certifiée.",
+                comparisonNote: "Le résultat indexé récent de la fiche détaillée et le récapitulatif de l’exploitant concordent à 201 véhicules; la fiche détaillée y donne 149 diesel, 52 hybrides, 12,7 ans d’âge moyen et 0 % de véhicules climatisés. L’ouverture textuelle de la fiche affiche encore une capture antérieure à 200 véhicules (148 diesel, 52 hybrides, 12,6 ans). La source n’horodate pas son inventaire; le compte le plus récent reste une observation, pas une capacité certifiée.",
                 comparisonSourceTitle: "TC Infos · récapitulatif de l’exploitant (201 véhicules)",
                 comparisonSourceURL: URL(string: "https://tc-infos.fr/exploitant/2975")!
             ),
