@@ -208,9 +208,48 @@ struct VehicleTechnicalVariant: Codable, Hashable, Identifiable, Sendable {
     let maximumCapacity: Int?
     let seatedCapacity: Int?
     let rangeKilometers: Int?
+    let fuelTankCapacitiesLiters: [Int]?
+    let turningRadiusBetweenWallsMeters: Double?
+    let turningRadiusBetweenCurbsMeters: Double?
     let applicabilityNote: String
     let evidenceTitle: String
     let evidenceURL: String
+
+    init(
+        id: String,
+        title: String,
+        lengthMeters: Double?,
+        widthMeters: Double?,
+        heightMeters: Double?,
+        batteryCapacityKWh: Int?,
+        maximumPowerKilowatts: Int?,
+        maximumCapacity: Int?,
+        seatedCapacity: Int?,
+        rangeKilometers: Int?,
+        fuelTankCapacitiesLiters: [Int]? = nil,
+        turningRadiusBetweenWallsMeters: Double? = nil,
+        turningRadiusBetweenCurbsMeters: Double? = nil,
+        applicabilityNote: String,
+        evidenceTitle: String,
+        evidenceURL: String
+    ) {
+        self.id = id
+        self.title = title
+        self.lengthMeters = lengthMeters
+        self.widthMeters = widthMeters
+        self.heightMeters = heightMeters
+        self.batteryCapacityKWh = batteryCapacityKWh
+        self.maximumPowerKilowatts = maximumPowerKilowatts
+        self.maximumCapacity = maximumCapacity
+        self.seatedCapacity = seatedCapacity
+        self.rangeKilometers = rangeKilometers
+        self.fuelTankCapacitiesLiters = fuelTankCapacitiesLiters
+        self.turningRadiusBetweenWallsMeters = turningRadiusBetweenWallsMeters
+        self.turningRadiusBetweenCurbsMeters = turningRadiusBetweenCurbsMeters
+        self.applicabilityNote = applicabilityNote
+        self.evidenceTitle = evidenceTitle
+        self.evidenceURL = evidenceURL
+    }
 
     var specificationSummary: String {
         var specifications: [String] = []
@@ -222,6 +261,16 @@ struct VehicleTechnicalVariant: Codable, Hashable, Identifiable, Sendable {
         if let batteryCapacityKWh { specifications.append("batterie jusqu’à " + String(batteryCapacityKWh) + " kWh") }
         if let maximumPowerKilowatts { specifications.append(String(maximumPowerKilowatts) + " kW") }
         if let rangeKilometers { specifications.append("autonomie jusqu’à " + String(rangeKilometers) + " km") }
+        if let fuelTankCapacitiesLiters, !fuelTankCapacitiesLiters.isEmpty {
+            let capacities = fuelTankCapacitiesLiters.map { $0.formatted() }.joined(separator: ", ")
+            specifications.append("réservoir au choix : " + capacities + " L")
+        }
+        if let turningRadiusBetweenWallsMeters {
+            specifications.append("rayon de giration entre murs : " + turningRadiusBetweenWallsMeters.formatted(.number.precision(.fractionLength(2))) + " m")
+        }
+        if let turningRadiusBetweenCurbsMeters {
+            specifications.append("rayon de giration entre trottoirs : " + turningRadiusBetweenCurbsMeters.formatted(.number.precision(.fractionLength(2))) + " m")
+        }
         return specifications.joined(separator: " · ")
     }
 }
@@ -1288,6 +1337,9 @@ enum VehicleMarketCatalog {
                     maximumCapacity: 172,
                     seatedCapacity: 43,
                     rangeKilometers: nil,
+                    fuelTankCapacitiesLiters: [1_280, 1_610, 1_940],
+                    turningRadiusBetweenWallsMeters: 11.405,
+                    turningRadiusBetweenCurbsMeters: 9.891,
                     applicabilityNote: "Fiche de l’offre CATP IVECO France Urbanway GNV articulé 18 m : capacité maximale annoncée de 172 voyageurs, dont 43 places assises, moteur de 265 kW et réservoirs de 1 280, 1 610 ou 1 940 L. La fiche ne donne pas de prix ; elle n’établit ni disponibilité à la vente pour cette partie ni rattachement à un dépôt Bords de Marne.",
                     evidenceTitle: "CATP · Autobus GNV articulé 18 m IVECO France Urbanway",
                     evidenceURL: "https://www.catp.fr/wp-content/uploads/2024/04/FP-IVECO-autobus-GNV-18m.pdf"
