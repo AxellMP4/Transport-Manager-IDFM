@@ -500,6 +500,7 @@ struct DepotLineServiceAuditEntry:struct DepotLineServiceAuditEntry: Identifiabl
     let routeIDs: [String]
     let scheduledDepartureCount: Int?
     let evidenceStatuses: [DepotLineEvidenceStatus]
+    let announcedServiceClaims: [DepotLineRosterClaim]
 
     var id: String {
         if let idLine = referenceMatch.idLine { return "id:\(idLine)" }
