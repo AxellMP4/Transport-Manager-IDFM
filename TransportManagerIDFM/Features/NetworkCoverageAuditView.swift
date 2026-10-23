@@ -1350,7 +1350,6 @@ private struct GTFSTripQualityAuditRow: View {
                 Button("Carte", systemImage: "map") { onInspect() }
                     .labelStyle(.titleAndIcon)
                     .controlSize(.small)
-                    .disabled(issue.shapeID == nil && (issue.stopIDsNotMatchedToShape ?? []).isEmpty && (issue.stopIDsWithoutCoordinates ?? []).isEmpty)
                 Text(issue.tripID)
                     .font(.caption2.monospaced())
                     .textSelection(.enabled)
