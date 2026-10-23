@@ -587,7 +587,7 @@ struct OperationsDashboardView: View {
             mapLegendLine(color: .orange, dash: [3, 5], title: "Mouvement estimé")
             if let version = catalog.activeVersion {
                 Divider()
-                Text("Réseau · \(version.sourceTitle)")
+                Text("Réseau · \(version.displaySourceTitle) · Licence \(version.displayLicense)")
                     .font(.caption2.weight(.medium))
                     .lineLimit(2)
                 Text("Version \(version.id) · \(version.validFrom.map(Self.shortDate) ?? "date inconnue") – \(version.validThrough.map(Self.shortDate) ?? "date inconnue")")
