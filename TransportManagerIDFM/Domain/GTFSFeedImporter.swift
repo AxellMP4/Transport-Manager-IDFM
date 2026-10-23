@@ -1297,6 +1297,38 @@ enum NetworkVersionStore {
         return dataset.shapes.first(where: { $0.shapeID == shapeID })
     }
 
+    static func loadTripGeometryReview(for version: NetworkVersion, tripID: String) throws -> GTFSGeometryReview? {
+        guard let schedule = try loadTripSchedules(for: version).first(where: { $0.tripID == tripID }) else {
+            return nil
+        }
+
+        let stopsByID = Dictionary(
+            try loadBusStops(for: version).map { ($0.stopID, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        let dataset = try loadTripShapeDataset(for: version)
+        let shapeID = schedule.shapeID ?? dataset.shapeID(for: tripID)
+        let shape = shapeID.flatMap { id in dataset.shapes.first(where: { $0.shapeID == id }) }
+        let stops = schedule.stops.map { stopTime in
+            let stop = stopsByID[stopTime.stopID]
+            return GTFSGeometryReviewStop(
+                stopID: stopTime.stopID,
+                sequence: stopTime.stopSequence,
+                name: stop?.name,
+                latitude: stop?.latitude,
+                longitude: stop?.longitude
+            )
+        }
+
+        return GTFSGeometryReview(
+            tripID: tripID,
+            routeID: schedule.routeID,
+            shapeID: shapeID,
+            shapePoints: shape?.points ?? [],
+            stops: stops
+        )
+    }
+
     static func loadTripShapes(for version: NetworkVersion, tripIDs: Set<String>) throws -> [String: GTFSRouteShape] {
         guard !tripIDs.isEmpty else { return [:] }
         let schedules = try loadTripSchedules(for: version)
