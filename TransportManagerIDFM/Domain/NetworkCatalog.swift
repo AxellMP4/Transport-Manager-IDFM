@@ -431,6 +431,53 @@ struct DepotLineCoverage: Hashable, Sendable {
     var gtfsCoverage: String { "\(linesWithGTFS)/\(uniqueLineCount)" }
 }
 
+enum GTFSImportTripIssueKind: String, Codable, CaseIterable, Hashable, Sendable {
+    case missingStopTimes
+    case incompleteTimes
+    case invalidChronology
+    case missingStopCoordinates
+    case tooFewStops
+    case invalidStopSequence
+    case missingShapeReference
+    case unavailableShape
+    case inactiveService
+    case invalidStopTimeRows
+
+    var displayName: String {
+        switch self {
+        case .missingStopTimes: "aucune séquence d’arrêts"
+        case .incompleteTimes: "horaires incomplets"
+        case .invalidChronology: "horaires non chronologiques"
+        case .missingStopCoordinates: "arrêts sans coordonnées"
+        case .tooFewStops: "moins de deux arrêts"
+        case .invalidStopSequence: "séquence d’arrêts dupliquée"
+        case .missingShapeReference: "forme non référencée"
+        case .unavailableShape: "forme absente ou invalide"
+        case .inactiveService: "aucune date de service active"
+        case .invalidStopTimeRows: "lignes de passage invalides"
+        }
+    }
+}
+
+struct GTFSImportTripIssue: Codable, Hashable, Identifiable, Sendable {
+    let routeID: String
+    let tripID: String
+    let issueKinds: Set<GTFSImportTripIssueKind>
+    let invalidStopTimeRowCount: Int
+
+    var id: String { "\(routeID)|\(tripID)" }
+
+    var summary: String {
+        var labels = GTFSImportTripIssueKind.allCases
+            .filter { $0 != .invalidStopTimeRows && issueKinds.contains($0) }
+            .map(\.displayName)
+        if invalidStopTimeRowCount > 0 {
+            labels.append("\(invalidStopTimeRowCount) \(GTFSImportTripIssueKind.invalidStopTimeRows.displayName)")
+        }
+        return labels.joined(separator: " · ")
+    }
+}
+
 struct GTFSImportQuality: Codable, Hashable, Sendable {
     let busTripCount: Int
     let tripScheduleCount: Int
@@ -451,6 +498,8 @@ struct GTFSImportQuality: Codable, Hashable, Sendable {
     let tripsWithoutActiveServiceDates: Int?
     /// Whether frequencies.txt was present in the imported feed. Nil for older catalogs.
     let containsFrequenciesFile: Bool?
+    /// Per-trip diagnostics for the imported version. Nil for older catalogs.
+    let tripIssues: [GTFSImportTripIssue]?
 
     var hasScheduleIssues: Bool {
         tripsWithoutStopTimes > 0
