@@ -1117,8 +1117,10 @@ struct DepotDirectoryWorkspaceView: View {
                             depotCoverageMetric("Fiches horaires", value: selectedSiteLineCoverage.timetableCoverage, symbol: "doc.text")
                             depotCoverageMetric("Références ambiguës / absentes", value: "\(selectedSiteLineCoverage.ambiguousReferenceCount) / \(selectedSiteLineCoverage.missingReferenceCount)", symbol: "questionmark.circle")
                             depotCoverageMetric("Sans route GTFS", value: "\(selectedSiteLineCoverage.missingGTFSCount)", symbol: "bus")
+                            depotCoverageMetric("Variantes sans plan · horaire", value: "\(selectedSiteLineCoverage.routesWithoutPlans.count) · \(selectedSiteLineCoverage.routesWithoutTimetables.count)", symbol: "doc.text")
                             depotCoverageMetric("COB non confirmé", value: "\(selectedSiteLineCoverage.unconfirmedDepotEvidenceCount)/\(selectedSiteLineCoverage.uniqueLineCount)", symbol: "building.2")
                         }
+                        DepotMissingRouteDocumentsDisclosure(coverage: selectedSiteLineCoverage)
                     }
                     if DepotLineRoster.bordsDeMarneManifestSiteIDs.contains(selectedSite.id) {
                         Label(
