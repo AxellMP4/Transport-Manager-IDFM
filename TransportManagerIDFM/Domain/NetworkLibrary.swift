@@ -21,6 +21,7 @@ enum NetworkImportState: Equatable, Sendable {
 
 private enum NetworkLibraryError: LocalizedError {
     case missingPinnedGTFSVersion(String)
+    case missingDepotServiceAudit(String)
     case missingActiveAssignmentVersions
     case unknownAssignmentDepot
     case unknownAssignmentRoute
@@ -43,6 +44,8 @@ private enum NetworkLibraryError: LocalizedError {
         switch self {
         case let .missingPinnedGTFSVersion(versionID):
             "La version GTFS épinglée par cette partie est introuvable : \(versionID)."
+        case let .missingDepotServiceAudit(depotID):
+            "L’audit GTFS du dépôt \(depotID) n’a pas été construit."
         case .missingActiveAssignmentVersions:
             "Importez un GTFS et un contour de contrat actifs avant d’enregistrer un rattachement."
         case .unknownAssignmentDepot:
@@ -223,6 +226,8 @@ final class NetworkLibrary: ObservableObject {
     @Published private(set) var depotAssignmentStoreError: String?
     private var bundledSnapshotSeedTask: Task<NetworkCatalog, Error>?
     private var didSeedBundledSnapshots = false
+    private var officialGeometryCoverageCacheKey: String?
+    private var officialGeometryCoverageRouteIDs: Set<String> = []
 
     init() {
         catalog = (try? NetworkVersionStore.loadCatalog()) ?? .initial
@@ -445,7 +450,7 @@ final class NetworkLibrary: ObservableObject {
         }
     }
 
-    func loadBusStops() async {    func loadBusStops() async {
+    func loadBusStops() async {
         guard !isLoadingBusStops, let version = catalog.activeVersion else { return }
         isLoadingBusStops = true
         busStopsError = nil
@@ -986,7 +991,7 @@ final class NetworkLibrary: ObservableObject {
         }
     }
 
-    func importLineDocuments(    func importLineDocuments(from sourceURL: URL) {
+    func importLineDocuments(from sourceURL: URL) {
         guard !lineDocumentImportState.isImporting else { return }
         lineDocumentImportState = .importing
         lineDocumentsError = nil
@@ -1111,6 +1116,20 @@ final class NetworkLibrary: ObservableObject {
         let hasLoadedRouteGeometryCatalog = geometryVersion != nil
             && routeGeometryVersionID == geometryVersion?.id
             && routeGeometriesError == nil
+        let tracedRouteIDs: Set<String>
+        if hasLoadedGTFSRouteCatalog && hasLoadedRouteGeometryCatalog {
+            let cacheKey = "\(gtfsVersion?.id ?? "no-gtfs")|\(geometryVersion?.id ?? "no-geometry")"
+            if officialGeometryCoverageCacheKey != cacheKey {
+                officialGeometryCoverageCacheKey = cacheKey
+                officialGeometryCoverageRouteIDs = RouteGeometryMatcher.routeIDsWithOfficialGeometry(
+                    among: busRoutes,
+                    geometries: routeGeometries
+                )
+            }
+            tracedRouteIDs = officialGeometryCoverageRouteIDs
+        } else {
+            tracedRouteIDs = []
+        }
         let documentedRows = DepotLineRoster.rows.filter { $0.isVisible(atSite: depotID, on: serviceDate) }
         let candidateRows = hasLoadedLineReferenceCatalog
             ? DepotContractLineScope.candidateRows(
@@ -1273,20 +1292,24 @@ final class NetworkLibrary: ObservableObject {
     }
 
     func depotGTFSServiceAudit(depotID: String, serviceDate: Date) async throws -> DepotGTFSServiceAudit {
+        let audits = try await depotGTFSServiceAudits(depotIDs: [depotID], serviceDate: serviceDate)
+        guard let audit = audits[depotID] else {
+            throw NetworkLibraryError.missingDepotServiceAudit(depotID)
+        }
+        return audit
+    }
+
+    /// Audits several depots with one GTFS departures-index read. The route service
+    /// index is shared by every depot, so decoding its large archive once is enough.
+    func depotGTFSServiceAudits(
+        depotIDs: [String],
+        serviceDate: Date
+    ) async throws -> [String: DepotGTFSServiceAudit] {
         let calendar = GTFSServiceDate.calendar(timeZone: GTFSServiceDate.parisTimeZone)
         let serviceDayStart = calendar.startOfDay(for: serviceDate)
         let serviceDateKey = GTFSServiceDate.key(for: serviceDayStart, timeZone: GTFSServiceDate.parisTimeZone)
         let version = catalog.activeVersion
         let referenceVersion = catalog.activeLineReferenceVersion
-        let site = DepotLineRoster.selectableSites.first { $0.id == depotID }
-        let documentedRows = DepotLineRoster.rows.filter { $0.isVisible(atSite: depotID, on: serviceDayStart) }
-        let candidateRows = DepotContractLineScope.candidateRows(
-            for: site,
-            references: lineReferences,
-            serviceDate: serviceDayStart,
-            excluding: documentedRows
-        )
-        let rows = documentedRows + candidateRows
         let activeBusReferences = lineReferences.filter {
             $0.transportMode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() == "BUS"
                 && $0.isActive(on: serviceDayStart) == true
@@ -1303,56 +1326,72 @@ final class NetworkLibrary: ObservableObject {
             var evidenceStatuses = Set<DepotLineEvidenceStatus>()
         }
 
-        var drafts: [String: LineDraft] = [:]
-        for row in rows {
-            let explicitID = row.canonicalLineID
-                .map(LineReferenceMatcher.canonicalIdentifier)
-                .flatMap { $0.isEmpty ? nil : $0 }
-            let normalizedName = row.line.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-            let matchingReferenceIDs: Set<String>
+        let routesByCanonicalID = Dictionary(grouping: busRoutes) {
+            LineReferenceMatcher.canonicalIdentifier($0.routeID)
+        }
+        var draftsByDepotID: [String: [String: LineDraft]] = [:]
 
-            if let explicitID {
-                matchingReferenceIDs = Set(activeBusReferences.compactMap { reference in
-                    LineReferenceMatcher.canonicalIdentifier(reference.idLine) == explicitID ? explicitID : nil
-                })
-            } else {
-                matchingReferenceIDs = Set(activeBusReferences.compactMap { reference in
-                    guard reference.shortNameLine.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() == normalizedName else { return nil }
-                    let idLine = LineReferenceMatcher.canonicalIdentifier(reference.idLine)
-                    return idLine.isEmpty ? nil : idLine
-                })
+        for depotID in Set(depotIDs).sorted() {
+            let site = DepotLineRoster.selectableSites.first { $0.id == depotID }
+            let documentedRows = DepotLineRoster.rows.filter {
+                $0.isVisible(atSite: depotID, on: serviceDayStart)
+            }
+            let candidateRows = hasReferenceCatalog
+                ? DepotContractLineScope.candidateRows(
+                    for: site,
+                    references: lineReferences,
+                    serviceDate: serviceDayStart,
+                    excluding: documentedRows
+                )
+                : []
+            var drafts: [String: LineDraft] = [:]
+
+            for row in documentedRows + candidateRows {
+                let explicitID = row.canonicalLineID
+                    .map(LineReferenceMatcher.canonicalIdentifier)
+                    .flatMap { $0.isEmpty ? nil : $0 }
+                let normalizedName = row.line.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+                let matchingReferenceIDs: Set<String>
+
+                if let explicitID {
+                    matchingReferenceIDs = Set(activeBusReferences.compactMap { reference in
+                        LineReferenceMatcher.canonicalIdentifier(reference.idLine) == explicitID ? explicitID : nil
+                    })
+                } else {
+                    matchingReferenceIDs = Set(activeBusReferences.compactMap { reference in
+                        guard reference.shortNameLine.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() == normalizedName else { return nil }
+                        let idLine = LineReferenceMatcher.canonicalIdentifier(reference.idLine)
+                        return idLine.isEmpty ? nil : idLine
+                    })
+                }
+
+                let referenceMatch: DepotLineReferenceAuditMatch
+                if !hasReferenceCatalog {
+                    referenceMatch = .unavailable
+                } else if matchingReferenceIDs.count == 1, let idLine = matchingReferenceIDs.first {
+                    referenceMatch = .unique(idLine: idLine)
+                } else if matchingReferenceIDs.count > 1 {
+                    referenceMatch = .ambiguous(idLines: matchingReferenceIDs.sorted {
+                        $0.localizedStandardCompare($1) == .orderedAscending
+                    })
+                } else {
+                    referenceMatch = .missing
+                }
+
+                let groupKey = referenceMatch.idLine.map { "id:\($0)" }
+                    ?? "name:\(normalizedName)|\(referenceMatch.summary)"
+                var draft = drafts[groupKey] ?? LineDraft(referenceMatch: referenceMatch)
+                draft.lineNames.insert(row.line)
+                draft.evidenceStatuses.insert(row.evidenceStatus(on: serviceDayStart))
+                if let idLine = referenceMatch.idLine,
+                   let version,
+                   busRoutesVersionID == version.id {
+                    draft.routeIDs.formUnion(routesByCanonicalID[idLine, default: []].map(\.routeID))
+                }
+                drafts[groupKey] = draft
             }
 
-            let referenceMatch: DepotLineReferenceAuditMatch
-            if !hasReferenceCatalog {
-                referenceMatch = .unavailable
-            } else if matchingReferenceIDs.count == 1, let idLine = matchingReferenceIDs.first {
-                referenceMatch = .unique(idLine: idLine)
-            } else if matchingReferenceIDs.count > 1 {
-                referenceMatch = .ambiguous(idLines: matchingReferenceIDs.sorted {
-                    $0.localizedStandardCompare($1) == .orderedAscending
-                })
-            } else {
-                referenceMatch = .missing
-            }
-
-            let groupKey: String
-            if let idLine = referenceMatch.idLine {
-                groupKey = "id:\(idLine)"
-            } else {
-                groupKey = "name:\(normalizedName)|\(referenceMatch.summary)"
-            }
-            var draft = drafts[groupKey] ?? LineDraft(referenceMatch: referenceMatch)
-            draft.lineNames.insert(row.line)
-            draft.evidenceStatuses.insert(row.evidenceStatus(on: serviceDayStart))
-            if let idLine = referenceMatch.idLine,
-               let version,
-               busRoutesVersionID == version.id {
-                draft.routeIDs.formUnion(busRoutes
-                    .filter { LineReferenceMatcher.canonicalIdentifier($0.routeID) == idLine }
-                    .map(\.routeID))
-            }
-            drafts[groupKey] = draft
+            draftsByDepotID[depotID] = drafts
         }
 
         let utcTimeZone = TimeZone(secondsFromGMT: 0) ?? .current
@@ -1384,59 +1423,65 @@ final class NetworkLibrary: ObservableObject {
             serviceAvailability = .validityUnknown
         }
 
+        let allRouteIDs = Set(draftsByDepotID.values.flatMap { drafts in
+            drafts.values.flatMap(\.routeIDs)
+        })
         var departureCountsByRouteID: [String: Int] = [:]
-        if serviceAvailability == .ready, let version, let serviceDayEnd {
-            let routeIDs = Set(drafts.values.flatMap(\.routeIDs))
-            if !routeIDs.isEmpty {
-                let departures = try await loadScheduledDepartures(
-                    gtfsVersionID: version.id,
-                    routeIDs: routeIDs,
-                    from: serviceDayStart,
-                    through: serviceDayEnd
-                )
-                for departure in departures {
-                    departureCountsByRouteID[departure.routeID, default: 0] += 1
-                }
-            }
-        }
-
-        let entries = drafts.values.map { draft in
-            let routeIDs = draft.routeIDs.sorted {
-                $0.localizedStandardCompare($1) == .orderedAscending
-            }
-            let departureCount: Int? = serviceAvailability == .ready && !routeIDs.isEmpty
-                ? routeIDs.reduce(0) { $0 + departureCountsByRouteID[$1, default: 0] }
-                : nil
-            let lineName = draft.lineNames.sorted {
-                $0.localizedStandardCompare($1) == .orderedAscending
-            }.first ?? draft.referenceMatch.idLine ?? "Ligne inconnue"
-            return DepotLineServiceAuditEntry(
-                lineName: lineName,
-                referenceMatch: draft.referenceMatch,
-                routeIDs: routeIDs,
-                scheduledDepartureCount: departureCount,
-                evidenceStatuses: draft.evidenceStatuses.sorted {
-                    $0.rawValue.localizedStandardCompare($1.rawValue) == .orderedAscending
-                }
+        if serviceAvailability == .ready,
+           let version,
+           let serviceDayEnd,
+           !allRouteIDs.isEmpty {
+            let departures = try await loadScheduledDepartures(
+                gtfsVersionID: version.id,
+                routeIDs: allRouteIDs,
+                from: serviceDayStart,
+                through: serviceDayEnd
             )
-        }.sorted {
-            if $0.lineName != $1.lineName {
-                return $0.lineName.localizedStandardCompare($1.lineName) == .orderedAscending
+            for departure in departures {
+                departureCountsByRouteID[departure.routeID, default: 0] += 1
             }
-            return $0.id.localizedStandardCompare($1.id) == .orderedAscending
         }
 
-        return DepotGTFSServiceAudit(
-            depotID: depotID,
-            serviceDateKey: serviceDateKey,
-            gtfsVersionID: version?.id,
-            lineReferenceVersionID: referenceVersion?.id,
-            availability: serviceAvailability,
-            entries: entries
-        )
-    }
+        var audits: [String: DepotGTFSServiceAudit] = [:]
+        for (depotID, drafts) in draftsByDepotID {
+            let entries = drafts.values.map { draft in
+                let routeIDs = draft.routeIDs.sorted {
+                    $0.localizedStandardCompare($1) == .orderedAscending
+                }
+                let departureCount: Int? = serviceAvailability == .ready && !routeIDs.isEmpty
+                    ? routeIDs.reduce(0) { $0 + departureCountsByRouteID[$1, default: 0] }
+                    : nil
+                let lineName = draft.lineNames.sorted {
+                    $0.localizedStandardCompare($1) == .orderedAscending
+                }.first ?? draft.referenceMatch.idLine ?? "Ligne inconnue"
+                return DepotLineServiceAuditEntry(
+                    lineName: lineName,
+                    referenceMatch: draft.referenceMatch,
+                    routeIDs: routeIDs,
+                    scheduledDepartureCount: departureCount,
+                    evidenceStatuses: draft.evidenceStatuses.sorted {
+                        $0.rawValue.localizedStandardCompare($1.rawValue) == .orderedAscending
+                    }
+                )
+            }.sorted {
+                if $0.lineName != $1.lineName {
+                    return $0.lineName.localizedStandardCompare($1.lineName) == .orderedAscending
+                }
+                return $0.id.localizedStandardCompare($1.id) == .orderedAscending
+            }
 
-    func clearLineDocumentError()    func clearLineDocumentError() {
+            audits[depotID] = DepotGTFSServiceAudit(
+                depotID: depotID,
+                serviceDateKey: serviceDateKey,
+                gtfsVersionID: version?.id,
+                lineReferenceVersionID: referenceVersion?.id,
+                availability: serviceAvailability,
+                entries: entries
+            )
+        }
+        return audits
+    }
+    func clearLineDocumentError() {
         if case .failed = lineDocumentImportState { lineDocumentImportState = .idle }
         lineDocumentsError = nil
     }
