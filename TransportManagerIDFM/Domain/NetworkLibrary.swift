@@ -190,6 +190,7 @@ final class NetworkLibrary: ObservableObject {
     @Published private(set) var catalog: NetworkCatalog
     @Published private(set) var importState: NetworkImportState = .idle
     @Published private(set) var busRoutes: [GTFSRouteSummary] = []
+    @Published private(set) var busRoutesVersionID: String?
     @Published private(set) var isLoadingBusRoutes = false
     @Published private(set) var busRoutesError: String?
     @Published private(set) var busStops: [GTFSStopSummary] = []
@@ -207,6 +208,7 @@ final class NetworkLibrary: ObservableObject {
     @Published private(set) var isLoadingContracts = false
     @Published private(set) var contractsError: String?
     @Published private(set) var lineReferences: [NetworkLineReference] = []
+    @Published private(set) var lineReferenceVersionID: String?
     @Published private(set) var lineReferenceImportState: NetworkImportState = .idle
     @Published private(set) var isLoadingLineReferences = false
     @Published private(set) var lineReferencesError: String?
@@ -388,6 +390,7 @@ final class NetworkLibrary: ObservableObject {
         guard !importState.isImporting else { return }
         importState = .importing
         busRoutes = []
+        busRoutesVersionID = nil
         busRoutesError = nil
         busStops = []
         busStopsError = nil
@@ -418,21 +421,29 @@ final class NetworkLibrary: ObservableObject {
     }
 
     func loadBusRoutes() async {
-        guard !isLoadingBusRoutes, let version = catalog.activeVersion else { return }
+        guard !isLoadingBusRoutes, let version = catalog.activeVersion,
+              busRoutesVersionID != version.id else { return }
         isLoadingBusRoutes = true
         busRoutesError = nil
+        if busRoutesVersionID != version.id {
+            busRoutes = []
+            busRoutesVersionID = nil
+        }
         defer { isLoadingBusRoutes = false }
 
         do {
-            busRoutes = try await Task.detached(priority: .userInitiated) {
+            let routes = try await Task.detached(priority: .userInitiated) {
                 try NetworkVersionStore.loadBusRoutes(for: version)
             }.value
+            guard catalog.activeVersion?.id == version.id else { return }
+            busRoutes = routes
+            busRoutesVersionID = version.id
         } catch {
             busRoutesError = error.localizedDescription
         }
     }
 
-    func loadBusStops() async {
+    func loadBusStops() async {    func loadBusStops() async {
         guard !isLoadingBusStops, let version = catalog.activeVersion else { return }
         isLoadingBusStops = true
         busStopsError = nil
@@ -928,15 +939,22 @@ final class NetworkLibrary: ObservableObject {
     }
 
     func loadActiveLineReferences() async {
-        guard !isLoadingLineReferences, let version = catalog.activeLineReferenceVersion else { return }
+        guard !isLoadingLineReferences, let version = catalog.activeLineReferenceVersion,
+              lineReferenceVersionID != version.id else { return }
         isLoadingLineReferences = true
         lineReferencesError = nil
+        if lineReferenceVersionID != version.id {
+            lineReferences = []
+            lineReferenceIndex = [:]
+            lineReferenceVersionID = nil
+        }
         defer { isLoadingLineReferences = false }
 
         do {
             let references = try await Task.detached(priority: .userInitiated) {
                 try LineReferenceStore.loadReferences(for: version)
             }.value
+            guard catalog.activeLineReferenceVersion?.id == version.id else { return }
             setLineReferences(references)
             lineReferenceImportState = .imported
         } catch {
@@ -945,7 +963,7 @@ final class NetworkLibrary: ObservableObject {
         }
     }
 
-    func importLineDocuments(from sourceURL: URL) {
+    func importLineDocuments(    func importLineDocuments(from sourceURL: URL) {
         guard !lineDocumentImportState.isImporting else { return }
         lineDocumentImportState = .importing
         lineDocumentsError = nil
@@ -1211,7 +1229,10 @@ final class NetworkLibrary: ObservableObject {
             $0.transportMode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() == "BUS"
                 && $0.isActive(on: serviceDayStart) == true
         }
-        let hasReferenceCatalog = referenceVersion != nil && lineReferencesError == nil && !lineReferences.isEmpty
+        let hasReferenceCatalog = referenceVersion != nil
+            && lineReferenceVersionID == referenceVersion?.id
+            && lineReferencesError == nil
+            && !lineReferences.isEmpty
 
         struct LineDraft {
             let referenceMatch: DepotLineReferenceAuditMatch
@@ -1262,7 +1283,9 @@ final class NetworkLibrary: ObservableObject {
             var draft = drafts[groupKey] ?? LineDraft(referenceMatch: referenceMatch)
             draft.lineNames.insert(row.line)
             draft.evidenceStatuses.insert(row.evidenceStatus(on: serviceDayStart))
-            if let idLine = referenceMatch.idLine {
+            if let idLine = referenceMatch.idLine,
+               let version,
+               busRoutesVersionID == version.id {
                 draft.routeIDs.formUnion(busRoutes
                     .filter { LineReferenceMatcher.canonicalIdentifier($0.routeID) == idLine }
                     .map(\.routeID))
@@ -1281,6 +1304,9 @@ final class NetworkLibrary: ObservableObject {
         let serviceAvailability: DepotGTFSServiceAuditAvailability
         if version == nil {
             serviceAvailability = .feedUnavailable
+        } else if let version,
+                  busRoutesVersionID != version.id || busRoutesError != nil {
+            serviceAvailability = .routeIndexUnavailable
         } else if let firstValidDateKey,
                   let lastValidDateKey,
                   let serviceDateKey,
@@ -1348,7 +1374,7 @@ final class NetworkLibrary: ObservableObject {
         )
     }
 
-    func clearLineDocumentError() {
+    func clearLineDocumentError()    func clearLineDocumentError() {
         if case .failed = lineDocumentImportState { lineDocumentImportState = .idle }
         lineDocumentsError = nil
     }
@@ -1375,6 +1401,7 @@ final class NetworkLibrary: ObservableObject {
     private func setLineReferences(_ references: [NetworkLineReference]) {
         lineReferences = references
         lineReferenceIndex = LineReferenceMatcher.uniqueIndex(for: references)
+        lineReferenceVersionID = catalog.activeLineReferenceVersion?.id
     }
 
     func clearImportError() {
