@@ -21,6 +21,22 @@ struct DepotInspectorView: View {
     let serviceDate: Date
     var showsCloseButton = true
     @State private var isDepotLineRosterPresented = false
+    private var coverageSourceTaskID: String {
+        let geometryID = library.catalog.activeGeometryVersion?.id ?? "aucune-geometrie"
+        let documentsID = library.catalog.activeLineDocumentVersion?.id ?? "aucun-document"
+        return "\(geometryID)|\(documentsID)"
+    }
+
+    private func selectedSiteCoverageLabel(for coverage: DepotLineCoverage) -> String {
+        let lineLabel = coverage.hasLoadedLineReferenceCatalog
+            ? "\(coverage.uniqueLineCount) lignes uniques"
+            : "\(coverage.uniqueLineCount) lignes documentées"
+        let routeLabel = coverage.hasLoadedGTFSRouteCatalog
+            ? "\(coverage.routeVariantCount) variantes"
+            : "variantes GTFS inconnues"
+        return "\(lineLabel) · \(routeLabel)"
+    }
+
 
     var body: some View {
         VStack(spacing: 0) {
@@ -974,7 +990,7 @@ struct DepotDirectoryWorkspaceView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .background(Color(nsColor: .windowBackgroundColor))
-        .task {
+        .task(id: coverageSourceTaskID) {
             await library.loadActiveRouteGeometries()
             await library.loadActiveLineDocuments()
         }
@@ -1074,6 +1090,7 @@ struct DepotDirectoryWorkspaceView: View {
     private var selectedDepotDetail: some View {
         ScrollView {
             if let selectedSite {
+                let coverage = selectedSiteLineCoverage
                 VStack(alignment: .leading, spacing: 18) {
                     HStack(alignment: .top, spacing: 14) {
                         Image(systemName: "building.2.fill")
@@ -1116,22 +1133,94 @@ struct DepotDirectoryWorkspaceView: View {
                         Text("Réseau associé")
                             .font(.headline)
                         Spacer()
-                        Text("\(selectedSiteLineCoverage.uniqueLineCount) lignes uniques · \(selectedSiteLineCoverage.routeVariantCount) variantes")
+                        Text(selectedSiteCoverageLabel(for: coverage))
                             .font(.caption.weight(.semibold).monospacedDigit())
                             .foregroundStyle(.secondary)
                     }
-                    if selectedSiteLineCoverage.uniqueLineCount > 0 {
+                    if coverage.uniqueLineCount > 0 {
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 145), alignment: .leading)], alignment: .leading, spacing: 8) {
-                            depotCoverageMetric("Lignes GTFS", value: selectedSiteLineCoverage.gtfsCoverage, symbol: "clock.arrow.circlepath")
-                            depotCoverageMetric("Tracés officiels", value: selectedSiteLineCoverage.traceCoverage, symbol: "point.topleft.down.to.point.bottomright.curvepath")
-                            depotCoverageMetric("Plans PDF", value: selectedSiteLineCoverage.planCoverage, symbol: "map")
-                            depotCoverageMetric("Fiches horaires", value: selectedSiteLineCoverage.timetableCoverage, symbol: "doc.text")
-                            depotCoverageMetric("Références ambiguës / absentes", value: "\(selectedSiteLineCoverage.ambiguousReferenceCount) / \(selectedSiteLineCoverage.missingReferenceCount)", symbol: "questionmark.circle")
-                            depotCoverageMetric("Sans route GTFS", value: "\(selectedSiteLineCoverage.missingGTFSCount)", symbol: "bus")
-                            depotCoverageMetric("Variantes sans plan · horaire", value: "\(selectedSiteLineCoverage.routesWithoutPlans.count) · \(selectedSiteLineCoverage.routesWithoutTimetables.count)", symbol: "doc.text")
-                            depotCoverageMetric("COB non confirmé", value: "\(selectedSiteLineCoverage.unconfirmedDepotEvidenceCount)/\(selectedSiteLineCoverage.uniqueLineCount)", symbol: "building.2")
+                            depotCoverageMetric("Lignes GTFS", value: coverageMetricValue(
+                                coverage.gtfsCoverage,
+                                isAvailable: coverage.hasLoadedGTFSRouteCatalog,
+                                isLoading: library.isLoadingBusRoutes,
+                                error: library.busRoutesError,
+                                hasVersion: library.catalog.activeVersion != nil
+                            ), symbol: "clock.arrow.circlepath")
+                            depotCoverageMetric("Tracés officiels", value: coverageMetricValue(
+                                coverage.traceCoverage,
+                                isAvailable: coverage.hasLoadedGTFSRouteCatalog
+                                    && coverage.hasLoadedRouteGeometryCatalog,
+                                isLoading: library.isLoadingBusRoutes || library.isLoadingRouteGeometries,
+                                error: library.busRoutesError ?? library.routeGeometriesError,
+                                hasVersion: library.catalog.activeVersion != nil && library.catalog.activeGeometryVersion != nil
+                            ), symbol: "point.topleft.down.to.point.bottomright.curvepath")
+                            depotCoverageMetric("Plans PDF", value: coverageMetricValue(
+                                coverage.planCoverage,
+                                isAvailable: coverage.hasLoadedLineReferenceCatalog
+                                    && coverage.hasLoadedLineDocumentCatalog,
+                                isLoading: library.isLoadingLineReferences || library.isLoadingLineDocuments,
+                                error: library.lineReferencesError ?? library.lineDocumentsError,
+                                hasVersion: library.catalog.activeLineReferenceVersion != nil
+                                    && library.catalog.activeLineDocumentVersion != nil
+                            ), symbol: "map")
+                            depotCoverageMetric("Fiches horaires", value: coverageMetricValue(
+                                coverage.timetableCoverage,
+                                isAvailable: coverage.hasLoadedLineReferenceCatalog
+                                    && coverage.hasLoadedLineDocumentCatalog,
+                                isLoading: library.isLoadingLineReferences || library.isLoadingLineDocuments,
+                                error: library.lineReferencesError ?? library.lineDocumentsError,
+                                hasVersion: library.catalog.activeLineReferenceVersion != nil
+                                    && library.catalog.activeLineDocumentVersion != nil
+                            ), symbol: "doc.text")
+                            depotCoverageMetric("Références ambiguës / absentes", value: coverageMetricValue(
+                                "\(coverage.ambiguousReferenceCount) / \(coverage.missingReferenceCount)",
+                                isAvailable: coverage.hasLoadedLineReferenceCatalog,
+                                isLoading: library.isLoadingLineReferences,
+                                error: library.lineReferencesError,
+                                hasVersion: library.catalog.activeLineReferenceVersion != nil
+                            ), symbol: "questionmark.circle")
+                            depotCoverageMetric("Sans route GTFS", value: coverageMetricValue(
+                                "\(coverage.missingGTFSCount)",
+                                isAvailable: coverage.hasLoadedLineReferenceCatalog
+                                    && coverage.hasLoadedGTFSRouteCatalog,
+                                isLoading: library.isLoadingLineReferences || library.isLoadingBusRoutes,
+                                error: library.lineReferencesError ?? library.busRoutesError,
+                                hasVersion: library.catalog.activeLineReferenceVersion != nil && library.catalog.activeVersion != nil
+                            ), symbol: "bus")
+                            depotCoverageMetric("Variantes sans plan · horaire", value: coverageMetricValue(
+                                "\(coverage.routesWithoutPlans.count) · \(coverage.routesWithoutTimetables.count)",
+                                isAvailable: coverage.hasLoadedLineReferenceCatalog
+                                    && coverage.hasLoadedGTFSRouteCatalog
+                                    && coverage.hasLoadedLineDocumentCatalog,
+                                isLoading: library.isLoadingLineReferences || library.isLoadingBusRoutes || library.isLoadingLineDocuments,
+                                error: library.lineReferencesError ?? library.busRoutesError ?? library.lineDocumentsError,
+                                hasVersion: library.catalog.activeLineReferenceVersion != nil
+                                    && library.catalog.activeVersion != nil
+                                    && library.catalog.activeLineDocumentVersion != nil
+                            ), symbol: "doc.text")
+                            depotCoverageMetric("COB non confirmé", value: coverageMetricValue(
+                                "\(coverage.unconfirmedDepotEvidenceCount)/\(coverage.uniqueLineCount)",
+                                isAvailable: coverage.hasLoadedLineReferenceCatalog
+                                    && coverage.hasLoadedGTFSRouteCatalog,
+                                isLoading: library.isLoadingLineReferences || library.isLoadingBusRoutes,
+                                error: library.lineReferencesError ?? library.busRoutesError,
+                                hasVersion: library.catalog.activeLineReferenceVersion != nil && library.catalog.activeVersion != nil
+                            ), symbol: "building.2")
                         }
-                        DepotMissingRouteDocumentsDisclosure(coverage: selectedSiteLineCoverage)
+                        if !coverage.hasLoadedLineReferenceCatalog
+                            || !coverage.hasLoadedGTFSRouteCatalog
+                            || !coverage.hasLoadedLineDocumentCatalog
+                            || !coverage.hasLoadedRouteGeometryCatalog {
+                            Text("Les compteurs de couverture restent inconnus tant que les index des sources actives ne sont pas chargés; une source en erreur n’est pas comptée comme une couverture nulle.")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        if coverage.hasLoadedLineReferenceCatalog
+                            && coverage.hasLoadedGTFSRouteCatalog
+                            && coverage.hasLoadedLineDocumentCatalog {
+                            DepotMissingRouteDocumentsDisclosure(coverage: coverage)
+                        }
                     }
                     if !selectedSiteRows.isEmpty {
                         if isLoadingSelectedSiteServiceAudit {
@@ -1291,6 +1380,18 @@ struct DepotDirectoryWorkspaceView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(10)
         .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 9))
+    }
+    private func coverageMetricValue(
+        _ value: String,
+        isAvailable: Bool,
+        isLoading: Bool,
+        error: String?,
+        hasVersion: Bool
+    ) -> String {
+        if isAvailable { return value }
+        if isLoading { return "Chargement…" }
+        if error != nil { return "Indisponible" }
+        return hasVersion ? "Non chargé" : "Aucune version"
     }
 }
 
