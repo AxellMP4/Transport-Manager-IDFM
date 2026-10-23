@@ -264,7 +264,7 @@ final class NetworkLibrary: ObservableObject {
                     let source = BundledSnapshotBootstrapError.Source.gtfs
                     do {
                         let url = try BundledGTFSArchiveAssembler.assemble()
-                        catalog = try NetworkVersionStore.importGTFS(from: url)
+                        catalog = try NetworkVersionStore.importGTFS(from: url, provenance: .prim)
                     } catch {
                         throw BundledSnapshotBootstrapError.importFailed(source, error.localizedDescription)
                     }
@@ -393,7 +393,7 @@ final class NetworkLibrary: ObservableObject {
         }
     }
 
-    func importGTFS(from sourceURL: URL) {
+    func importGTFS(from sourceURL: URL, provenance: GTFSImportProvenance = .unverifiedManual) {
         guard !importState.isImporting else { return }
         importState = .importing
         busRoutes = []
@@ -414,7 +414,7 @@ final class NetworkLibrary: ObservableObject {
 
             do {
                 let updatedCatalog = try await Task.detached(priority: .userInitiated) {
-                    try NetworkVersionStore.importGTFS(from: sourceURL)
+                    try NetworkVersionStore.importGTFS(from: sourceURL, provenance: provenance)
                 }.value
                 catalog = updatedCatalog
                 await loadBusRoutes()
