@@ -3090,6 +3090,7 @@ struct OperationsDashboardView: View {
                         }
                         Text("Formes : \(quality.availableShapeCount)/\(quality.referencedShapeCount) formes référencées disponibles • \(quality.tripsWithoutShapeReference) courses sans forme • \(quality.tripsWithUnavailableShape) courses avec forme référencée absente ou invalide • \(quality.invalidShapeCount) formes écartées.")
                             .foregroundStyle(quality.hasShapeIssues ? Color.orange : Color.secondary)
+                        tripIssueDetails(quality.tripIssues)
                         Text("Un audit structurel ne confirme pas le tracé réel ni le rattachement des arrêts ; ces données restent à valider sur un export PRIM.")
                             .foregroundStyle(.secondary)
                     }
@@ -3383,6 +3384,49 @@ struct OperationsDashboardView: View {
                 .strokeBorder(.primary.opacity(0.08), lineWidth: 1)
         }
         .shadow(color: .black.opacity(0.08), radius: 18, y: 7)
+    }
+
+    @ViewBuilder
+    private func tripIssueDetails(_ issues: [GTFSImportTripIssue]?) -> some View {
+        if let issues {
+            if issues.isEmpty {
+                Text("Aucune course avec anomalie structurelle n’a été enregistrée pour cette version.")
+                    .foregroundStyle(.secondary)
+            } else {
+                let issuesByRouteID = Dictionary(grouping: issues, by: \.routeID)
+                DisclosureGroup("Détail des courses à contrôler · \(issues.count)") {
+                    ScrollView(.vertical) {
+                        LazyVStack(alignment: .leading, spacing: 4) {
+                            ForEach(issuesByRouteID.keys.sorted(), id: \.self) { routeID in
+                                let routeIssues = issuesByRouteID[routeID, default: []].sorted {
+                                    $0.tripID < $1.tripID
+                                }
+                                let displayName = library.busRoutes.first(where: { $0.routeID == routeID })?.displayName ?? routeID
+                                DisclosureGroup("\(displayName) · \(routeIssues.count) courses") {
+                                    ForEach(routeIssues) { issue in
+                                        VStack(alignment: .leading, spacing: 1) {
+                                            Text(issue.tripID)
+                                                .font(.caption.monospaced())
+                                                .textSelection(.enabled)
+                                            Text(issue.summary)
+                                                .font(.caption2)
+                                                .foregroundStyle(.orange)
+                                                .fixedSize(horizontal: false, vertical: true)
+                                        }
+                                        .padding(.vertical, 2)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    .frame(maxHeight: 240)
+                    .padding(.top, 4)
+                }
+            }
+        } else {
+            Text("Le détail des courses n’est pas archivé pour cet ancien import.")
+                .foregroundStyle(.secondary)
+        }
     }
 
     private var networkStartupCard: some View {
