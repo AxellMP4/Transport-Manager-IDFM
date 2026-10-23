@@ -73,6 +73,27 @@ struct DepotGTFSServiceAuditCard: View {
                                         .font(.caption2)
                                         .foregroundStyle(.secondary)
                                 }
+                                ForEach(entry.announcedServiceClaims) { claim in
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Label(
+                                            "Annonce distincte du GTFS · \(claim.sourceDateLabel ?? claim.sourceTitle)",
+                                            systemImage: "calendar.badge.clock"
+                                        )
+                                        .font(.caption2.weight(.medium))
+                                        .foregroundStyle(.orange)
+                                        if let note = claim.note {
+                                            Text(note)
+                                                .font(.caption2)
+                                                .foregroundStyle(.secondary)
+                                                .fixedSize(horizontal: false, vertical: true)
+                                        }
+                                        if let sourceURL = claim.sourceURL {
+                                            Link("Ouvrir l’annonce IDFM", destination: sourceURL)
+                                                .font(.caption2)
+                                        }
+                                    }
+                                    .padding(.top, 3)
+                                }
                             }
                         }
                     }
