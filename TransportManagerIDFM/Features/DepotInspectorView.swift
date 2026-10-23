@@ -912,6 +912,10 @@ struct DepotDirectoryWorkspaceView: View {
 
     @State private var searchText = ""
     @State private var browseSelectionID: String?
+    @State private var selectedSiteServiceAudit: DepotGTFSServiceAudit?
+    @State private var selectedSiteServiceAuditError: String?
+    @State private var isLoadingSelectedSiteServiceAudit = false
+
 
     private var directorySelectedDepotID: String {
         selectionLocked ? (browseSelectionID ?? selectedDepotID) : selectedDepotID
@@ -956,6 +960,11 @@ struct DepotDirectoryWorkspaceView: View {
         )
     }
 
+    private var selectedSiteServiceAuditTaskID: String {
+        let dateKey = GTFSServiceDate.key(for: serviceDate, timeZone: GTFSServiceDate.parisTimeZone) ?? -1
+        return "\(directorySelectedDepotID)|\(dateKey)|\(library.catalog.activeVersion?.id ?? "aucun-gtfs")|\(library.catalog.activeLineReferenceVersion?.id ?? "aucune-reference")|\(library.busRoutes.count)|\(library.lineReferences.count)"
+    }
+
     var body: some View {
         HStack(spacing: 0) {
             directoryList
@@ -966,10 +975,12 @@ struct DepotDirectoryWorkspaceView: View {
         }
         .background(Color(nsColor: .windowBackgroundColor))
         .task {
-            await library.loadBusRoutes()
             await library.loadActiveRouteGeometries()
-            await library.loadActiveLineReferences()
             await library.loadActiveLineDocuments()
+        }
+        .task(id: selectedSiteServiceAuditTaskID) {
+            let taskID = selectedSiteServiceAuditTaskID
+            await loadSelectedSiteServiceAudit(taskID: taskID)
         }
     }
 
@@ -1122,6 +1133,19 @@ struct DepotDirectoryWorkspaceView: View {
                         }
                         DepotMissingRouteDocumentsDisclosure(coverage: selectedSiteLineCoverage)
                     }
+                    if !selectedSiteRows.isEmpty {
+                        if isLoadingSelectedSiteServiceAudit {
+                            ProgressView("Lecture des départs GTFS de la date…")
+                                .font(.caption)
+                        } else if let selectedSiteServiceAuditError {
+                            Text("Audit GTFS impossible : \(selectedSiteServiceAuditError)")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                                .fixedSize(horizontal: false, vertical: true)
+                        } else if let selectedSiteServiceAudit {
+                            DepotGTFSServiceAuditCard(audit: selectedSiteServiceAudit, serviceDate: serviceDate)
+                        }
+                    }
                     if DepotLineRoster.bordsDeMarneManifestSiteIDs.contains(selectedSite.id) {
                         Label(
                             "\(DepotLineRosterManifestCatalog.state.summary) · \(DepotLineRosterManifestCatalog.entries(for: serviceDate).count) actives à cette date",
@@ -1211,6 +1235,41 @@ struct DepotDirectoryWorkspaceView: View {
         }
         .task(id: selectedDepotID) {
             await library.loadActiveLineReferences()
+        }
+    }
+
+    private func loadSelectedSiteServiceAudit(taskID: String) async {
+        selectedSiteServiceAudit = nil
+        selectedSiteServiceAuditError = nil
+        isLoadingSelectedSiteServiceAudit = true
+        defer {
+            if taskID == selectedSiteServiceAuditTaskID {
+                isLoadingSelectedSiteServiceAudit = false
+            }
+        }
+
+        await library.loadBusRoutes()
+        await library.loadActiveLineReferences()
+        guard !Task.isCancelled, taskID == selectedSiteServiceAuditTaskID else { return }
+        if let busRoutesError = library.busRoutesError {
+            selectedSiteServiceAuditError = busRoutesError
+            return
+        }
+        if let lineReferencesError = library.lineReferencesError {
+            selectedSiteServiceAuditError = lineReferencesError
+            return
+        }
+
+        do {
+            let audit = try await library.depotGTFSServiceAudit(
+                depotID: directorySelectedDepotID,
+                serviceDate: serviceDate
+            )
+            guard !Task.isCancelled, taskID == selectedSiteServiceAuditTaskID else { return }
+            selectedSiteServiceAudit = audit
+        } catch {
+            guard !Task.isCancelled, taskID == selectedSiteServiceAuditTaskID else { return }
+            selectedSiteServiceAuditError = error.localizedDescription
         }
     }
 
