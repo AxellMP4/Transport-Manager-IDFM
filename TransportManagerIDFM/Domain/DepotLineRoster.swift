@@ -700,6 +700,7 @@ enum DepotLineRoster {
     private static let futureCobNoticeURL = URL(string: "https://www.iledefrance-mobilites.fr/medias/portail-idfm-projets/Z3gGG5bqstJ99BnH_B_Notice_explicative.pdf")!
     private static let futureBordsDeMarneSchemeURL = URL(string: "https://www.iledefrance-mobilites.fr/medias/portail-idfm-projets/72537622-01f3-44cc-ae73-4f1771f19470_BBM_SDP_VFF.pdf")!
     private static let neuillyDepotURL = URL(string: "https://tc-infos.fr/exploitant/2975/depot/4663")!
+    private static let bordsDeMarneFireReportURL = URL(string: "https://www.leparisien.fr/info-paris-ile-de-france-oise/transports/quatre-bus-prennent-feu-en-moins-de-deux-mois-la-ratp-depose-plainte-contre-x-aucune-piste-nest-ecartee-16-12-2025-YOOGWRR5HZCT5MZDUYW2MCS3UE.php")!
     private static let currentTCInfosLineURLs: [String: URL] = [
         "113": URL(string: "https://tc-infos.fr/reseau/1452/ligne/33118")!,
         "114": URL(string: "https://tc-infos.fr/reseau/1452/ligne/33119")!,
@@ -1180,7 +1181,23 @@ enum DepotLineRoster {
         neuillyPlaisanceLine("118", note: "Château de Vincennes ↔ Gare de Val de Fontenay. Le plan IDFM de septembre 2025 et les séquences des courses GTFS actives du 20 octobre 2026 ne montrent pas les anciens terminus partiels à Ledru-Rollin ou OFPRA ; IDFM annonce un renfort de fréquence au 1er novembre 2026. TC Infos montre un parc de groupe partagé.", documents: documentsByLine["118"] ?? []),
         neuillyPlaisanceLine("120", note: "Nogent-sur-Marne RER ↔ Noisy-le-Grand–Mont d’Est ; des courses partielles en pointe relient Nogent RER à Hôpital Sainte-Camille. TC Infos montre un parc de groupe partagé.", documents: documentsByLine["120"] ?? []),
         neuillyPlaisanceLine("124", note: "Château de Vincennes ↔ Montreuil–Boissière. TC Infos montre un parc de groupe partagé ; IDFM annonce un renfort de fréquence au 1er novembre 2026.", documents: documentsByLine["124"] ?? []),
-        neuillyPlaisanceLine("127", note: "Montreuil–Croix-de-Chavaux avec terminus selon les courses à Place de la Résistance ou Gagny–Charles-de-Gaulle ; services de marché, scolaires et du dimanche figurent sur le plan. TC Infos montre un parc de groupe partagé.", documents: documentsByLine["127"] ?? []),
+        neuillyPlaisanceLine(
+            "127",
+            note: "Montreuil–Croix-de-Chavaux avec terminus selon les courses à Place de la Résistance ou Gagny–Charles-de-Gaulle ; services de marché, scolaires et du dimanche figurent sur le plan. Le Parisien rapporte qu’un bus de la 127 en service a brûlé à Montreuil le 4 novembre 2025 et rattache les véhicules concernés au dépôt de Neuilly-Plaisance et au réseau Boucles de Marne ; cette observation ponctuelle ne répartit pas toutes les courses. TC Infos montre aussi un parc de groupe partagé.",
+            documents: documentsByLine["127"] ?? [],
+            additionalClaims: [DepotLineRosterClaim(
+                kind: .fleetObservation,
+                siteID: "neuilly-plaisance",
+                centerLabel: "NEUILLY-PLAISANCE",
+                sourceTitle: "Le Parisien · véhicule de la ligne 127 rattaché au dépôt de Neuilly-Plaisance",
+                sourceURL: bordsDeMarneFireReportURL,
+                sourceDate: sourceDate(year: 2025, month: 12, day: 16),
+                sourceDateLabel: "Article du 16 décembre 2025 · incident du 4 novembre",
+                validFromKey: 20251104,
+                validThroughKey: 20251104,
+                note: "L’article rapporte un bus de la 127 en service le 4 novembre 2025 puis indique que les véhicules Citelis des quatre incendies appartenaient au dépôt de Neuilly-Plaisance et au lot Boucles de Marne. Source de presse secondaire, limitée à l’incident et au véhicule concerné ; elle ne prouve pas une affectation exclusive de la ligne ni la répartition de toutes ses courses."
+            )]
+        ),
         neuillyPlaisanceLine("203", note: "Gare de Neuilly-Plaisance ↔ Bougainville. L’extension vers Maison-Blanche est annoncée pour début 2027 et n’est pas encore une variante en service. IDFM annonce un renfort de fréquence et des horaires élargis au 1er novembre 2026. TC Infos montre un parc de groupe partagé.", documents: documentsByLine["203"] ?? []),
         secondaryNeuillyPlaisanceLine(
             "210",
@@ -1214,6 +1231,17 @@ enum DepotLineRoster {
                 validFromKey: 20261101,
                 validThroughKey: nil,
                 note: "L’annonce indique que la 214 continue avec fréquences renforcées et amplitude élargie ; seuls les arrêts de la ZI des Chanoux sont transférés à la 314. Cette preuve porte sur le service, pas sur le COB. Le GTFS daté du 20 octobre ne fournit pas les courses 214 annoncées après la date de changement."
+            ), DepotLineRosterClaim(
+                kind: .fleetObservation,
+                siteID: "neuilly-plaisance",
+                centerLabel: "NEUILLY-PLAISANCE",
+                sourceTitle: "Le Parisien · véhicule de la ligne 214 rattaché au dépôt de Neuilly-Plaisance",
+                sourceURL: bordsDeMarneFireReportURL,
+                sourceDate: sourceDate(year: 2025, month: 12, day: 16),
+                sourceDateLabel: "Article du 16 décembre 2025 · incident du 2 décembre",
+                validFromKey: 20251202,
+                validThroughKey: 20251202,
+                note: "L’article rapporte qu’un bus Citelis a brûlé sur la 214 près de la gare RER de Neuilly-Plaisance le 2 décembre 2025 puis indique que les véhicules concernés appartenaient au dépôt de Neuilly-Plaisance et au lot Boucles de Marne. Source de presse secondaire, limitée à l’incident et au véhicule concerné ; elle ne prouve pas une affectation exclusive de la ligne ni la répartition de toutes ses courses."
             )]
         ),
         neuillyPlaisanceLine("221", note: "Gallieni ↔ Pointe de Gournay ; après 21 h, plusieurs courses sont partielles entre le cimetière de Villemomble et Rosny–Bois-Perrier. TC Infos montre un parc de groupe partagé. IDFM annonce que la ligne est inchangée au 1er novembre 2026.", documents: documentsByLine["221"] ?? []),
