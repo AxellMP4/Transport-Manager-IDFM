@@ -66,6 +66,22 @@ enum DepotEnergyEvidenceCatalog {
                     )
                 ]
             )
+        case ("saint-maur", .electricCharging):
+            DepotEnergyEvidence(
+                status: .intentDocumented,
+                note: "Une offre d’emploi de RATP Cap pour le centre bus de Saint-Maur décrit une transition énergétique vers une flotte de bus 100 % électrique. Cette source atteste une transition en cours, sans préciser la date d’achèvement, la mise en service de bornes, leur nombre ou leur puissance, ni la capacité opérationnelle du dépôt.",
+                dateLabel: "offre consultée le 23 octobre 2026 · transition en cours",
+                sources: [
+                    DepotEnergyEvidenceLink(
+                        title: "RATP Cap · poste de maintenance au centre bus de Saint-Maur",
+                        url: URL(string: "https://carrieres.ratpcap.com/job/SAINT-MAUR-Agent-d%26apos%3Binterface-maintenance-exploitation-bus-FH-93-94100/1355315155/")!
+                    ),
+                    DepotEnergyEvidenceLink(
+                        title: "IDFM · adresse du centre bus de Saint-Maur",
+                        url: URL(string: "https://www.iledefrance-mobilites.fr/medias/portail-idfm/56c73684-a7ed-4797-8d62-900da8787c53_RAA%2B147-1_D%C3%A9lib%C3%A9rations.pdf")!
+                    )
+                ]
+            )
         case ("neuilly-plaisance", .electricCharging):
             DepotEnergyEvidence(
                 status: .intentDocumented,
