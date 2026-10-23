@@ -610,6 +610,11 @@ struct GTFSStopShapeProjectionDiagnostic: Codable, Hashable, Sendable {
     }
 }
 
+struct GTFSStopSequenceEntry: Codable, Hashable, Sendable {
+    let stopID: String
+    let stopSequence: Int
+}
+
 struct GTFSImportTripIssue: Codable, Hashable, Identifiable, Sendable {
     let routeID: String
     let tripID: String
@@ -621,6 +626,9 @@ struct GTFSImportTripIssue: Codable, Hashable, Identifiable, Sendable {
     let stopIDsNotMatchedToShape: [String]?
     /// Per-stop reason and distance for rejected shape projections. Nil in older catalogs.
     let stopProjectionDiagnostics: [GTFSStopShapeProjectionDiagnostic]?
+    /// Complete ordered stop pattern, used to group repeated trips into GTFS motifs.
+    /// Nil in catalogs imported before motif auditing was added.
+    let orderedStopSequence: [GTFSStopSequenceEntry]?
 
     var id: String { "\(routeID)|\(tripID)" }
 
@@ -772,7 +780,7 @@ struct NetworkVersion: Identifiable, Codable, Hashable, Sendable {
     let busRouteCount: Int
     let busStopCount: Int
     let feedStopCount: Int
-    let gtfsQuality: GTFSImportQuality?
+    var gtfsQuality: GTFSImportQuality?
 
     var displaySourceTitle: String {
         sourceProvenanceIsDeclared ? sourceTitle : "Source GTFS à vérifier"
