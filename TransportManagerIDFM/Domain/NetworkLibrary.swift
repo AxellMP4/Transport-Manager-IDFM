@@ -200,6 +200,7 @@ final class NetworkLibrary: ObservableObject {
     @Published private(set) var isLoadingServiceCalendars = false
     @Published private(set) var serviceCalendarsError: String?
     @Published private(set) var routeGeometries: [NetworkRouteGeometry] = []
+    @Published private(set) var routeGeometryVersionID: String?
     @Published private(set) var geometryImportState: NetworkImportState = .idle
     @Published private(set) var isLoadingRouteGeometries = false
     @Published private(set) var routeGeometriesError: String?
@@ -214,6 +215,7 @@ final class NetworkLibrary: ObservableObject {
     @Published private(set) var lineReferencesError: String?
     private(set) var lineReferenceIndex: [String: NetworkLineReference] = [:]
     @Published private(set) var lineDocuments: [NetworkLineDocument] = []
+    @Published private(set) var lineDocumentVersionID: String?
     @Published private(set) var lineDocumentImportState: NetworkImportState = .idle
     @Published private(set) var isLoadingLineDocuments = false
     @Published private(set) var lineDocumentsError: String?
@@ -701,6 +703,7 @@ final class NetworkLibrary: ObservableObject {
                 }.value
                 catalog = result.catalog
                 routeGeometries = result.geometries
+                routeGeometryVersionID = result.catalog.activeGeometryVersion?.id
                 geometryImportState = .imported
             } catch {
                 routeGeometriesError = error.localizedDescription
@@ -730,6 +733,7 @@ final class NetworkLibrary: ObservableObject {
                 }.value
                 catalog = result.catalog
                 routeGeometries = result.geometries
+                routeGeometryVersionID = result.catalog.activeGeometryVersion?.id
                 geometryImportState = .imported
             } catch {
                 routeGeometriesError = error.localizedDescription
@@ -739,19 +743,38 @@ final class NetworkLibrary: ObservableObject {
     }
 
     func loadActiveRouteGeometries() async {
-        guard !isLoadingRouteGeometries, let version = catalog.activeGeometryVersion else { return }
-        isLoadingRouteGeometries = true
-        routeGeometriesError = nil
-        defer { isLoadingRouteGeometries = false }
+        guard !isLoadingRouteGeometries else { return }
 
-        do {
-            routeGeometries = try await Task.detached(priority: .userInitiated) {
-                try RouteGeometryStore.loadGeometries(for: version)
-            }.value
-            geometryImportState = .imported
-        } catch {
-            routeGeometriesError = error.localizedDescription
-            geometryImportState = .failed(error.localizedDescription)
+        while true {
+            guard let version = catalog.activeGeometryVersion else {
+                routeGeometries = []
+                routeGeometryVersionID = nil
+                return
+            }
+            guard routeGeometryVersionID != version.id else { return }
+
+            isLoadingRouteGeometries = true
+            routeGeometriesError = nil
+            routeGeometries = []
+            routeGeometryVersionID = nil
+
+            do {
+                let geometries = try await Task.detached(priority: .userInitiated) {
+                    try RouteGeometryStore.loadGeometries(for: version)
+                }.value
+                isLoadingRouteGeometries = false
+                guard catalog.activeGeometryVersion?.id == version.id else { continue }
+                routeGeometries = geometries
+                routeGeometryVersionID = version.id
+                geometryImportState = .imported
+                return
+            } catch {
+                isLoadingRouteGeometries = false
+                guard catalog.activeGeometryVersion?.id == version.id else { continue }
+                routeGeometriesError = error.localizedDescription
+                geometryImportState = .failed(error.localizedDescription)
+                return
+            }
         }
     }
 
@@ -979,6 +1002,7 @@ final class NetworkLibrary: ObservableObject {
                 }.value
                 catalog = result.catalog
                 lineDocuments = result.documents
+                lineDocumentVersionID = result.catalog.activeLineDocumentVersion?.id
                 lineDocumentImportState = .imported
             } catch {
                 lineDocumentsError = error.localizedDescription
@@ -1008,6 +1032,7 @@ final class NetworkLibrary: ObservableObject {
                 }.value
                 catalog = result.catalog
                 lineDocuments = result.documents
+                lineDocumentVersionID = result.catalog.activeLineDocumentVersion?.id
                 lineDocumentImportState = .imported
             } catch {
                 lineDocumentsError = error.localizedDescription
@@ -1017,19 +1042,38 @@ final class NetworkLibrary: ObservableObject {
     }
 
     func loadActiveLineDocuments() async {
-        guard !isLoadingLineDocuments, let version = catalog.activeLineDocumentVersion else { return }
-        isLoadingLineDocuments = true
-        lineDocumentsError = nil
-        defer { isLoadingLineDocuments = false }
+        guard !isLoadingLineDocuments else { return }
 
-        do {
-            lineDocuments = try await Task.detached(priority: .userInitiated) {
-                try LineDocumentStore.loadDocuments(for: version)
-            }.value
-            lineDocumentImportState = .imported
-        } catch {
-            lineDocumentsError = error.localizedDescription
-            lineDocumentImportState = .failed(error.localizedDescription)
+        while true {
+            guard let version = catalog.activeLineDocumentVersion else {
+                lineDocuments = []
+                lineDocumentVersionID = nil
+                return
+            }
+            guard lineDocumentVersionID != version.id else { return }
+
+            isLoadingLineDocuments = true
+            lineDocumentsError = nil
+            lineDocuments = []
+            lineDocumentVersionID = nil
+
+            do {
+                let documents = try await Task.detached(priority: .userInitiated) {
+                    try LineDocumentStore.loadDocuments(for: version)
+                }.value
+                isLoadingLineDocuments = false
+                guard catalog.activeLineDocumentVersion?.id == version.id else { continue }
+                lineDocuments = documents
+                lineDocumentVersionID = version.id
+                lineDocumentImportState = .imported
+                return
+            } catch {
+                isLoadingLineDocuments = false
+                guard catalog.activeLineDocumentVersion?.id == version.id else { continue }
+                lineDocumentsError = error.localizedDescription
+                lineDocumentImportState = .failed(error.localizedDescription)
+                return
+            }
         }
     }
 
@@ -1051,18 +1095,36 @@ final class NetworkLibrary: ObservableObject {
     ) -> DepotLineCoverage {
         let serviceDateKey = GTFSServiceDate.key(for: serviceDate, timeZone: GTFSServiceDate.parisTimeZone)
         let site = DepotLineRoster.selectableSites.first { $0.id == depotID }
+        let gtfsVersion = catalog.activeVersion
+        let referenceVersion = catalog.activeLineReferenceVersion
+        let documentVersion = catalog.activeLineDocumentVersion
+        let geometryVersion = catalog.activeGeometryVersion
+        let hasLoadedLineReferenceCatalog = referenceVersion != nil
+            && lineReferenceVersionID == referenceVersion?.id
+            && lineReferencesError == nil
+        let hasLoadedGTFSRouteCatalog = gtfsVersion != nil
+            && busRoutesVersionID == gtfsVersion?.id
+            && busRoutesError == nil
+        let hasLoadedLineDocumentCatalog = documentVersion != nil
+            && lineDocumentVersionID == documentVersion?.id
+            && lineDocumentsError == nil
+        let hasLoadedRouteGeometryCatalog = geometryVersion != nil
+            && routeGeometryVersionID == geometryVersion?.id
+            && routeGeometriesError == nil
         let documentedRows = DepotLineRoster.rows.filter { $0.isVisible(atSite: depotID, on: serviceDate) }
-        let candidateRows = DepotContractLineScope.candidateRows(
-            for: site,
-            references: lineReferences,
-            serviceDate: serviceDate,
-            excluding: documentedRows
-        )
+        let candidateRows = hasLoadedLineReferenceCatalog
+            ? DepotContractLineScope.candidateRows(
+                for: site,
+                references: lineReferences,
+                serviceDate: serviceDate,
+                excluding: documentedRows
+            )
+            : []
         let rows = documentedRows + candidateRows
-        let activeBusReferences = lineReferences.filter {
+        let activeBusReferences = hasLoadedLineReferenceCatalog ? lineReferences.filter {
             $0.transportMode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() == "BUS"
                 && $0.isActive(on: serviceDate) == true
-        }
+        } : []
 
         struct LineRecord {
             var rows: [DepotLineRosterRow] = []
@@ -1088,10 +1150,6 @@ final class NetworkLibrary: ObservableObject {
             records[key] = record
         }
 
-        let gtfsVersion = catalog.activeVersion
-        let referenceVersion = catalog.activeLineReferenceVersion
-        let documentVersion = catalog.activeLineDocumentVersion
-        let geometryVersion = catalog.activeGeometryVersion
         let canonicalOperatedRouteIDs = Set(operatedRouteIDs.map(LineReferenceMatcher.canonicalIdentifier))
 
         var linesWithGTFS = 0
@@ -1119,14 +1177,14 @@ final class NetworkLibrary: ObservableObject {
                 missingReferenceCount += 1
             }
 
-            let matchingRoutes = lineID.map { id in
+            let matchingRoutes = hasLoadedGTFSRouteCatalog ? lineID.map { id in
                 busRoutes.filter { LineReferenceMatcher.canonicalIdentifier($0.routeID) == id }
-            } ?? []
+            } ?? [] : []
             let routeIDs = Set(matchingRoutes.map(\.routeID))
             routeVariantIDs.formUnion(routeIDs)
             if !matchingRoutes.isEmpty {
                 linesWithGTFS += 1
-                if matchingRoutes.contains(where: {
+                if hasLoadedRouteGeometryCatalog && matchingRoutes.contains(where: {
                     !RouteGeometryMatcher.matches(route: $0, among: busRoutes, geometries: routeGeometries).isEmpty
                 }) {
                     tracedLineKeys.insert(key)
@@ -1135,9 +1193,9 @@ final class NetworkLibrary: ObservableObject {
                 missingGTFSCount += 1
             }
 
-            let importedDocuments = lineID.map { id in
+            let importedDocuments = hasLoadedLineDocumentCatalog ? lineID.map { id in
                 lineDocuments.filter { LineReferenceMatcher.canonicalIdentifier($0.idLine) == id }
-            } ?? []
+            } ?? [] : []
             let curatedDocuments = record.rows.flatMap(\.publicDocuments)
             let allDocumentTypes = importedDocuments.compactMap { document -> String? in
                 guard document.destination != nil else { return nil }
@@ -1181,10 +1239,14 @@ final class NetworkLibrary: ObservableObject {
         return DepotLineCoverage(
             depotID: depotID,
             serviceDateKey: serviceDateKey,
-            gtfsVersionID: gtfsVersion?.id,
-            lineReferenceVersionID: referenceVersion?.id,
-            lineDocumentVersionID: documentVersion?.id,
-            routeGeometryVersionID: geometryVersion?.id,
+            gtfsVersionID: hasLoadedGTFSRouteCatalog ? gtfsVersion?.id : nil,
+            lineReferenceVersionID: hasLoadedLineReferenceCatalog ? referenceVersion?.id : nil,
+            lineDocumentVersionID: hasLoadedLineDocumentCatalog ? lineDocumentVersionID : nil,
+            routeGeometryVersionID: hasLoadedRouteGeometryCatalog ? routeGeometryVersionID : nil,
+            hasLoadedLineReferenceCatalog: hasLoadedLineReferenceCatalog,
+            hasLoadedGTFSRouteCatalog: hasLoadedGTFSRouteCatalog,
+            hasLoadedLineDocumentCatalog: hasLoadedLineDocumentCatalog,
+            hasLoadedRouteGeometryCatalog: hasLoadedRouteGeometryCatalog,
             uniqueLineCount: records.count,
             linesWithGTFS: linesWithGTFS,
             routeVariantCount: routeVariantIDs.count,
