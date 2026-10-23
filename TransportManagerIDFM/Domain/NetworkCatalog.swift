@@ -442,11 +442,20 @@ struct DepotLineCoverage: Hashable, Sendable {
     let missingReferenceCount: Int
     let missingGTFSCount: Int
     let unconfirmedDepotEvidenceCount: Int
+    let routesWithoutPlans: [DepotRouteDocumentGap]
+    let routesWithoutTimetables: [DepotRouteDocumentGap]
 
     var planCoverage: String { "\(linesWithPlans)/\(uniqueLineCount)" }
     var timetableCoverage: String { "\(linesWithTimetables)/\(uniqueLineCount)" }
     var traceCoverage: String { "\(linesWithOfficialTraces)/\(uniqueLineCount)" }
     var gtfsCoverage: String { "\(linesWithGTFS)/\(uniqueLineCount)" }
+}
+
+struct DepotRouteDocumentGap: Identifiable, Hashable, Sendable {
+    let lineName: String
+    let routeID: String
+
+    var id: String { routeID }
 }
 
 enum GTFSImportTripIssueKind: String, Codable, CaseIterable, Hashable, Sendable {
