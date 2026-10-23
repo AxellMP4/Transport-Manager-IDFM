@@ -201,6 +201,24 @@ struct GTFSShapeDataset: Codable, Hashable, Sendable {
     }
 }
 
+struct GTFSGeometryReviewStop: Hashable, Identifiable, Sendable {
+    let stopID: String
+    let sequence: Int
+    let name: String?
+    let latitude: Double?
+    let longitude: Double?
+
+    var id: String { "\(sequence)|\(stopID)" }
+}
+
+struct GTFSGeometryReview: Hashable, Sendable {
+    let tripID: String
+    let routeID: String
+    let shapeID: String?
+    let shapePoints: [GTFSShapePoint]
+    let stops: [GTFSGeometryReviewStop]
+}
+
 struct NetworkLineReference: Codable, Hashable, Identifiable, Sendable {
     let id: String
     let idLine: String
