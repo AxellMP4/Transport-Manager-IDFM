@@ -127,6 +127,37 @@ struct DepotFleetObservation: Hashable, Sendable {
     let limitationNote: String
     let sourceTitle: String
     let sourceURL: URL
+    let comparisonNote: String?
+    let comparisonSourceTitle: String?
+    let comparisonSourceURL: URL?
+
+    init(
+        totalVehicleCount: Int,
+        energyCounts: [DepotFleetEnergyCount],
+        averageFleetAgeYears: Double?,
+        airConditionedVehicleSharePercent: Int?,
+        reviewedOnLabel: String,
+        sourceFreshnessNote: String,
+        limitationNote: String,
+        sourceTitle: String,
+        sourceURL: URL,
+        comparisonNote: String? = nil,
+        comparisonSourceTitle: String? = nil,
+        comparisonSourceURL: URL? = nil
+    ) {
+        self.totalVehicleCount = totalVehicleCount
+        self.energyCounts = energyCounts
+        self.averageFleetAgeYears = averageFleetAgeYears
+        self.airConditionedVehicleSharePercent = airConditionedVehicleSharePercent
+        self.reviewedOnLabel = reviewedOnLabel
+        self.sourceFreshnessNote = sourceFreshnessNote
+        self.limitationNote = limitationNote
+        self.sourceTitle = sourceTitle
+        self.sourceURL = sourceURL
+        self.comparisonNote = comparisonNote
+        self.comparisonSourceTitle = comparisonSourceTitle
+        self.comparisonSourceURL = comparisonSourceURL
+    }
 }
 
 struct DepotLineDocumentLink: Identifiable, Hashable, Sendable {
@@ -406,7 +437,10 @@ enum DepotLineRoster {
                 sourceFreshnessNote: "TC Infos présente le parc comme actuel, sans indiquer la date de mise à jour de son inventaire.",
                 limitationNote: "Comptage de véhicules observés; il ne donne ni la capacité maximale du site, ni ses postes d’atelier ou de ravitaillement, ni les lignes auxquelles chaque véhicule est affecté.",
                 sourceTitle: "TC Infos · parc actuel du COB Neuilly-Plaisance",
-                sourceURL: neuillyDepotURL
+                sourceURL: neuillyDepotURL,
+                comparisonNote: "La page récapitulative de l’exploitant TC Infos indique 201 véhicules pour ce site, tandis que sa fiche détaillée en compte 200 (148 diesel et 52 hybrides). Les deux pages donnent une période de parc « depuis novembre 2025 » sans date de mise à jour; le total détaillé reste une observation, pas une capacité certifiée.",
+                comparisonSourceTitle: "TC Infos · récapitulatif de l’exploitant (201 véhicules)",
+                comparisonSourceURL: URL(string: "https://tc-infos.fr/exploitant/2975")!
             )
         ),
         DepotLineRosterSite(
