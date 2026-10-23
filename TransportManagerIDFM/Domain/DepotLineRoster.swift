@@ -1161,6 +1161,18 @@ enum DepotLineRoster {
                     validFromKey: 20251101,
                     validThroughKey: nil,
                     note: "Observation communautaire du parc de ligne ; la fiche dépôt TC Infos compte 12 Citelis 18 mais ne donne pas les services qui partent de ce site."
+                ),
+                DepotLineRosterClaim(
+                    kind: .supportingSource,
+                    siteID: nil,
+                    centerLabel: nil,
+                    sourceTitle: "IDFM · schéma de principe du Bus Bords de Marne · parc historique de la 113",
+                    sourceURL: futureBordsDeMarneSchemeURL,
+                    sourceDate: nil,
+                    sourceDateLabel: "Données de situation antérieures au transfert DSP45 · date exacte du fait non précisée",
+                    validFromKey: nil,
+                    validThroughKey: nil,
+                    note: "Le dossier situe le Centre bus historique des Bords de Marne, anciennement la Maltournée, à Neuilly-Plaisance : environ 22 000 m², entretien, maintenance et remisage d’environ 15 lignes, dont la 113 exploitée à l’époque avec 27 autobus standards de 12 m. Il indique qu’à la date du dossier le site ne pouvait accueillir des articulés de 18 m, et évoque une conversion électrique prévue vers 2024. Le document ne liste pas les 15 lignes, ne confirme pas la capacité après travaux et ne décrit pas les affectations depuis le transfert DSP45."
                 )
             ]),
         neuillyPlaisanceLine("114", note: "Château de Vincennes ↔ Villemomble–Les Coquetiers / Le Raincy–Villemomble–Montfermeil RER. Le plan signale des variantes liées aux écoles, aux marchés et au dimanche. TC Infos montre un parc partagé avec plusieurs lignes ; cela ne prouve pas une affectation exclusive.", documents: documentsByLine["114"] ?? []),
