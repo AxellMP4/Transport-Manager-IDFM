@@ -2,6 +2,102 @@ import SwiftUI
 
 import SwiftUI
 
+struct DepotGTFSServiceAuditCard: View {
+    let audit: DepotGTFSServiceAudit
+    let serviceDate: Date
+
+    private var serviceDateLabel: String {
+        serviceDate.formatted(date: .abbreviated, time: .omitted)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("Départs GTFS · \(serviceDateLabel)", systemImage: "clock")
+                .font(.subheadline.weight(.semibold))
+
+            if audit.availability == .ready {
+                Text("\(audit.linesWithScheduledService) / \(audit.linesWithExactRoutes) lignes avec au moins un départ · \(audit.totalScheduledDepartures.formatted()) départs au total.")
+                    .font(.caption)
+                    .fixedSize(horizontal: false, vertical: true)
+                if audit.linesWithoutScheduledService > 0 {
+                    Text("Lignes avec route exacte sans départ ce jour : \(audit.linesWithoutScheduledService).")
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
+                }
+                if audit.linesWithUnknownService > 0 {
+                    Text("Lignes impossibles à évaluer avec ce GTFS : \(audit.linesWithUnknownService).")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            } else {
+                Text(audit.availability.summary)
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            if let gtfsVersionID = audit.gtfsVersionID {
+                Text("Version GTFS · \(gtfsVersionID)")
+                    .font(.caption2.monospaced())
+                    .foregroundStyle(.tertiary)
+                    .textSelection(.enabled)
+            }
+
+            if !audit.entries.isEmpty {
+                DisclosureGroup("Détail par ligne · \(audit.entries.count)") {
+                    LazyVStack(alignment: .leading, spacing: 8) {
+                        ForEach(audit.entries) { entry in
+                            VStack(alignment: .leading, spacing: 3) {
+                                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                    Text(entry.lineName)
+                                        .font(.caption.weight(.semibold).monospaced())
+                                    Spacer(minLength: 8)
+                                    Label(
+                                        entry.serviceSummary(availability: audit.availability),
+                                        systemImage: entry.serviceSymbol
+                                    )
+                                    .font(.caption2.weight(.medium))
+                                    .foregroundStyle(serviceColor(for: entry))
+                                }
+                                Text(entry.referenceMatch.summary)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                if !entry.routeIDs.isEmpty {
+                                    Text("Routes GTFS · \(entry.routeIDs.joined(separator: ", "))")
+                                        .font(.caption2.monospaced())
+                                        .foregroundStyle(.secondary)
+                                        .textSelection(.enabled)
+                                }
+                                if !entry.evidenceStatuses.isEmpty {
+                                    Text("Preuves de rattachement · \(entry.evidenceStatuses.map(\.rawValue).joined(separator: " · "))")
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                    }
+                    .padding(.top, 5)
+                }
+                .font(.caption.weight(.medium))
+            }
+
+            Text("La présence de départs GTFS confirme une offre datée, pas le rattachement de la ligne à ce COB.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(11)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.primary.opacity(0.025), in: RoundedRectangle(cornerRadius: 10))
+    }
+
+    private func serviceColor(for entry: DepotLineServiceAuditEntry) -> Color {
+        guard audit.availability == .ready,
+              let departureCount = entry.scheduledDepartureCount else { return .secondary }
+        return departureCount == 0 ? .orange : .green
+    }
+}
+
 struct DepotMissingRouteDocumentsDisclosure: View {
     let coverage: DepotLineCoverage
 
