@@ -261,62 +261,110 @@ struct ScenarioNetworkChange: Identifiable, Hashable {
 
 struct ScenarioLineCoverageEntry: Identifiable, Hashable {
     let lineName: String
+    let lineReferenceIDs: [String]
     let activeRouteIDs: [String]
 
-    var id: String { "\(lineName):\(activeRouteIDs.joined(separator: ","))" }
-    var isPresent: Bool { !activeRouteIDs.isEmpty }
+    var id: String { "\(lineName):\(lineReferenceIDs.joined(separator: ",")):\(activeRouteIDs.joined(separator: ","))" }
+    var hasUniqueReference: Bool { lineReferenceIDs.count == 1 }
+    var hasMissingReference: Bool { lineReferenceIDs.isEmpty }
+    var hasAmbiguousReference: Bool { lineReferenceIDs.count > 1 }
+    var isPresent: Bool { hasUniqueReference && !activeRouteIDs.isEmpty }
 }
 
 struct ScenarioLineCoverage: Hashable {
     let entries: [ScenarioLineCoverageEntry]
+    let unresolvedActiveEntries: [ScenarioLineCoverageEntry]
     let unlistedActiveEntries: [ScenarioLineCoverageEntry]
 
     var matchedCount: Int { entries.filter(\.isPresent).count }
-    var missingLineNames: [String] { entries.filter { !$0.isPresent }.map(\.lineName) }
+    var missingLineNames: [String] {
+        entries.filter { $0.hasUniqueReference && $0.activeRouteIDs.isEmpty }.map(\.lineName)
+    }
+    var missingReferenceNames: [String] { entries.filter(\.hasMissingReference).map(\.lineName) }
+    var ambiguousReferenceEntries: [ScenarioLineCoverageEntry] { entries.filter(\.hasAmbiguousReference) }
     var unlistedActiveRouteCount: Int {
         unlistedActiveEntries.reduce(0) { $0 + $1.activeRouteIDs.count }
+    }
+    var unresolvedActiveRouteCount: Int {
+        unresolvedActiveEntries.reduce(0) { $0 + $1.activeRouteIDs.count }
     }
 
     static func compare(
         expectedLineNames: [String],
-        against routes: [GTFSRouteSummary]
+        activeReferences: [NetworkLineReference],
+        against routes: [GTFSRouteSummary],
+        on serviceDate: Date
     ) -> ScenarioLineCoverage {
-        let expectedCanonicalNames = Set(expectedLineNames.map(canonicalLineName))
-        let routesByName = Dictionary(grouping: routes.filter { !$0.shortName.isEmpty }) {
-            canonicalLineName($0.shortName)
+        let eligibleReferences = activeReferences.filter {
+            $0.transportMode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() == "BUS"
+                && $0.isActive(on: serviceDate) == true
         }
+        let referencesByName = Dictionary(grouping: eligibleReferences.filter { !$0.shortNameLine.isEmpty }) {
+            canonicalLineName($0.shortNameLine)
+        }
+        let referenceIDsByName = referencesByName.mapValues { references in
+            Set(references.map { LineReferenceMatcher.canonicalIdentifier($0.idLine) }.filter { !$0.isEmpty })
+        }
+
         let entries = expectedLineNames.map { lineName in
-            let matchingRoutes = routesByName[canonicalLineName(lineName)] ?? []
+            let canonicalName = canonicalLineName(lineName)
+            let referenceIDs = Array(referenceIDsByName[canonicalName] ?? []).sorted()
+            let matchingRoutes = referenceIDs.count == 1
+                ? routes.filter { LineReferenceMatcher.canonicalIdentifier($0.routeID) == referenceIDs[0] }
+                : []
             return ScenarioLineCoverageEntry(
                 lineName: lineName,
+                lineReferenceIDs: referenceIDs,
                 activeRouteIDs: Array(Set(matchingRoutes.map(\.routeID))).sorted()
             )
         }
+
+        let expectedCanonicalNames = Set(expectedLineNames.map(canonicalLineName))
+        let uniqueExpectedIDs = Set(entries.compactMap { entry in
+            entry.lineReferenceIDs.count == 1 ? entry.lineReferenceIDs.first : nil
+        })
+        let unresolvedRoutes = routes.filter { route in
+            let canonicalName = canonicalLineName(route.shortName)
+            guard expectedCanonicalNames.contains(canonicalName) else { return false }
+            let referenceIDs = referenceIDsByName[canonicalName] ?? []
+            return referenceIDs.count != 1
+                || !referenceIDs.contains(LineReferenceMatcher.canonicalIdentifier(route.routeID))
+        }
+        let unresolvedRouteIDs = Set(unresolvedRoutes.map(\.routeID))
         let unlistedRoutes = routes.filter { route in
-            let canonicalName = canonicalLineName(route.shortName)
-            return canonicalName.isEmpty || !expectedCanonicalNames.contains(canonicalName)
-        }
-        let unlistedGroups = Dictionary(grouping: unlistedRoutes) { route in
-            let canonicalName = canonicalLineName(route.shortName)
-            return canonicalName.isEmpty ? "route:\(route.routeID)" : "line:\(canonicalName)"
-        }
-        var unlistedActiveEntries: [ScenarioLineCoverageEntry] = []
-        for group in unlistedGroups.values {
-            let sortedRoutes = group.sorted { $0.routeID < $1.routeID }
-            guard let firstRoute = sortedRoutes.first else { continue }
-            let lineName = canonicalLineName(firstRoute.shortName).isEmpty
-                ? "Sans nom court · \(firstRoute.displayName)"
-                : firstRoute.shortName
-            unlistedActiveEntries.append(ScenarioLineCoverageEntry(
-                lineName: lineName,
-                activeRouteIDs: Array(Set(sortedRoutes.map(\.routeID))).sorted()
-            ))
-        }
-        unlistedActiveEntries.sort {
-            $0.lineName.localizedStandardCompare($1.lineName) == .orderedAscending
+            let routeID = LineReferenceMatcher.canonicalIdentifier(route.routeID)
+            return !uniqueExpectedIDs.contains(routeID) && !unresolvedRouteIDs.contains(route.routeID)
         }
 
-        return ScenarioLineCoverage(entries: entries, unlistedActiveEntries: unlistedActiveEntries)
+        func groupedEntries(_ groupedRoutes: [GTFSRouteSummary]) -> [ScenarioLineCoverageEntry] {
+            let groups = Dictionary(grouping: groupedRoutes) { route in
+                let canonicalName = canonicalLineName(route.shortName)
+                return canonicalName.isEmpty ? "route:\(route.routeID)" : "line:\(canonicalName)"
+            }
+            return groups.values.compactMap { group in
+                let sortedRoutes = group.sorted { $0.routeID < $1.routeID }
+                guard let firstRoute = sortedRoutes.first else { return nil }
+                let canonicalName = canonicalLineName(firstRoute.shortName)
+                let displayName = canonicalName.isEmpty
+                    ? "Sans nom court · \(firstRoute.displayName)"
+                    : firstRoute.shortName
+                let routeIDs = Array(Set(sortedRoutes.map(\.routeID))).sorted()
+                let referenceIDs = Array(Set(sortedRoutes.flatMap { route in
+                    referenceIDsByName[canonicalLineName(route.shortName)] ?? []
+                })).sorted()
+                return ScenarioLineCoverageEntry(
+                    lineName: displayName,
+                    lineReferenceIDs: referenceIDs,
+                    activeRouteIDs: routeIDs
+                )
+            }.sorted { $0.lineName.localizedStandardCompare($1.lineName) == .orderedAscending }
+        }
+
+        return ScenarioLineCoverage(
+            entries: entries,
+            unresolvedActiveEntries: groupedEntries(unresolvedRoutes),
+            unlistedActiveEntries: groupedEntries(unlistedRoutes)
+        )
     }
 
     static func canonicalLineName(_ name: String) -> String {
