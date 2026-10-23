@@ -1182,6 +1182,7 @@ enum NetworkVersionStore {
             sourceURL: source.url,
             license: source.license,
             licenseURL: source.licenseURL,
+            sourceProvenanceIsDeclared: provenance != .unverifiedManual,
             originalFilename: sourceURL.lastPathComponent,
             archiveRelativePath: relativeArchivePath,
             sha256: sha256,
