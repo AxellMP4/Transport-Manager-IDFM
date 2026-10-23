@@ -22,8 +22,10 @@
 
 - [x] Add optional company depot IDs and an active depot ID to `SimulationSession`.
 - [x] Initialize careers with the selected depot; let the player add any other registered operating depot from the regional directory. Old saves default to their original single depot.
-- [x] Store the operated route IDs by depot and load the newly added depot’s departures into the current timetable horizon.
-- [ ] Keep contract-wide candidate lines separate from player-confirmed operational assignments.
+- [x] Store operated route IDs by depot; add a depot with an empty operational scope and load its departures when the player assigns a line.
+- [x] Keep contract-wide candidate lines separate from player-confirmed operational assignments.
+
+Implementation note: before a career, only dated `.confirmed` route IDs are included automatically. The player explicitly selects other line variants in the depot sidebar; adding another depot creates an empty operational scope until the player assigns lines from its catalogue. The saved per-depot route map then records those choices independently of the source roster claims.
 
 ### 3. Depot-specific operations
 
@@ -42,15 +44,17 @@
 - [x] Filter the network, dispatch, fleet, and staff context by the selected depot; map bus markers follow the active depot.
 - [x] Draw date-active GTFS trip shapes as a teal dashed fallback when a depot line has no commercial geometry; keep official and indicative coverage counts separate.
 - [x] Show a clicked bus’s model, game coquille, current line/course, driver, shift distance, lifetime odometer, incident, simulated position, and estimated course speed.
-- [ ] Keep line plans, timetables, and stop details contextual to the selected route or stop.
+- [x] Keep line plans, timetables, and stop details contextual to the selected route or stop.
 
 ### 5. Audit and verification
 
 - [ ] Audit all rostered depots against the bundled line reference, GTFS services, route geometries, plans, and timetable PDFs.
 - [ ] Check legacy save decoding and multi-depot context changes interactively in the app; optional depot fields retain the old save fallback, but still need an app-level restoration check.
 - [x] Compile the macOS target from a frozen source/data snapshot without running tests; verify that the GTFS, route geometries, line reference, documents, and contract contours are present in the app bundle.
-- [ ] Publish the remaining source gaps by depot instead of claiming full coverage.
+- [x] Publish the remaining source gaps by depot instead of claiming full coverage.
 
 Audit note: the 2026-10-20 contract-contour snapshot has 66 contract features. DSP 46 and 47 are absent from it, but their active line-reference rows map to 23 and 28 GTFS route IDs respectively. Career start now allows that published line scope without drawing a contract boundary; the full depot-by-depot document and geometry audit remains open.
 
 Map fallback note: in the bundled GTFS on 2026-10-21, 1,449 route IDs have active service. Comparing canonical IDs with the commercial geometry snapshot leaves 83 active route IDs without a direct commercial line geometry; 81 have GTFS trip shapes and can now appear as indicative dashed paths.
+
+Verification record — 2026-10-23: a macOS Debug build succeeded after separating contract-wide candidate lines from the player's operational assignments. Code commit: 7295e4235e4e9cc122bda782b6a10da44c8b387b. Interactive legacy-save restoration and the complete depot-by-depot source audit remain open.
