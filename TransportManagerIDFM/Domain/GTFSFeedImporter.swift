@@ -225,6 +225,8 @@ enum GTFSFeedInspector {
             schedulesByTripID: schedulesByTripID,
             geolocatedStopIDs: geolocatedStopIDs,
             availableShapeIDs: availableShapeIDs,
+            shapesByID: Dictionary(uniqueKeysWithValues: busTripShapes.shapes.map { ($0.shapeID, $0) }),
+            stopsByID: Dictionary(uniqueKeysWithValues: stopCollector.stops.map { ($0.stopID, $0) }),
             serviceIDsWithActiveDates: serviceIDsWithActiveDates,
             invalidStopTimeRowsByTripID: stopRouteCollector.invalidStopTimeRowsByTripID
         )
@@ -252,6 +254,9 @@ enum GTFSFeedInspector {
             tripsWithoutShapeReference: max(0, tripIDs.count - tripShapeReferences.count),
             tripsWithUnavailableShape: tripShapeReferences.filter { reference in
                 !availableShapeIDs.contains(reference.shapeID)
+            }.count,
+            tripsWithUnmatchedShapeStops: tripIssues.filter {
+                $0.issueKinds.contains(.stopsNotMatchedToShape)
             }.count,
             referencedShapeCount: Set(tripShapeReferences.map(\.shapeID)).count,
             availableShapeCount: busTripShapes.shapes.count,
@@ -314,14 +319,48 @@ enum GTFSFeedInspector {
         schedulesByTripID: [String: [GTFSServiceTripStopTime]],
         geolocatedStopIDs: Set<String>,
         availableShapeIDs: Set<String>,
+        shapesByID: [String: GTFSRouteShape],
+        stopsByID: [String: GTFSStopSummary],
         serviceIDsWithActiveDates: Set<String>,
         invalidStopTimeRowsByTripID: [String: Int]
     ) -> [GTFSImportTripIssue] {
-        tripByID.keys.sorted().compactMap { tripID in
+        var shapeAlignmentCache: [GTFSStopShapeProjectionKey: GTFSShapeStopAlignment] = [:]
+        return tripByID.keys.sorted().compactMap { tripID -> GTFSImportTripIssue? in
             guard let trip = tripByID[tripID] else { return nil }
-            let stops = schedulesByTripID[tripID, default: []]
+            let stops = schedulesByTripID[tripID, default: []].sorted {
+                if $0.stopSequence != $1.stopSequence { return $0.stopSequence < $1.stopSequence }
+                return $0.stopID < $1.stopID
+            }
             let invalidRowCount = invalidStopTimeRowsByTripID[tripID, default: 0]
+            let stopIDsWithoutCoordinates = stops.compactMap { stopTime in
+                stopsByID[stopTime.stopID] == nil ? stopTime.stopID : nil
+            }
+            let shapeAlignment: GTFSShapeStopAlignment? = {
+                guard stopIDsWithoutCoordinates.isEmpty,
+                      stops.count >= 2,
+                      let shapeID = trip.shapeID,
+                      let shape = shapesByID[shapeID] else { return nil }
+                let cacheKey = GTFSStopShapeProjectionKey(
+                    shapeID: shapeID,
+                    stops: stops.map {
+                        GTFSStopShapeProjectionKey.Stop(
+                            stopID: $0.stopID,
+                            stopSequence: $0.stopSequence,
+                            shapeDistanceTraveled: $0.shapeDistanceTraveled
+                        )
+                    }
+                )
+                if let cachedAlignment = shapeAlignmentCache[cacheKey] { return cachedAlignment }
+                let alignment = NetworkVersionStore.projectStopSequenceToShape(
+                    stops,
+                    stopsByID: stopsByID,
+                    shape: shape
+                )
+                shapeAlignmentCache[cacheKey] = alignment
+                return alignment
+            }()
             var issueKinds = Set<GTFSImportTripIssueKind>()
+            let stopIDsNotMatchedToShape: [String]?
 
             if stops.isEmpty { issueKinds.insert(.missingStopTimes) }
             if !stops.isEmpty, hasIncompleteTimes(stops) { issueKinds.insert(.incompleteTimes) }
@@ -336,6 +375,14 @@ enum GTFSFeedInspector {
             } else {
                 issueKinds.insert(.missingShapeReference)
             }
+            if stopIDsWithoutCoordinates.isEmpty,
+               let shapeAlignment,
+               !shapeAlignment.unmatchedStopIDs.isEmpty {
+                issueKinds.insert(.stopsNotMatchedToShape)
+                stopIDsNotMatchedToShape = shapeAlignment.unmatchedStopIDs
+            } else {
+                stopIDsNotMatchedToShape = nil
+            }
             if trip.serviceID.isEmpty || !serviceIDsWithActiveDates.contains(trip.serviceID) {
                 issueKinds.insert(.inactiveService)
             }
@@ -346,7 +393,9 @@ enum GTFSFeedInspector {
                 routeID: trip.routeID,
                 tripID: tripID,
                 issueKinds: issueKinds,
-                invalidStopTimeRowCount: invalidRowCount
+                invalidStopTimeRowCount: invalidRowCount,
+                stopIDsWithoutCoordinates: stopIDsWithoutCoordinates.isEmpty ? nil : stopIDsWithoutCoordinates,
+                stopIDsNotMatchedToShape: stopIDsNotMatchedToShape
             )
         }
     }
@@ -407,6 +456,22 @@ private struct BusTripReference {
     let directionID: String
     let headsign: String
     let shapeID: String?
+}
+
+private struct GTFSShapeStopAlignment {
+    let progresses: [Double]?
+    let unmatchedStopIDs: [String]
+}
+
+private struct GTFSStopShapeProjectionKey: Hashable {
+    struct Stop: Hashable {
+        let stopID: String
+        let stopSequence: Int
+        let shapeDistanceTraveled: Double?
+    }
+
+    let shapeID: String
+    let stops: [Stop]
 }
 
 private struct BusStopDirectionKey: Hashable {
@@ -1270,9 +1335,10 @@ enum NetworkVersionStore {
         let shapeDataset = try loadTripShapeDataset(for: version)
         let shapeID = schedule.shapeID ?? shapeDataset.shapeID(for: tripID)
         let shape = shapeID.flatMap { id in shapeDataset.shapes.first(where: { $0.shapeID == id }) }
-        let matchedProgresses = shape.flatMap {
+        let shapeAlignment = shape.map {
             Self.projectStopSequenceToShape(schedule.stops, stopsByID: stopsByID, shape: $0)
         }
+        let matchedProgresses = shapeAlignment?.progresses
         var visits: [ScheduledTripStopVisit] = []
         var previousTime = Date.distantPast
 
@@ -1450,25 +1516,35 @@ enum NetworkVersionStore {
         return visits
     }
 
-    private static func projectStopSequenceToShape(
+    fileprivate static func projectStopSequenceToShape(
         _ stopTimes: [GTFSServiceTripStopTime],
         stopsByID: [String: GTFSStopSummary],
         shape: GTFSRouteShape
-    ) -> [Double]? {
-        guard shape.points.count >= 2 else { return nil }
+    ) -> GTFSShapeStopAlignment {
+        let stopIDs = stopTimes.map(\.stopID)
+        guard shape.points.count >= 2 else {
+            return GTFSShapeStopAlignment(progresses: nil, unmatchedStopIDs: stopIDs)
+        }
         let cumulative = cumulativeShapeDistances(shape.points)
-        guard let totalDistance = cumulative.last, totalDistance > 0 else { return nil }
+        guard let totalDistance = cumulative.last, totalDistance > 0 else {
+            return GTFSShapeStopAlignment(progresses: nil, unmatchedStopIDs: stopIDs)
+        }
         let shapeMeasures = shape.points.map(\.distanceTraveled)
         let canUseShapeMeasures = shapeMeasures.allSatisfy { $0 != nil }
             && zip(shapeMeasures.compactMap { $0 }, shapeMeasures.compactMap { $0 }.dropFirst()).allSatisfy { pair in
                 pair.0 <= pair.1
             }
 
-        var progress: [Double] = []
+        var progress: [Double?] = []
+        var unmatchedStopIDs: [String] = []
         var firstAllowedSegment = 0
         var previousProgress = 0.0
         for stopTime in stopTimes {
-            guard let stop = stopsByID[stopTime.stopID] else { return nil }
+            guard let stop = stopsByID[stopTime.stopID] else {
+                unmatchedStopIDs.append(stopTime.stopID)
+                progress.append(nil)
+                continue
+            }
             var position: (progress: Double, segment: Int)?
             if canUseShapeMeasures,
                let measuredDistance = stopTime.shapeDistanceTraveled {
@@ -1478,14 +1554,23 @@ enum NetworkVersionStore {
                 position = project(stop: stop, onto: shape.points, cumulative: cumulative, fromSegment: firstAllowedSegment)
             }
             guard let position,
-                  position.progress + 0.000_001 >= previousProgress else { return nil }
+                  position.progress + 0.000_001 >= previousProgress else {
+                unmatchedStopIDs.append(stopTime.stopID)
+                progress.append(nil)
+                continue
+            }
             previousProgress = max(previousProgress, position.progress)
             firstAllowedSegment = max(firstAllowedSegment, position.segment)
             progress.append(previousProgress)
         }
-        return progress.count == stopTimes.count ? progress : nil
+        let fullyProjectedProgresses = progress.count == stopTimes.count && progress.allSatisfy { $0 != nil }
+            ? progress.compactMap { $0 }
+            : nil
+        return GTFSShapeStopAlignment(
+            progresses: fullyProjectedProgresses,
+            unmatchedStopIDs: unmatchedStopIDs
+        )
     }
-
     private static func shapeProgress(
         forShapeDistance target: Double,
         shape: GTFSRouteShape,
