@@ -1191,7 +1191,8 @@ private struct GTFSTripQualityAuditSection: View {
         return issues.filter { issue in
             if let selectedIssueKind, !issue.issueKinds.contains(selectedIssueKind) { return false }
             guard !search.isEmpty else { return true }
-            let stopIDs = (issue.stopIDsWithoutCoordinates ?? []) + (issue.stopIDsNotMatchedToShape ?? [])
+            let stopIDs = (issue.stopIDsWithoutCoordinates ?? [])
+                + (issue.stopIDsNotMatchedToShape ?? [])
             return issue.routeID.localizedCaseInsensitiveContains(search)
                 || issue.tripID.localizedCaseInsensitiveContains(search)
                 || (issue.shapeID ?? "").localizedCaseInsensitiveContains(search)
@@ -1361,7 +1362,22 @@ private struct GTFSTripQualityAuditRow: View {
                 .font(.caption2.monospaced())
                 .foregroundStyle(.tertiary)
                 .textSelection(.enabled)
-            if let stopIDs = issue.stopIDsNotMatchedToShape, !stopIDs.isEmpty {
+            if let diagnostics = issue.stopProjectionDiagnostics, !diagnostics.isEmpty {
+                let unmatchedStopIDs = issue.stopIDsNotMatchedToShape ?? []
+                ForEach(Array(diagnostics.prefix(8).enumerated()), id: \.offset) { entry in
+                    let diagnostic = entry.element
+                    let stopID = unmatchedStopIDs.indices.contains(entry.offset) ? unmatchedStopIDs[entry.offset] : "inconnu"
+                    Text("Arrêt \(diagnostic.stopSequence) · \(stopID) · \(diagnostic.detail)")
+                        .font(.caption2.monospaced())
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                }
+                if diagnostics.count > 8 {
+                    Text("+\(diagnostics.count - 8) autres arrêts à examiner")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            } else if let stopIDs = issue.stopIDsNotMatchedToShape, !stopIDs.isEmpty {
                 Text("Arrêts non projetés · \(stopIDs.prefix(8).joined(separator: ", "))\(stopIDs.count > 8 ? " · +\(stopIDs.count - 8)" : "")")
                     .font(.caption2.monospaced())
                     .foregroundStyle(.secondary)

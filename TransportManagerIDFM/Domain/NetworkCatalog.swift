@@ -494,7 +494,7 @@ enum DepotGTFSServiceAuditAvailability: Hashable, Sendable {
     }
 }
 
-struct DepotLineServiceAuditEntry:struct DepotLineServiceAuditEntry: Identifiable, Hashable, Sendable {
+struct DepotLineServiceAuditEntry: Identifiable, Hashable, Sendable {
     let lineName: String
     let referenceMatch: DepotLineReferenceAuditMatch
     let routeIDs: [String]
@@ -578,6 +578,38 @@ enum GTFSImportTripIssueKind: String, Codable, CaseIterable, Hashable, Sendable 
     }
 }
 
+enum GTFSStopShapeProjectionIssueReason: String, Codable, Hashable, Sendable {
+    case outsideForwardTolerance
+    case nonMonotonicProgress
+    case invalidShapeGeometry
+    case noForwardShapeSegment
+    case missingStopCoordinates
+
+    static let projectionToleranceMeters = 350
+
+    var displayName: String {
+        switch self {
+        case .outsideForwardTolerance: "au-delà de la tolérance du segment suivant"
+        case .nonMonotonicProgress: "progression non monotone sur la forme"
+        case .invalidShapeGeometry: "forme sans géométrie exploitable"
+        case .noForwardShapeSegment: "aucun segment admissible après l’arrêt précédent"
+        case .missingStopCoordinates: "coordonnées d’arrêt absentes"
+        }
+    }
+}
+
+struct GTFSStopShapeProjectionDiagnostic: Codable, Hashable, Sendable {
+    let stopSequence: Int
+    let closestForwardDistanceMeters: Int?
+    let reason: GTFSStopShapeProjectionIssueReason
+
+    var detail: String {
+        let reasonText = reason.displayName
+        guard let closestForwardDistanceMeters else { return reasonText }
+        return "\(reasonText) · segment admissible le plus proche à \(closestForwardDistanceMeters) m (seuil \(GTFSStopShapeProjectionIssueReason.projectionToleranceMeters) m)"
+    }
+}
+
 struct GTFSImportTripIssue: Codable, Hashable, Identifiable, Sendable {
     let routeID: String
     let tripID: String
@@ -587,6 +619,8 @@ struct GTFSImportTripIssue: Codable, Hashable, Identifiable, Sendable {
     let missingStopIDRowCount: Int?
     let stopIDsWithoutCoordinates: [String]?
     let stopIDsNotMatchedToShape: [String]?
+    /// Per-stop reason and distance for rejected shape projections. Nil in older catalogs.
+    let stopProjectionDiagnostics: [GTFSStopShapeProjectionDiagnostic]?
 
     var id: String { "\(routeID)|\(tripID)" }
 

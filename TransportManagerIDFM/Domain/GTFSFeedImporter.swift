@@ -366,6 +366,7 @@ enum GTFSFeedInspector {
             }()
             var issueKinds = Set<GTFSImportTripIssueKind>()
             let stopIDsNotMatchedToShape: [String]?
+            let stopProjectionDiagnostics: [GTFSStopShapeProjectionDiagnostic]?
 
             if stops.isEmpty { issueKinds.insert(.missingStopTimes) }
             if !stops.isEmpty, hasIncompleteTimes(stops) { issueKinds.insert(.incompleteTimes) }
@@ -385,8 +386,10 @@ enum GTFSFeedInspector {
                !shapeAlignment.unmatchedStopIDs.isEmpty {
                 issueKinds.insert(.stopsNotMatchedToShape)
                 stopIDsNotMatchedToShape = shapeAlignment.unmatchedStopIDs
+                stopProjectionDiagnostics = shapeAlignment.diagnostics.isEmpty ? nil : shapeAlignment.diagnostics
             } else {
                 stopIDsNotMatchedToShape = nil
+                stopProjectionDiagnostics = nil
             }
             if trip.serviceID.isEmpty || !serviceIDsWithActiveDates.contains(trip.serviceID) {
                 issueKinds.insert(.inactiveService)
@@ -403,7 +406,8 @@ enum GTFSFeedInspector {
                 invalidStopTimeRowCount: invalidRowCount,
                 missingStopIDRowCount: missingStopIDRowCount > 0 ? missingStopIDRowCount : nil,
                 stopIDsWithoutCoordinates: stopIDsWithoutCoordinates.isEmpty ? nil : stopIDsWithoutCoordinates,
-                stopIDsNotMatchedToShape: stopIDsNotMatchedToShape
+                stopIDsNotMatchedToShape: stopIDsNotMatchedToShape,
+                stopProjectionDiagnostics: stopProjectionDiagnostics
             )
         }
     }
@@ -469,6 +473,7 @@ private struct BusTripReference {
 private struct GTFSShapeStopAlignment {
     let progresses: [Double]?
     let unmatchedStopIDs: [String]
+    let diagnostics: [GTFSStopShapeProjectionDiagnostic]
 }
 
 private struct GTFSStopShapeProjectionKey: Hashable {
@@ -1581,11 +1586,31 @@ enum NetworkVersionStore {
     ) -> GTFSShapeStopAlignment {
         let stopIDs = stopTimes.map(\.stopID)
         guard shape.points.count >= 2 else {
-            return GTFSShapeStopAlignment(progresses: nil, unmatchedStopIDs: stopIDs)
+            return GTFSShapeStopAlignment(
+                progresses: nil,
+                unmatchedStopIDs: stopIDs,
+                diagnostics: stopTimes.map {
+                    GTFSStopShapeProjectionDiagnostic(
+                        stopSequence: $0.stopSequence,
+                        closestForwardDistanceMeters: nil,
+                        reason: .invalidShapeGeometry
+                    )
+                }
+            )
         }
         let cumulative = cumulativeShapeDistances(shape.points)
         guard let totalDistance = cumulative.last, totalDistance > 0 else {
-            return GTFSShapeStopAlignment(progresses: nil, unmatchedStopIDs: stopIDs)
+            return GTFSShapeStopAlignment(
+                progresses: nil,
+                unmatchedStopIDs: stopIDs,
+                diagnostics: stopTimes.map {
+                    GTFSStopShapeProjectionDiagnostic(
+                        stopSequence: $0.stopSequence,
+                        closestForwardDistanceMeters: nil,
+                        reason: .invalidShapeGeometry
+                    )
+                }
+            )
         }
         let shapeMeasures = shape.points.map(\.distanceTraveled)
         let canUseShapeMeasures = shapeMeasures.allSatisfy { $0 != nil }
@@ -1595,25 +1620,64 @@ enum NetworkVersionStore {
 
         var progress: [Double?] = []
         var unmatchedStopIDs: [String] = []
+        var diagnostics: [GTFSStopShapeProjectionDiagnostic] = []
         var firstAllowedSegment = 0
         var previousProgress = 0.0
+        let projectionToleranceMeters = Double(GTFSStopShapeProjectionIssueReason.projectionToleranceMeters)
         for stopTime in stopTimes {
             guard let stop = stopsByID[stopTime.stopID] else {
                 unmatchedStopIDs.append(stopTime.stopID)
+                diagnostics.append(GTFSStopShapeProjectionDiagnostic(
+                    stopSequence: stopTime.stopSequence,
+                    closestForwardDistanceMeters: nil,
+                    reason: .missingStopCoordinates
+                ))
                 progress.append(nil)
                 continue
             }
             var position: (progress: Double, segment: Int)?
+            var projectionCandidate: (errorMeters: Double, progress: Double, segment: Int)?
             if canUseShapeMeasures,
                let measuredDistance = stopTime.shapeDistanceTraveled {
                 position = shapeProgress(forShapeDistance: measuredDistance, shape: shape, cumulative: cumulative)
             }
             if position == nil {
-                position = project(stop: stop, onto: shape.points, cumulative: cumulative, fromSegment: firstAllowedSegment)
+                projectionCandidate = project(stop: stop, onto: shape.points, cumulative: cumulative, fromSegment: firstAllowedSegment)
+                if let projectionCandidate,
+                   projectionCandidate.errorMeters <= projectionToleranceMeters {
+                    position = (projectionCandidate.progress, projectionCandidate.segment)
+                } else {
+                    unmatchedStopIDs.append(stopTime.stopID)
+                    diagnostics.append(GTFSStopShapeProjectionDiagnostic(
+                        stopSequence: stopTime.stopSequence,
+                        closestForwardDistanceMeters: projectionCandidate.map { Int($0.errorMeters.rounded()) },
+                        reason: projectionCandidate.map { _ in GTFSStopShapeProjectionIssueReason.outsideForwardTolerance }
+                            ?? .noForwardShapeSegment
+                    ))
+                    progress.append(nil)
+                    continue
+                }
             }
-            guard let position,
-                  position.progress + 0.000_001 >= previousProgress else {
+            guard let position else {
                 unmatchedStopIDs.append(stopTime.stopID)
+                diagnostics.append(GTFSStopShapeProjectionDiagnostic(
+                    stopSequence: stopTime.stopSequence,
+                    closestForwardDistanceMeters: nil,
+                    reason: .noForwardShapeSegment
+                ))
+                progress.append(nil)
+                continue
+            }
+            guard position.progress + 0.000_001 >= previousProgress else {
+                if projectionCandidate == nil {
+                    projectionCandidate = project(stop: stop, onto: shape.points, cumulative: cumulative, fromSegment: firstAllowedSegment)
+                }
+                unmatchedStopIDs.append(stopTime.stopID)
+                diagnostics.append(GTFSStopShapeProjectionDiagnostic(
+                    stopSequence: stopTime.stopSequence,
+                    closestForwardDistanceMeters: projectionCandidate.map { Int($0.errorMeters.rounded()) },
+                    reason: .nonMonotonicProgress
+                ))
                 progress.append(nil)
                 continue
             }
@@ -1626,9 +1690,11 @@ enum NetworkVersionStore {
             : nil
         return GTFSShapeStopAlignment(
             progresses: fullyProjectedProgresses,
-            unmatchedStopIDs: unmatchedStopIDs
+            unmatchedStopIDs: unmatchedStopIDs,
+            diagnostics: diagnostics
         )
     }
+
     private static func shapeProgress(
         forShapeDistance target: Double,
         shape: GTFSRouteShape,
@@ -1657,7 +1723,7 @@ enum NetworkVersionStore {
         onto points: [GTFSShapePoint],
         cumulative: [Double],
         fromSegment firstAllowedSegment: Int
-    ) -> (progress: Double, segment: Int)? {
+    ) -> (errorMeters: Double, progress: Double, segment: Int)? {
         guard points.count >= 2, cumulative.count == points.count,
               let totalDistance = cumulative.last, totalDistance > 0 else { return nil }
         let latitudeScale = cos(stop.latitude * .pi / 180)
@@ -1684,8 +1750,8 @@ enum NetworkVersionStore {
             let projected = (errorMeters, distance / totalDistance, segment)
             if best == nil || projected.0 < best!.errorMeters { best = projected }
         }
-        guard let best, best.errorMeters <= 350 else { return nil }
-        return (best.progress, best.segment)
+        guard let best else { return nil }
+        return (best.errorMeters, best.progress, best.segment)
     }
 
     private static func shapeCoordinates(
