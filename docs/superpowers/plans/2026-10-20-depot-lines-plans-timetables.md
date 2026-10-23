@@ -61,7 +61,7 @@
 
 - [x] Load current route references and plan/timetable documents through the existing import/download APIs.
 - [x] Map roster names to unique IDFM reference records, then map each `ID_Line` to all exact GTFS route IDs.
-- [ ] Report missing/duplicate line-reference matches, unlisted active GTFS routes, missing depot evidence, and routes with no matching PDF rows separately.
+- [x] Report missing/duplicate line-reference matches and COB evidence separately; compare dated active GTFS routes to the roster by unique `ID_Line`; list GTFS route variants without a matching plan or timetable PDF row.
 - [x] Retain per-route documents and all route variants without selecting one representative route.
 - [x] Reuse the depot assignment evidence registry for operational eligibility; candidate roster records remain visible but do not unlock a career.
 
@@ -96,7 +96,7 @@
 - [x] Load all trips for the selected route and service date, honoring GTFS calendars, exceptions, and after-midnight service times.
 - [x] Group trips by direction/headsign and sort by first departure time, preserving the distinct GTFS route IDs.
 - [x] Render a horizontally scrollable matrix with one trip per row and ordered stops as columns; show a concise first/last departure summary above it.
-- [ ] Offer a service-date picker constrained to the GTFS validity period and explain when the feed does not cover the selected date.
+- [x] Offer a service-date picker constrained to the GTFS validity period; clamp the initial date into that period and explain when validity bounds are unavailable.
 - [x] Keep the official timetable PDF link alongside the GTFS-derived grid and label the GTFS schedule as theoretical.
 - [x] Show empty states for a route with no active service, incomplete stop times, or unavailable shape/stop data without fabricating times.
 
@@ -113,7 +113,6 @@
 ### Remaining work
 
 - The CSV is bundled and has a runtime loader that validates its schema, line categories, date ranges, unique dated rows, depot IDs, and HTTP(S) evidence/document URLs. It now preserves secondary evidence, historical center labels and periods, service announcements, document validity text, multiple plan/timetable URLs, and titled project documents. The line detail exposes these records while explicitly keeping site IDs and center labels from acting as COB assignment evidence. The richer per-depot claim graph and operational catalog rows still come from Swift; migrate those only after preserving claim kind, site, and validity dates.
-- The coverage report now deduplicates lines by `ID_Line`, distinguishes route variants and reports reference/GTFS/document/official-trace coverage per depot. It still needs an explicit count/list of active GTFS routes outside the depot roster, plus a per-route document-missing diagnostic.
-- The service-date picker reports dates outside the selected GTFS feed's validity, but still permits choosing them; constrain the picker or provide a bounded date selection.
-- Latest source review and build: macOS Debug, **BUILD SUCCEEDED**, 23 October 2026, 06:48 Europe/Paris, with `x86_64` and `arm64` in the resulting app. `swiftc -frontend -parse` and `git diff --check` also succeed. No automated tests were run, as required by this plan. Xcode reported unavailable CoreSimulator services and skipped App Intents metadata extraction because the app has no AppIntents dependency; neither prevented the macOS build. The app was not launched.
+- The coverage report deduplicates lines by `ID_Line`, distinguishes route variants, and reports reference/GTFS/document/official-trace coverage per depot. The career-start audit now matches its dated active departures through unique IDFM `ID_Line` values, keeps ambiguous or missing references separate, and lists active routes outside the roster by identifier. The depot reports also list each GTFS route ID with no plan or timetable PDF row in the imported catalog; URL availability remains unverified.
+- Latest source review and build: macOS Debug, **BUILD SUCCEEDED**, 23 October 2026, 07:09 Europe/Paris, with `x86_64` and `arm64` in the resulting app. `swiftc -frontend -parse` and `git diff --check` also succeed. No automated tests were run, as required by this plan. Xcode reported unavailable CoreSimulator services; this did not prevent the macOS build. The app was not launched.
 
