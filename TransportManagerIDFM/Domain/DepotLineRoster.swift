@@ -689,7 +689,7 @@ enum DepotLineRoster {
         "N11", "N16", "N32", "N33", "N34", "N35", "N71"
     ]
     private static let oldRatpBordsDeMarneLineIDs: Set<String> = [
-        "113", "114", "116", "118", "120", "124", "127", "203", "214", "221", "303", "N34"
+        "113", "114", "116", "118", "120", "124", "127", "203", "210", "214", "221", "303", "520", "N34"
     ]
     private static let futureBordsDeMarneProjectURL = URL(string: "https://www.iledefrance-mobilites.fr/le-reseau/projets/bus-bordsdemarne")!
     private static let futureCobUpdateURL = URL(string: "https://www.iledefrance-mobilites.fr/le-reseau/projets/bus-bordsdemarne/actualites/photo-de-la-couverture-de-la-lettre-dinfo")!
@@ -791,7 +791,7 @@ enum DepotLineRoster {
                 validFromKey: nil,
                 validThroughKey: nil,
                 note: "Source secondaire ; période de validité et présence après transfert non établies."
-            )] + additionalClaims)
+            )] + additionalClaims + (oldRatpBordsDeMarneLineIDs.contains(line) ? historicalBordsDeMarneCenterClaims() : []))
     }
 
     private static func historicalBordsDeMarneCenterClaims() -> [DepotLineRosterClaim] {
@@ -800,12 +800,12 @@ enum DepotLineRoster {
                 kind: .contractCenter,
                 siteID: "neuilly-plaisance",
                 centerLabel: "BORDS DE MARNE",
-                sourceTitle: "IDFM · centre indiqué au contrat bus 2025–2026",
+                sourceTitle: "IDFM · annexe ligne–centre du contrat IDFM–RATP 2025–2026",
                 sourceURL: contractEvidenceURL,
-                sourceDateLabel: "Contrat bus 2025–2026",
+                sourceDateLabel: "Tableau ligne–centre du contrat IDFM–RATP 2025–2026",
                 validFromKey: oldRatpLineCenterEvidenceFrom,
                 validThroughKey: oldRatpLineCenterEvidenceThrough,
-                note: "Le tableau ligne–centre de l’ancien contrat RATP ne donne pas de validité individuelle. La borne prudente est la veille du transfert DSP45, le 31 octobre 2025. La FAQ IDFM situe le centre historique des Bords de Marne à Neuilly-Plaisance ; cette source ne confirme pas l’affectation après le transfert."
+                note: "Le tableau ligne–centre nomme le centre pour cette ligne, mais ne donne pas de date de validité individuelle. La borne prudente est la veille du transfert DSP45, le 31 octobre 2025. La FAQ IDFM situe le centre historique des Bords de Marne à Neuilly-Plaisance ; cette source ne confirme pas l’affectation après le transfert."
             ),
             DepotLineRosterClaim(
                 kind: .supportingSource,
@@ -964,7 +964,7 @@ enum DepotLineRoster {
                 secondaryURL: wikipediaURL,
                 note: "\(saintMaurRouteNotes[$0] ?? "Ligne du réseau Bords de Marne.") Le tableau ligne–centre de l’ancien contrat RATP indique Saint-Maur avant le transfert DSP45. Faute de ventilation par COB publiée pour le nouvel exploitant, ce rattachement n’est pas établi à partir du 1er novembre 2025.",
                 documents: documentsByLine[$0] ?? [],
-                sourceDateLabel: "Annexe du contrat IDFM 2025–2026",
+                sourceDateLabel: "Tableau ligne–centre du contrat IDFM–RATP 2025–2026",
                 validFromKey: oldRatpLineCenterEvidenceFrom,
                 validThroughKey: oldRatpLineCenterEvidenceThrough)
         }
@@ -1171,7 +1171,7 @@ enum DepotLineRoster {
             "210",
             note: "Vincennes ↔ Villiers-sur-Marne, avec un itinéraire du dimanche. L’ancien contrat IDFM–RATP indique le centre « Bords de Marne », situé historiquement à Neuilly-Plaisance, jusqu’au transfert DSP45 du 1er novembre 2025. IDFM annonce un nouveau tracé par Les Rigollots au 1er novembre 2026, mais ne confirme pas le COB après le transfert ; l’affectation actuelle reste non établie.",
             documents: documentsByLine["210"] ?? [],
-            additionalClaims: historicalBordsDeMarneCenterClaims() + [DepotLineRosterClaim(
+            additionalClaims: [DepotLineRosterClaim(
                 kind: .announcedService,
                 siteID: nil,
                 centerLabel: nil,
@@ -1207,7 +1207,7 @@ enum DepotLineRoster {
             "520",
             note: "Boullereaux–Champigny ↔ Bry-sur-Marne–Europe, service de semaine en journée. L’ancien contrat IDFM–RATP indique le centre « Bords de Marne », situé historiquement à Neuilly-Plaisance, jusqu’au transfert DSP45 du 1er novembre 2025. IDFM annonce que la ligne reste inchangée au 1er novembre 2026, mais ne confirme pas son COB après le transfert ; l’affectation actuelle reste non établie.",
             documents: documentsByLine["520"] ?? [],
-            additionalClaims: historicalBordsDeMarneCenterClaims() + [DepotLineRosterClaim(
+            additionalClaims: [DepotLineRosterClaim(
                 kind: .announcedService,
                 siteID: nil,
                 centerLabel: nil,
