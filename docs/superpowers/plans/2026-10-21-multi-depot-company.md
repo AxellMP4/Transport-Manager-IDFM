@@ -49,14 +49,14 @@ Implementation note: before a career, only dated `.confirmed` route IDs are incl
 ### 5. Audit and verification
 
 - [x] Add an in-app regional audit across all non-planned sites for the bundled line reference, date-scoped GTFS service, commercial route geometries, plans, and timetable PDFs; retain source-version and unknown states.
-- [ ] Run and review the regional audit against the bundled data, record the remaining per-site discrepancies, and confirm the source gaps are not mistaken for COB assignments.
+- [x] Run and review the regional audit against the bundled data, record the remaining per-site discrepancies, and confirm the source gaps are not mistaken for COB assignments.
 - [x] Show date-scoped scheduled-departure counts for exact ID_Line matches when inspecting a depot; keep missing, ambiguous, out-of-validity, and no-service states distinct.
 - [x] Bind route, geometry, reference, and document coverage counts to the source versions actually loaded; show loading or unknown states instead of treating missing indexes as zero coverage.
 - [ ] Check legacy save decoding and multi-depot context changes interactively in the app; optional depot fields retain the old save fallback, but still need an app-level restoration check.
 - [x] Compile the macOS target from a frozen source/data snapshot without running tests; verify that the GTFS, route geometries, line reference, documents, and contract contours are present in the app bundle.
 - [x] Publish the remaining source gaps by depot instead of claiming full coverage.
 
-Audit note: the 2026-10-20 contract-contour snapshot has 66 contract features. DSP 46 and 47 are absent from it, but their active line-reference rows map to 23 and 28 GTFS route IDs respectively. Career start now allows that published line scope without drawing a contract boundary. The regional audit view now assembles the date-scoped reference, service, geometry and document comparison for every registered non-planned site; review of its resulting table and source gaps remains open.
+Audit note: the 2026-10-20 contract-contour snapshot has 66 contract features. DSP 46 and 47 are absent from it, but their active line-reference rows map to 23 and 28 GTFS route IDs respectively. Career start now allows that published line scope without drawing a contract boundary. The regional audit view assembles the date-scoped reference, service, geometry and document comparison for every registered non-planned site; its results and remaining data gaps are reviewed below.
 
 Map fallback note: in the bundled GTFS on 2026-10-21, 1,449 route IDs have active service. Comparing canonical IDs with the commercial geometry snapshot leaves 83 active route IDs without a direct commercial line geometry; 81 have GTFS trip shapes and can now appear as indicative dashed paths.
 
@@ -67,3 +67,21 @@ Service audit note — 2026-10-23: the regional directory now queries scheduled 
 Version-safety note — 2026-10-23: the directory waits for route and line-reference indexes whose loaded version IDs match the active catalog, and cancels stale date/depot results. An unavailable or mismatched route index leaves service activity unknown rather than reporting zero departures.
 
 Coverage freshness note — 2026-10-23: route geometry and document indexes now retain their loaded version IDs, discard stale results when the active version changes, and reload the new catalog. Per-depot coverage labels show loading/unavailable states instead of zero while a required index is absent. The all-depot evidence audit and interactive save restoration remain open. Code commits: `a761c5e21151bde45411be8a8156dab8ef17ecae`, `44194ca1d3dd2ab9dfd4a30e85df8a5ee8c6ba2f`, `a20e10022d800422015e35c0fc80c45ce4aca38f`.
+
+Regional audit review — 2026-10-23: the first data run exposed 40 repeated site IDs among 157 catalogue entries. `DepotLineRoster.selectableSites` now deduplicates those sources by ID while retaining the primary record and merging supplemental addresses and evidence. The rerun covered 117 unique non-planned sites against the active 2026-10-20 GTFS, line-reference, route-geometry and document versions. The per-site record is `docs/data/regional-depot-audit-2026-10-23.csv`.
+
+The reviewed scope totals intentionally overlap across sites and must not be read as unique network lines or COB allocations: 4,907 line/site scopes, with 4,793 exact GTFS route matches, 114 without an exact route, 7 missing line references and no ambiguous references. 3,207 exact route scopes have scheduled departures on 2026-10-23, 1,586 have none that day and 114 remain unknown; 254,902 departures are counted across overlapping scopes. No line is currently confirmed at a COB on that date: 4,889 are contract candidates and 18 have shared, partial, observed or conflicting evidence. GTFS service, geometry and documents do not prove assignment to a physical depot.
+
+Both DSP45 sites, Saint-Maur and Neuilly-Plaisance, show the same 29 exact routes, 4,242 scheduled departures and complete trace/plan/timetable coverage. Their different candidate and observed-fleet counts remain separate, but no current source allocates those lines between the centers. Eleven sites have no line scope for the audit date, including DSP48/49 sites whose announced start is 2026-11-01. Repeated TàD/DRT references account for most no-route rows; C1 is absent at Boissy-Saint-Léger, Limeil-Brévannes and Pontault-Combault, T9 at Ivry, Villeneuve-le-Roi and Vitry, and T10 at Wissous. Sites in DSP24 include exact routes with no scheduled departures on the chosen date.
+
+The model audit ran with the same local loaders and coverage methods as the regional directory in a temporary Xcode runner; the graphical table was not visually inspected. Interactive legacy-save restoration remains open, as do the external GTFS PRIM and current line-to-COB evidence requirements.
+
+Map fallback note: in the bundled GTFS on 2026-10-21, 1,449 route IDs have active service. Comparing canonical IDs with the commercial geometry snapshot leaves 83 active route IDs without a direct commercial line geometry; 81 have GTFS trip shapes and can now appear as indicative dashed paths.
+
+Verification record — 2026-10-23: a macOS Debug build succeeded after separating contract-wide candidate lines from the player's operational assignments. Code commit: `7295e4235e4e9cc122bda782b6a10da44c8b387b`. Interactive legacy-save restoration and the complete depot-by-depot source audit remain open.
+
+Service audit note — 2026-10-23: the regional directory now queries scheduled departures for the selected depot and Paris service date by exact active `ID_Line`, bounded by the GTFS validity window. This makes the service check available per site; the full manual source audit across all rostered depots remains open.
+
+Version-safety note — 2026-10-23: the directory waits for route and line-reference indexes whose loaded version IDs match the active catalog, and cancels stale date/depot results. An unavailable or mismatched route index leaves service activity unknown rather than reporting zero departures.
+
+Coverage freshness note — 2026-10-23: route geometry and document indexes now retain their loaded version IDs, discard stale results when the active version changes, and reload the new catalog. Per-depot coverage labels show loading/unavailable states instead of zero while a required index is absent. The all-depot evidence audit and interactive save restoration remain open.
