@@ -802,6 +802,32 @@ struct NetworkCatalog: Codable, Hashable, Sendable {
 }
 
 enum RouteGeometryMatcher {
+    static func routeIDsWithOfficialGeometry(
+        among routes: [GTFSRouteSummary],
+        geometries: [NetworkRouteGeometry]
+    ) -> Set<String> {
+        let exactLineIDs = Set(geometries.map(\.lineID))
+        let routesByShortName = Dictionary(grouping: routes.filter { !$0.shortName.isEmpty }) {
+            $0.shortName.lowercased()
+        }
+        let geometryLineIDsByShortName = Dictionary(grouping: geometries.filter { !$0.shortName.isEmpty }) {
+            $0.shortName.lowercased()
+        }.mapValues { Set($0.map(\.lineID)) }
+
+        var result = Set<String>()
+        for route in routes {
+            if exactLineIDs.contains(route.routeID) {
+                result.insert(route.routeID)
+                continue
+            }
+            guard !route.shortName.isEmpty,
+                  routesByShortName[route.shortName.lowercased()]?.count == 1,
+                  geometryLineIDsByShortName[route.shortName.lowercased()]?.count == 1 else { continue }
+            result.insert(route.routeID)
+        }
+        return result
+    }
+
     static func matches(
         route: GTFSRouteSummary,
         among routes: [GTFSRouteSummary],
