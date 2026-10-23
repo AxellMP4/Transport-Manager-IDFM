@@ -262,6 +262,7 @@ enum GTFSFeedInspector {
             referencedShapeCount: Set(tripShapeReferences.map(\.shapeID)).count,
             availableShapeCount: busTripShapes.shapes.count,
             invalidShapeCount: invalidShapeIDs.count,
+            invalidShapeIDs: invalidShapeIDs.sorted(),
             invalidStopTimeRowCount: stopRouteCollector.invalidStopTimeRowCount,
             missingStopIDRowCount: stopRouteCollector.missingStopIDRowCount,
             tripsWithoutActiveServiceDates: tripsWithoutActiveServiceDates,
@@ -397,6 +398,7 @@ enum GTFSFeedInspector {
             return GTFSImportTripIssue(
                 routeID: trip.routeID,
                 tripID: tripID,
+                shapeID: trip.shapeID,
                 issueKinds: issueKinds,
                 invalidStopTimeRowCount: invalidRowCount,
                 missingStopIDRowCount: missingStopIDRowCount > 0 ? missingStopIDRowCount : nil,
