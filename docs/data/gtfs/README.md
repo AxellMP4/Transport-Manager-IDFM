@@ -87,3 +87,10 @@ L’archive conserve une source régionale datée pour l’import et l’audit. 
 
 - Une requête HTTP `HEAD` sur l’URL officielle du ZIP indique encore 150 257 397 octets, `Last-Modified: 23 octobre 2026 12:24:06 CEST` et ETag `6adb35c6-8f4bef5`, identiques au contrôle précédent. Cette réponse ne révèle pas de nouvelle version; elle ne remplace pas le contrôle SHA-256 complet du ZIP déjà téléchargé.
 - À 15:00 CEST, l’export public n’a donc apporté aucun nouvel élément sur les départs 214/314 après le 1er novembre. Le dernier ZIP contrôlé conserve le SHA-256 `6eb741b6eedb6b72d53bb3b76160ad3751aa33939357713759e0ca3ba96f8eb3`; #274 et #280 restent ouverts.
+
+## Second motif géométrique de la ligne 127 — 23 octobre 2026
+
+- L’inspecteur de production sur l’archive GTFS filtrée de la 127 a aussi signalé les séquences 2–8 de `IDFM:RDBOUCLESDEMARNE:46745474` (`shape_id=IDFM:shp_3_6660`, 327 points, 33 arrêts). Il retrouve les mêmes sept arrêts et les mêmes distances de 549 à 1 545 m que pour la course dominicale `46476518` sur la forme `IDFM:shp_3_6659` (335 points).
+- Cette seconde course part le vendredi 23 octobre à 16:53 (`service_id=IDFM:100000`, calendrier du 23 au 30 octobre). Les sept coordonnées restent à 3,8–14,8 m du tracé commercial IDFM `C01156`, mais la course n’est pas dans le créneau dominical de l’itinéraire Marché. Le plan RATP distingue également un itinéraire scolaire, sans fournir de séquence détaillée suffisante pour attribuer cette course à une variante précise.
+- Le problème concerne donc au moins deux formes de course sur la même séquence d’arrêts; l’hypothèse « détour du marché uniquement » est trop étroite. Les coordonnées d’arrêts restent corroborées par le corridor commercial, mais la géométrie exacte de ces deux courses n’est pas prouvée. Aucun seuil ou donnée GTFS n’est modifié.
+- Deux des 267 combinaisons forme/séquence ont maintenant été examinées; #286 reste ouvert pour les 265 autres et pour la confirmation trip par trip par une géométrie de référence datée. Le total fonctionnel reste à 133/139 (95,7 %).
