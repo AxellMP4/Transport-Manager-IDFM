@@ -1,5 +1,54 @@
 import SwiftUI
 
+import SwiftUI
+
+struct DepotMissingRouteDocumentsDisclosure: View {
+    let coverage: DepotLineCoverage
+
+    private var affectedRouteIDs: Set<String> {
+        Set(coverage.routesWithoutPlans.map(\.routeID) + coverage.routesWithoutTimetables.map(\.routeID))
+    }
+
+    var body: some View {
+        if !affectedRouteIDs.isEmpty {
+            DisclosureGroup("Variantes GTFS sans PDF référencé · \(affectedRouteIDs.count)") {
+                VStack(alignment: .leading, spacing: 9) {
+                    if !coverage.routesWithoutPlans.isEmpty {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Sans plan PDF relié par ID_Line")
+                                .font(.caption.weight(.semibold))
+                            ForEach(coverage.routesWithoutPlans) { gap in
+                                Text("\(gap.lineName) · \(gap.routeID)")
+                                    .font(.caption2.monospaced())
+                                    .foregroundStyle(.secondary)
+                                    .textSelection(.enabled)
+                            }
+                        }
+                    }
+                    if !coverage.routesWithoutTimetables.isEmpty {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Sans fiche horaire PDF reliée par ID_Line")
+                                .font(.caption.weight(.semibold))
+                            ForEach(coverage.routesWithoutTimetables) { gap in
+                                Text("\(gap.lineName) · \(gap.routeID)")
+                                    .font(.caption2.monospaced())
+                                    .foregroundStyle(.secondary)
+                                    .textSelection(.enabled)
+                            }
+                        }
+                    }
+                    Text("Le diagnostic porte sur les variantes du snapshot GTFS chargé pour les références IDFM actives à cette date. Il ne prouve pas qu’une course circule ce jour-là. Le catalogue PDF ne garantit pas non plus que l’URL distante réponde.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.top, 5)
+            }
+            .font(.caption.weight(.medium))
+        }
+    }
+}
+
 struct DepotLineCatalogCard: View {
     let row: DepotLineRosterRow
     let serviceDate: Date
