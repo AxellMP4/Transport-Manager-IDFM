@@ -551,7 +551,14 @@ enum DepotLineRoster {
         directorySite("argenteuil", "Argenteuil", "Argenteuil", address: "18 rue Jean Poulmarch", dspID: "33"),
         directorySite("saint-ouen-laumone", "Saint-Ouen-l’Aumône", "Saint-Ouen-l’Aumône", address: "13 rue du Tréate · ZAC du Vert Galant", dspID: "2"),
         directorySite("louvres", "Louvres", "Louvres", address: "4 rue Beaumontoir", dspID: "6"),
-        directorySite("villiers-le-bel", "Villiers-le-Bel", "Villiers-le-Bel", address: "23 avenue des Entrepreneurs", dspID: "43"),
+        directorySite(
+            "villiers-le-bel",
+            "Villiers-le-Bel",
+            "Villiers-le-Bel",
+            address: "23 avenue des Entrepreneurs",
+            dspID: "43",
+            facilityObservations: [DepotFacilityEvidenceCatalog.villiersLeBelCurrent]
+        ),
         directorySite("saint-gratien", "Saint-Gratien", "Saint-Gratien", address: "1 chemin du Clos Saint-Paul", dspID: "5"),
         directorySite("genicourt", "Génicourt", "Génicourt", address: "35 rue des Fossettes", dspID: "1"),
         directorySite("magny-en-vexin", "Magny-en-Vexin", "Magny-en-Vexin", address: "ZA de la Demi-Lune · 7 rue des Frères Montgolfier", dspID: "1"),
@@ -665,7 +672,8 @@ enum DepotLineRoster {
         _ name: String,
         _ locality: String,
         address: String,
-        dspID: String?
+        dspID: String?,
+        facilityObservations: [DepotFacilityObservation] = []
     ) -> DepotLineRosterSite {
         let mappedDSP = dspID.map { "DSP \($0)" }
         let status = mappedDSP.map { "Répertoire public · réseau \($0) · exploitant à vérifier" }
@@ -689,7 +697,8 @@ enum DepotLineRoster {
             sourceURL: publicRegionalDepotDirectoryURL,
             documentedAddress: "\(address), \(locality)",
             evidenceTitle: publicRegionalDepotDirectoryTitle,
-            idfmBusContractID: dspID
+            idfmBusContractID: dspID,
+            facilityObservations: facilityObservations
         )
     }
 
