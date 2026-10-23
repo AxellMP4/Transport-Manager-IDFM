@@ -211,6 +211,7 @@ struct DepotLineRosterView: View {
     @State private var selectedDepotID: String
     @State private var serviceDate: Date
     @State private var isGTFSImporterPresented = false
+    @State private var gtfsImportProvenance: GTFSImportProvenance = .unverifiedManual
     @State private var presentedSheet: DepotRosterSheet?
 
     init(initialDepotID: String, scenario: ScenarioDefinition, library: NetworkLibrary, initialServiceDate: Date) {
@@ -490,8 +491,15 @@ struct DepotLineRosterView: View {
                             }
                             .disabled(library.lineDocumentImportState.isImporting || library.isLoadingLineDocuments)
 
-                            Button {
-                                isGTFSImporterPresented = true
+                            Menu {
+                                ForEach(GTFSImportProvenance.allCases) { provenance in
+                                    Button {
+                                        gtfsImportProvenance = provenance
+                                        isGTFSImporterPresented = true
+                                    } label: {
+                                        Label(provenance.menuTitle, systemImage: "archivebox")
+                                    }
+                                }
                             } label: {
                                 Label("Choisir le ZIP GTFS…", systemImage: "archivebox")
                             }
@@ -538,7 +546,7 @@ struct DepotLineRosterView: View {
         .frame(minWidth: 720, minHeight: 640)
         .fileImporter(isPresented: $isGTFSImporterPresented, allowedContentTypes: [.zip], allowsMultipleSelection: false) { result in
             if case let .success(urls) = result, let url = urls.first {
-                library.importGTFS(from: url)
+                library.importGTFS(from: url, provenance: gtfsImportProvenance)
             }
         }
         .sheet(item: $presentedSheet) { sheet in
