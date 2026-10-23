@@ -15,7 +15,7 @@ struct DepotFacilityObservationCard: View {
                         .font(.callout)
                 }
 
-                Text(observation.articulatedBusLimitation)
+                Text(observation.operationalNote)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -31,7 +31,7 @@ struct DepotFacilityObservationCard: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         } label: {
-            Label("Repère historique sur le site", systemImage: "building.2.crop.circle")
+            Label("Repère documentaire du site", systemImage: "building.2.crop.circle")
                 .font(.headline)
         }
     }

@@ -475,11 +475,12 @@ enum DepotLineRoster {
             locality: "Neuilly-sur-Marne",
             status: "Projet IDFM · mise en service visée vers 2030",
             availability: .planned,
-            evidenceNote: "Les études d’avant-projet étaient en cours selon l’actualité IDFM du 1er octobre 2026 ; les sources consultées ne confirment pas le démarrage du chantier. La mise en service du projet est visée vers 2030. La page actuelle des principes IDFM décrit des bus bi-articulés électriques de 24 m, d’environ 145 personnes ; la FAQ IDFM du 22 février 2024 en annonçait environ 150. Ces estimations de projet restent distinctes et la configuration finale n’est pas publiée. Le dossier de concertation IDFM d’octobre 2023 prévoyait pour le nouveau COB une emprise d’environ 32 000 m², destinée au remisage et à la maintenance des bus du BBM et d’autres lignes ; cette surface ne donne ni nombre de places, ni capacité opérationnelle. IDFM précise que les COB existants ne peuvent pas recevoir les futurs véhicules faute de place. Les capacités propres à chaque COB existant et les lignes supplémentaires du futur site restent à établir. Ce site est distinct de Frères-Lumière.",
+            evidenceNote: "Les études d’avant-projet étaient en cours selon l’actualité IDFM du 1er octobre 2026 ; les sources consultées ne confirment pas le démarrage du chantier. La mise en service du projet est visée vers 2030. La page actuelle des principes IDFM décrit des bus bi-articulés électriques de 24 m, d’environ 145 personnes ; la FAQ IDFM du 22 février 2024 en annonçait environ 150. Ces estimations de projet restent distinctes et la configuration finale n’est pas publiée. Le dossier de concertation IDFM de septembre 2023 prévoyait pour le nouveau COB une emprise d’environ 32 000 m², destinée au remisage et à la maintenance des bus du BBM et d’autres lignes ; cette surface ne donne ni nombre de places, ni capacité opérationnelle. IDFM précise que les COB existants ne peuvent pas recevoir les futurs véhicules faute de place. Les capacités propres à chaque COB existant et les lignes supplémentaires du futur site restent à établir. Ce site est distinct de Frères-Lumière.",
             sourceURL: futureBBDMPrinciplesURL,
             evidenceTitle: "IDFM · principes d’aménagement et capacité prévisionnelle des bus · page consultée le 23 octobre 2026",
             additionalEvidenceTitle: "IDFM · dossier de concertation 2023 · emprise prévue du futur COB",
             additionalEvidenceURL: futureBBDMConsultationURL,
+            facilityObservations: [DepotFacilityEvidenceCatalog.futureBordsDeMarne]
         )
     ]
 
@@ -843,6 +844,7 @@ enum DepotLineRoster {
         case .planned: 0
         }
     }
+
     private static func availabilityOrder(_ availability: DepotSiteAvailability) -> Int {
         switch availability {
         case .operational: 0
