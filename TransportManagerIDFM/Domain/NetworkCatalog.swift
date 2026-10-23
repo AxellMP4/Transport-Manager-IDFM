@@ -173,6 +173,15 @@ struct GTFSServiceTripSchedule: Codable, Hashable, Identifiable, Sendable {
     var id: String { tripID }
 }
 
+struct GTFSServiceTripMotif: Codable, Hashable, Identifiable, Sendable {
+    let routeID: String
+    let shapeID: String?
+    let orderedStopSequence: [GTFSStopSequenceEntry]
+    let tripIDs: [String]
+
+    var id: String { tripIDs.first ?? "\(routeID)|\(shapeID ?? "sans-forme")" }
+}
+
 struct GTFSShapePoint: Codable, Hashable, Sendable {
     let sequence: Int
     let latitude: Double

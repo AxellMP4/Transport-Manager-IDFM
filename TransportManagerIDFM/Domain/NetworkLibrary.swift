@@ -576,6 +576,15 @@ final class NetworkLibrary: ObservableObject {
         }.value
     }
 
+    func loadTripMotifs(gtfsVersionID: String) async throws -> [GTFSServiceTripMotif] {
+        guard let version = catalog.versions.first(where: { $0.id == gtfsVersionID }) else {
+            throw NetworkLibraryError.missingPinnedGTFSVersion(gtfsVersionID)
+        }
+        return try await Task.detached(priority: .userInitiated) {
+            try NetworkVersionStore.loadTripMotifs(for: version)
+        }.value
+    }
+
     func loadRouteShapes(
         gtfsVersionID: String,
         routeIDs: Set<String>,
