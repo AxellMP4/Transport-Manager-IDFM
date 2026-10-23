@@ -924,6 +924,8 @@ enum VehicleMarketCatalog {
     static let preventiveMaintenanceDuration: TimeInterval = 4 * 60 * 60
     static let preventiveMaintenanceBaseCostEuro = 450
     static let preventiveMaintenanceCostPerConditionPointEuro = 90
+    private static let odometerValueFactorFloor = 0.15
+    private static let kilometersPerFullValueFactor = 1_200_000.0
 
     static func preventiveMaintenanceCost(for conditionPercent: Int) -> Int {
         let conditionGap = 100 - max(0, min(100, conditionPercent))
@@ -935,7 +937,7 @@ enum VehicleMarketCatalog {
         let currentYear = calendar.component(.year, from: date)
         let ageYears = max(0, currentYear - bus.modelYear)
         let ageFactor = max(0.12, 1 - Double(ageYears) * 0.06)
-        let distanceFactor = max(0.15, 1 - Double(max(0, bus.odometerKilometers)) / 1_200_000)
+        let distanceFactor = odometerValueFactor(forKilometers: bus.odometerKilometers)
         let condition = Double(max(0, min(100, bus.conditionPercent))) / 100
         let conditionFactor = 0.30 + condition * 0.70
         let saleFactor = 0.88
@@ -1963,8 +1965,9 @@ enum VehicleMarketCatalog {
             let age = max(1, gameYear - vehicleYear)
             let ageRetention = max(0.13, 0.82 - Double(age) * 0.045)
             let conditionFactor = 0.68 + Double(condition) / 312
+            let odometerFactor = odometerValueFactor(forKilometers: odometer)
             let estimate = roundedToNearestFiveThousand(
-                Int(Double(newPrice) * ageRetention * conditionFactor)
+                Int(Double(newPrice) * ageRetention * conditionFactor * odometerFactor)
             )
             return makeOffer(
                 model: vehicleModel,
@@ -2086,6 +2089,10 @@ enum VehicleMarketCatalog {
         model.maximumCapacity == nil
     }
 
+    private static func odometerValueFactor(forKilometers kilometers: Int) -> Double {
+        max(odometerValueFactorFloor, 1 - Double(max(0, kilometers)) / kilometersPerFullValueFactor)
+    }
+
     static func estimatedNewPrice(for model: VehicleMarketModel, gameYear: Int) -> Int? {
         guard let referencePrice = model.estimatedNewPriceReference else { return nil }
         let yearsSinceReference = max(0, gameYear - (model.priceReferenceYear ?? referenceYear))
@@ -2203,7 +2210,7 @@ enum VehicleMarketCatalog {
                     ?? "Estimation de jeu en euros \(gameYear), modulée selon la motorisation, l’âge et l’état. Fourchette indicative, sans prix officiel individuel."
                 let annualIndexPercent = Int((annualPriceIndexRate * 100).rounded())
                 let usedPriceRule = condition == .used
-                    ? " Le prix d’occasion est modulé par l’âge, le kilométrage et l’état selon des coefficients de jeu."
+                    ? " Le prix d’occasion applique des coefficients de jeu pour l’âge et l’état, ainsi qu’un facteur kilométrique max(15 %, 1 − km/1 200 000 km), également utilisé pour estimer la revente."
                     : ""
                 return "\(basis) Indexation de jeu de \(annualIndexPercent) %/an jusqu’en \(gameYear) ; fourchette indicative de ±12 %.\(usedPriceRule)"
             }()
