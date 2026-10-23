@@ -322,6 +322,11 @@ struct DepotLineRosterView: View {
                             Link(title, destination: url)
                                 .font(.caption)
                         }
+                        if let title = selectedSite.additionalEvidenceTitle,
+                           let url = selectedSite.additionalEvidenceURL {
+                            Link(title, destination: url)
+                                .font(.caption)
+                        }
                     }
 
                     Label(selectedSite?.idfmBusContractID == nil
@@ -756,6 +761,11 @@ struct RegionalDepotRegistryView: View {
                 Text(evidenceTitle)
                     .font(.caption2)
                     .foregroundStyle(.tint)
+                    .lineLimit(1)
+            }
+            if let title = site.additionalEvidenceTitle, let url = site.additionalEvidenceURL {
+                Link(title, destination: url)
+                    .font(.caption2)
                     .lineLimit(1)
             }
         }
