@@ -5932,9 +5932,9 @@ private struct VehicleMarketView: View {
             if let priceRange = VehicleMarketCatalog.estimatedNewPriceRange(for: model, gameYear: gameYear),
                let priceEstimateNote = model.priceEstimateNote {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Prix neuf estimé pour \(gameYear) : \(currency(priceRange.lowerBound))–\(currency(priceRange.upperBound)) · confiance faible")
+                    Text("Estimation de référence pour \(gameYear) : \(currency(priceRange.lowerBound))–\(currency(priceRange.upperBound)) · confiance faible")
                         .font(.caption.weight(.medium))
-                    Text("\(priceEstimateNote) Indexation de jeu de \(Int((VehicleMarketCatalog.annualPriceIndexRate * 100).rounded())) %/an et fourchette de ±12 %. Aucun prix individuel ni aucune offre de vente ne sont documentés.")
+                    Text("\(priceEstimateNote) Indexation de jeu de \(Int((VehicleMarketCatalog.annualPriceIndexRate * 100).rounded())) %/an et fourchette de ±12 %. Cette estimation ne prouve ni un prix individuel observé ni une disponibilité à la vente.")
                         .font(.caption2)
                 }
                 .foregroundStyle(.secondary)
