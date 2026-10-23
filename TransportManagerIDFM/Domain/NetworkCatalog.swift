@@ -699,6 +699,59 @@ struct GTFSImportQuality: Codable, Hashable, Sendable {
     }
 }
 
+struct GTFSImportMetadata: Sendable {
+    let datasetID: String
+    let title: String
+    let url: String
+    let license: String
+    let licenseURL: String
+}
+
+enum GTFSImportProvenance: String, CaseIterable, Identifiable, Sendable {
+    case prim
+    case publicMirror
+    case unverifiedManual
+
+    var id: String { rawValue }
+
+    var menuTitle: String {
+        switch self {
+        case .prim: "Export PRIM (compte authentifié)"
+        case .publicMirror: "Miroir public transport.data.gouv.fr"
+        case .unverifiedManual: "Autre ZIP · source inconnue"
+        }
+    }
+
+    var metadata: GTFSImportMetadata {
+        switch self {
+        case .prim:
+            GTFSImportMetadata(
+                datasetID: "offre-horaires-tc-gtfs-idfm",
+                title: "Horaires prévus sur les lignes de transport en commun d’Île-de-France (GTFS Datahub)",
+                url: "https://prim.iledefrance-mobilites.fr/fr/jeux-de-donnees/offre-horaires-tc-gtfs-idfm",
+                license: "Licence Mobilité",
+                licenseURL: "https://prim.iledefrance-mobilites.fr/fr/licences"
+            )
+        case .publicMirror:
+            GTFSImportMetadata(
+                datasetID: "reseau-urbain-et-interurbain-dile-de-france-mobilites",
+                title: "Réseaux urbains et interurbains d’Île-de-France Mobilités (IDFM)",
+                url: "https://transport.data.gouv.fr/datasets/reseau-urbain-et-interurbain-dile-de-france-mobilites",
+                license: "Licence Mobilité",
+                licenseURL: "https://wiki.lafabriquedesmobilites.fr/wiki/Licence_Mobilit%C3%A9s"
+            )
+        case .unverifiedManual:
+            GTFSImportMetadata(
+                datasetID: "manual-gtfs-unverified",
+                title: "Archive GTFS importée manuellement · source à vérifier",
+                url: "",
+                license: "À vérifier",
+                licenseURL: ""
+            )
+        }
+    }
+}
+
 struct NetworkVersion: Identifiable, Codable, Hashable, Sendable {
     let id: String
     let importedAt: Date
