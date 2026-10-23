@@ -432,6 +432,10 @@ struct DepotLineCoverage: Hashable, Sendable {
     let lineReferenceVersionID: String?
     let lineDocumentVersionID: String?
     let routeGeometryVersionID: String?
+    let hasLoadedLineReferenceCatalog: Bool
+    let hasLoadedGTFSRouteCatalog: Bool
+    let hasLoadedLineDocumentCatalog: Bool
+    let hasLoadedRouteGeometryCatalog: Bool
     let uniqueLineCount: Int
     let linesWithGTFS: Int
     let routeVariantCount: Int
