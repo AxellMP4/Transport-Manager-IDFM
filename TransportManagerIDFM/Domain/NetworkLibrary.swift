@@ -1324,6 +1324,7 @@ final class NetworkLibrary: ObservableObject {
             var lineNames = Set<String>()
             var routeIDs = Set<String>()
             var evidenceStatuses = Set<DepotLineEvidenceStatus>()
+            var announcedServiceClaimsByID: [String: DepotLineRosterClaim] = [:]
         }
 
         let routesByCanonicalID = Dictionary(grouping: busRoutes) {
@@ -1383,6 +1384,9 @@ final class NetworkLibrary: ObservableObject {
                 var draft = drafts[groupKey] ?? LineDraft(referenceMatch: referenceMatch)
                 draft.lineNames.insert(row.line)
                 draft.evidenceStatuses.insert(row.evidenceStatus(on: serviceDayStart))
+                for claim in row.claims where claim.kind == .announcedService && claim.isVisible(on: serviceDayStart) {
+                    draft.announcedServiceClaimsByID[claim.id] = claim
+                }
                 if let idLine = referenceMatch.idLine,
                    let version,
                    busRoutesVersionID == version.id {
@@ -1461,6 +1465,9 @@ final class NetworkLibrary: ObservableObject {
                     scheduledDepartureCount: departureCount,
                     evidenceStatuses: draft.evidenceStatuses.sorted {
                         $0.rawValue.localizedStandardCompare($1.rawValue) == .orderedAscending
+                    },
+                    announcedServiceClaims: draft.announcedServiceClaimsByID.values.sorted {
+                        $0.sourceTitle.localizedStandardCompare($1.sourceTitle) == .orderedAscending
                     }
                 )
             }.sorted {
