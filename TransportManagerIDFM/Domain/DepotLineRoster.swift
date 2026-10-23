@@ -702,6 +702,8 @@ enum DepotLineRoster {
     private static let neuillyDepotURL = URL(string: "https://tc-infos.fr/exploitant/2975/depot/4663")!
     private static let bordsDeMarneFireReportURL = URL(string: "https://www.leparisien.fr/info-paris-ile-de-france-oise/transports/quatre-bus-prennent-feu-en-moins-de-deux-mois-la-ratp-depose-plainte-contre-x-aucune-piste-nest-ecartee-16-12-2025-YOOGWRR5HZCT5MZDUYW2MCS3UE.php")!
     private static let currentTCInfosLineURLs: [String: URL] = [
+        "101": URL(string: "https://tc-infos.fr/reseau/1452/ligne/33111")!,
+        "106": URL(string: "https://tc-infos.fr/reseau/1452/ligne/33112")!,
         "113": URL(string: "https://tc-infos.fr/reseau/1452/ligne/33118")!,
         "114": URL(string: "https://tc-infos.fr/reseau/1452/ligne/33119")!,
         "116": URL(string: "https://tc-infos.fr/reseau/1452/ligne/33120")!,
@@ -962,15 +964,43 @@ enum DepotLineRoster {
     ]
 
     private static func confirmedSaintMaur(_ lines: [String]) -> [DepotLineRosterRow] {
-        lines.map {
-            row($0, category: "Régulière", sites: ["saint-maur"], center: "SAINT-MAUR", status: .confirmed,
-                secondarySource: "Wikipédia · terminus et variantes de la ligne \($0), source secondaire",
-                secondaryURL: wikipediaURL,
-                note: "\(saintMaurRouteNotes[$0] ?? "Ligne du réseau Bords de Marne.") Le tableau ligne–centre de l’ancien contrat RATP indique Saint-Maur avant le transfert DSP45. Faute de ventilation par COB publiée pour le nouvel exploitant, ce rattachement n’est pas établi à partir du 1er novembre 2025.",
-                documents: documentsByLine[$0] ?? [],
+        lines.map { line in
+            var claims = [DepotLineRosterClaim(
+                kind: .contractCenter,
+                siteID: "saint-maur",
+                centerLabel: "SAINT-MAUR",
+                sourceTitle: "Contrat bus IDFM 2025–2026",
+                sourceURL: contractEvidenceURL,
                 sourceDateLabel: "Tableau ligne–centre du contrat IDFM–RATP 2025–2026",
                 validFromKey: oldRatpLineCenterEvidenceFrom,
-                validThroughKey: oldRatpLineCenterEvidenceThrough)
+                validThroughKey: oldRatpLineCenterEvidenceThrough,
+                note: "Le tableau établit le rattachement historique avant le transfert DSP45, sans désigner le COB de cette ligne sous le nouvel exploitant."
+            )]
+
+            if let sourceURL = currentTCInfosLineURLs[line] {
+                claims.append(DepotLineRosterClaim(
+                    kind: .fleetObservation,
+                    siteID: "saint-maur",
+                    centerLabel: "SAINT-MAUR-DES-FOSSÉS",
+                    sourceTitle: "TC Infos · parc actuel de la ligne \(line) au dépôt de Saint-Maur",
+                    sourceURL: sourceURL,
+                    sourceDateLabel: "Les véhicules recensés indiquent une arrivée sur la ligne en novembre 2025; date d’actualisation du parc inconnue",
+                    validFromKey: nil,
+                    validThroughKey: nil,
+                    note: "TC Infos liste le même pool de 92 autobus GNV sur les lignes 101 et 106, dont des Heuliez GX 337 GNV et des Iveco Urbanway 12 GNV, avec RATP Cap Boucles de Marne et le dépôt Saint-Maur-des-Fossés. L’inventaire est une source secondaire sans date de mise à jour publiée; il ne prouve ni une affectation exclusive, ni toutes les courses, ni une validité continue."
+                ))
+            }
+
+            let postTransferNote = currentTCInfosLineURLs[line] == nil
+                ? " Faute de ventilation par COB publiée pour le nouvel exploitant, ce rattachement historique n’est pas établi à partir du 1er novembre 2025."
+                : " TC Infos observe le même pool de 92 véhicules sur les lignes 101 et 106 à Saint-Maur; cette source secondaire ne répartit pas les courses et ne donne pas de date d’actualisation précise."
+
+            return row(line, category: "Régulière", sites: ["saint-maur"], center: "SAINT-MAUR", status: .confirmed,
+                secondarySource: "Wikipédia · terminus et variantes de la ligne \(line), source secondaire",
+                secondaryURL: wikipediaURL,
+                note: "\(saintMaurRouteNotes[line] ?? "Ligne du réseau Bords de Marne.") Le tableau ligne–centre de l’ancien contrat RATP indique Saint-Maur avant le transfert DSP45.\(postTransferNote)",
+                documents: documentsByLine[line] ?? [],
+                claims: claims)
         }
     }
 
