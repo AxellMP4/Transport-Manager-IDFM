@@ -69,6 +69,7 @@ struct DepotLineRosterSite: Identifiable, Hashable, Sendable {
     let idfmBusContractID: String?
     let additionalEvidenceTitle: String?
     let additionalEvidenceURL: URL?
+    let fleetObservation: DepotFleetObservation?
 
     var isOperational: Bool { availability.isOperational }
 
@@ -90,7 +91,8 @@ struct DepotLineRosterSite: Identifiable, Hashable, Sendable {
         evidenceTitle: String? = nil,
         idfmBusContractID: String? = nil,
         additionalEvidenceTitle: String? = nil,
-        additionalEvidenceURL: URL? = nil
+        additionalEvidenceURL: URL? = nil,
+        fleetObservation: DepotFleetObservation? = nil
     ) {
         self.id = id
         self.name = name
@@ -104,7 +106,27 @@ struct DepotLineRosterSite: Identifiable, Hashable, Sendable {
         self.idfmBusContractID = idfmBusContractID
         self.additionalEvidenceTitle = additionalEvidenceTitle
         self.additionalEvidenceURL = additionalEvidenceURL
+        self.fleetObservation = fleetObservation
     }
+}
+
+struct DepotFleetEnergyCount: Hashable, Identifiable, Sendable {
+    let energyTitle: String
+    let vehicleCount: Int
+
+    var id: String { energyTitle }
+}
+
+struct DepotFleetObservation: Hashable, Sendable {
+    let totalVehicleCount: Int
+    let energyCounts: [DepotFleetEnergyCount]
+    let averageFleetAgeYears: Double?
+    let airConditionedVehicleSharePercent: Int?
+    let reviewedOnLabel: String
+    let sourceFreshnessNote: String
+    let limitationNote: String
+    let sourceTitle: String
+    let sourceURL: URL
 }
 
 struct DepotLineDocumentLink: Identifiable, Hashable, Sendable {
@@ -341,9 +363,24 @@ enum DepotLineRoster {
             availability: .operational,
             evidenceNote: "Le site figure parmi les deux COB de la DSP45. Le tableau ligne–centre de l’ancien contrat IDFM–RATP documente Saint-Maur avant le transfert du 1er novembre 2025 ; les lignes du nouvel exploitant ne sont pas ventilées par COB dans les sources consultées. RATP Group chiffre rétrospectivement neuf lignes pour Saint-Maur dans la préparation du lot 45 en 2022, sans en publier les numéros dans cet article.",
             sourceURL: contractEvidenceURL,
+            evidenceTitle: "IDFM–RATP · tableau ligne–centre 2025–2026",
             idfmBusContractID: "45",
             additionalEvidenceTitle: "RATP Group · répartition des lignes du lot 45 par centre-bus · 29 mars 2022",
-            additionalEvidenceURL: ratpDSP45DepotSplitURL
+            additionalEvidenceURL: ratpDSP45DepotSplitURL,
+            fleetObservation: DepotFleetObservation(
+                totalVehicleCount: 98,
+                energyCounts: [
+                    DepotFleetEnergyCount(energyTitle: "Gaz", vehicleCount: 92),
+                    DepotFleetEnergyCount(energyTitle: "Diesel", vehicleCount: 6)
+                ],
+                averageFleetAgeYears: 4.5,
+                airConditionedVehicleSharePercent: 94,
+                reviewedOnLabel: "Page consultée le 23 octobre 2026 · actualisation source non datée",
+                sourceFreshnessNote: "TC Infos présente le parc comme actuel, sans indiquer la date de mise à jour de son inventaire.",
+                limitationNote: "Comptage de véhicules observés; il ne donne ni la capacité maximale du site, ni ses postes d’atelier ou de ravitaillement, ni les lignes auxquelles chaque véhicule est affecté.",
+                sourceTitle: "TC Infos · parc actuel du dépôt Saint-Maur",
+                sourceURL: URL(string: "https://tc-infos.fr/exploitant/2975/depot/4665")!
+            )
         ),
         DepotLineRosterSite(
             id: "neuilly-plaisance",
@@ -356,7 +393,21 @@ enum DepotLineRoster {
             evidenceTitle: "RATP · présence en Seine-Saint-Denis · avril 2026",
             idfmBusContractID: "45",
             additionalEvidenceTitle: "RATP Group · répartition des lignes du lot 45 par centre-bus · 29 mars 2022",
-            additionalEvidenceURL: ratpDSP45DepotSplitURL
+            additionalEvidenceURL: ratpDSP45DepotSplitURL,
+            fleetObservation: DepotFleetObservation(
+                totalVehicleCount: 200,
+                energyCounts: [
+                    DepotFleetEnergyCount(energyTitle: "Diesel", vehicleCount: 148),
+                    DepotFleetEnergyCount(energyTitle: "Hybride", vehicleCount: 52)
+                ],
+                averageFleetAgeYears: 12.6,
+                airConditionedVehicleSharePercent: 0,
+                reviewedOnLabel: "Page consultée le 23 octobre 2026 · actualisation source non datée",
+                sourceFreshnessNote: "TC Infos présente le parc comme actuel, sans indiquer la date de mise à jour de son inventaire.",
+                limitationNote: "Comptage de véhicules observés; il ne donne ni la capacité maximale du site, ni ses postes d’atelier ou de ravitaillement, ni les lignes auxquelles chaque véhicule est affecté.",
+                sourceTitle: "TC Infos · parc actuel du COB Neuilly-Plaisance",
+                sourceURL: neuillyDepotURL
+            )
         ),
         DepotLineRosterSite(
             id: "freres-lumiere",
@@ -364,8 +415,19 @@ enum DepotLineRoster {
             locality: "Neuilly-sur-Marne · ZI des Chanoux",
             status: "Site d’appui de la ligne 113 · flotte observée",
             availability: .operational,
-            evidenceNote: "La décision IDFM de 2023 documente un remisage d’appui pour une partie des articulés de la 113. TC Infos recense 12 Citelis 18 sur le site en 2025–2026, sans attribuer d’autres lignes. Ce site est distinct du futur COB de Neuilly-sur-Marne.",
-            sourceURL: URL(string: "https://www.iledefrance-mobilites.fr/medias/portail-idfm/1c3d876c-ef6f-4f9f-ae60-8756ae273ba7_RAA_153-2.pdf")
+            evidenceNote: "La décision IDFM de 2023 documente un remisage d’appui pour une partie des articulés de la 113. Le parc actuel TC Infos recense 12 Irisbus Citelis 18 diesel sur ce site au relevé du 23 octobre 2026, sans attribuer d’autres lignes. La date de mise à jour du parc n’est pas publiée et ce nombre ne représente pas la capacité maximale. Ce site est distinct du futur COB de Neuilly-sur-Marne.",
+            sourceURL: URL(string: "https://www.iledefrance-mobilites.fr/medias/portail-idfm/1c3d876c-ef6f-4f9f-ae60-8756ae273ba7_RAA_153-2.pdf"),
+            fleetObservation: DepotFleetObservation(
+                totalVehicleCount: 12,
+                energyCounts: [DepotFleetEnergyCount(energyTitle: "Diesel", vehicleCount: 12)],
+                averageFleetAgeYears: 13.4,
+                airConditionedVehicleSharePercent: 0,
+                reviewedOnLabel: "Page consultée le 23 octobre 2026 · actualisation source non datée",
+                sourceFreshnessNote: "TC Infos présente le parc comme actuel; les véhicules listés sont des Citelis 18 arrivés sur le site entre novembre 2025 et mars 2026.",
+                limitationNote: "Comptage de véhicules observés, pas capacité maximale du site ou répartition des courses.",
+                sourceTitle: "TC Infos · parc actuel du dépôt Frères-Lumière",
+                sourceURL: URL(string: "https://tc-infos.fr/exploitant/2975/depot/4664")!
+            )
         ),
         DepotLineRosterSite(
             id: "neuilly-sur-marne-projet",

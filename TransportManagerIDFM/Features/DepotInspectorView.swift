@@ -313,6 +313,9 @@ struct DepotLineRosterView: View {
                             .font(.callout)
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
+                        if let observation = selectedSite.fleetObservation {
+                            DepotFleetObservationCard(observation: observation)
+                        }
                         if let address = selectedSite.documentedAddress {
                             Text("Adresse publiée : \(address)")
                                 .font(.caption)
@@ -605,6 +608,70 @@ private struct SourceRow: View {
     }
 }
 
+private struct DepotFleetObservationCard: View {
+    let observation: DepotFleetObservation
+    var compact = false
+
+    private var energySummary: String {
+        observation.energyCounts
+            .map { "\($0.energyTitle) : \($0.vehicleCount)" }
+            .joined(separator: " · ")
+    }
+
+    private var conditionSummary: String? {
+        var values: [String] = []
+        if let averageAge = observation.averageFleetAgeYears {
+            values.append("Âge moyen : \(averageAge.formatted(.number.precision(.fractionLength(1)))) ans")
+        }
+        if let airConditionedShare = observation.airConditionedVehicleSharePercent {
+            values.append("Climatisés : \(airConditionedShare) %")
+        }
+        return values.isEmpty ? nil : values.joined(separator: " · ")
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: compact ? 3 : 6) {
+            HStack(alignment: .firstTextBaseline) {
+                Label("Parc observé", systemImage: "bus.fill")
+                    .font(.caption.weight(.semibold))
+                Spacer(minLength: 8)
+                Text("\(observation.totalVehicleCount) véhicules")
+                    .font(.caption.weight(.semibold).monospacedDigit())
+            }
+            Text(energySummary)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            if let conditionSummary {
+                Text(conditionSummary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            if !compact {
+                Text(observation.reviewedOnLabel)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                Text(observation.sourceFreshnessNote)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(observation.limitationNote)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Link(observation.sourceTitle, destination: observation.sourceURL)
+                .font(compact ? .caption2 : .caption)
+                .lineLimit(compact ? 1 : nil)
+        }
+        .padding(compact ? 0 : 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            compact ? Color.clear : Color(nsColor: .controlBackgroundColor),
+            in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+        )
+    }
+}
+
 private struct StatusLabel: View {
     let text: String
     let systemImage: String
@@ -757,6 +824,9 @@ struct RegionalDepotRegistryView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+            if let observation = site.fleetObservation {
+                DepotFleetObservationCard(observation: observation, compact: true)
+            }
             if let evidenceTitle = site.evidenceTitle {
                 Text(evidenceTitle)
                     .font(.caption2)
@@ -1002,6 +1072,9 @@ struct DepotDirectoryWorkspaceView: View {
                         .font(.callout)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
+                    if let observation = selectedSite.fleetObservation {
+                        DepotFleetObservationCard(observation: observation)
+                    }
                     if let evidenceTitle = selectedSite.evidenceTitle, let sourceURL = selectedSite.sourceURL {
                         Link(evidenceTitle, destination: sourceURL)
                             .font(.callout)
