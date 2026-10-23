@@ -254,7 +254,11 @@ struct DepotLineRosterView: View {
             || ["freres-lumiere", "neuilly-sur-marne-projet"].contains(selectedDepotID)
     }
 
-    private var canPrepareCareerAssignment: Bool {
+    private var bordsDeMarneRosterReference: BordsDeMarneRosterReference {
+        .forServiceDate(serviceDate)
+    }
+
+    private var canPrepareCareerAssignment: {
         selectedSite?.isOperational == true
             && scenario.referenceDepots.contains { $0.id == selectedDepotID }
             && library.catalog.activeContractVersion != nil
@@ -365,10 +369,12 @@ struct DepotLineRosterView: View {
                         .fixedSize(horizontal: false, vertical: true)
 
                     if isBordsDeMarneSite {
-                        Text("Référence active : 29 lignes (22 régulières et 7 Noctilien). N31 reste consultable comme conflit historique hors roster actif. Les preuves par COB sont datées : les lignes de Saint-Maur proviennent de l’annexe 2025–2026, et les observations de parc à Neuilly-Plaisance ne répartissent pas toutes les courses.")
+                        Text(bordsDeMarneRosterReference.summary)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
+                        Link(bordsDeMarneRosterReference.sourceTitle, destination: bordsDeMarneRosterReference.sourceURL)
+                            .font(.caption)
                     } else if let contractID = selectedSite?.idfmBusContractID {
                         Text("Le contrat DSP \(contractID) donne le périmètre des lignes. Il ne précise pas quelle ligne est exploitée depuis ce COB ; ces références restent visibles comme candidates jusqu’à preuve de répartition.")
                             .font(.caption)
@@ -569,6 +575,50 @@ struct DepotLineRosterView: View {
 
     private func documents(for route: GTFSRouteSummary) -> [NetworkLineDocument] {
         library.documents(for: route)
+    }
+}
+
+private struct BordsDeMarneRosterReference {
+    let summary: String
+    let sourceTitle: String
+    let sourceURL: URL
+
+    static func forServiceDate(_ serviceDate: Date) -> Self {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Europe/Paris") ?? .current
+        let serviceDay = calendar.startOfDay(for: serviceDate)
+        let transferDate = calendar.date(from: DateComponents(year: 2025, month: 11, day: 1))
+        let reorganizationDate = calendar.date(from: DateComponents(year: 2026, month: 11, day: 1))
+
+        guard let transferDate, let reorganizationDate else {
+            return Self(
+                summary: "Le décompte des lignes dépend de la date de service. Les rattachements au COB restent à confirmer par des sources datées.",
+                sourceTitle: "Tableau ligne–centre historique IDFM–RATP",
+                sourceURL: URL(string: "https://www.iledefrance-mobilites.fr/medias/portail-idfm/aTFjzHNYClf9nz_6_ContratBUS2025-2026_vsigne%CC%81eLP.pdf")!
+            )
+        }
+
+        if serviceDay < transferDate {
+            return Self(
+                summary: "Avant le transfert DSP45 du 1er novembre 2025, le décompte du réseau attribué à RATP Cap ne s’applique pas. Les rattachements de l’ancien contrat sont datés séparément dans le registre.",
+                sourceTitle: "Tableau ligne–centre historique IDFM–RATP",
+                sourceURL: URL(string: "https://www.iledefrance-mobilites.fr/medias/portail-idfm/aTFjzHNYClf9nz_6_ContratBUS2025-2026_vsigne%CC%81eLP.pdf")!
+            )
+        }
+
+        if serviceDay < reorganizationDate {
+            return Self(
+                summary: "Du 1er novembre 2025 au 31 octobre 2026 : 29 lignes DSP45 (22 régulières et 7 Noctilien). N31 reste un conflit historique hors roster actif. Les preuves par COB ne répartissent pas toutes les courses.",
+                sourceTitle: "IDFM · attribution de la DSP45 et périmètre annoncé",
+                sourceURL: URL(string: "https://presse.iledefrance-mobilites.fr/mise-en-concurrence-des-transports-franciliens/?lang=fr")!
+            )
+        }
+
+        return Self(
+            summary: "À partir du 1er novembre 2026, IDFM annonce 23 lignes de jour et 7 de nuit (30 au total). La 314 démarre alors, mais le GTFS embarqué du 20 octobre ne vérifie pas encore le service 214/314 après la réorganisation. Le communiqué ne répartit pas les lignes par COB.",
+            sourceTitle: "IDFM · réorganisation du réseau au 1er novembre 2026",
+            sourceURL: URL(string: "https://presse.iledefrance-mobilites.fr/ile-de-france-mobilites-restructure-et-reorganise-loffre-de-bus-sur-les-territoires-des-bords-de-marne-et-de-boucle-nord-de-seine/?lang=fr")!
+        )
     }
 }
 
