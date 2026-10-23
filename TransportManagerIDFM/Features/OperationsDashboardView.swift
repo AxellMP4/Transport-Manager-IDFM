@@ -2194,6 +2194,10 @@ struct OperationsDashboardView: View {
                     .font(.caption)
                 Link(scenario.operatorReportSourceTitle, destination: scenario.operatorReportSourceURL)
                     .font(.caption)
+                if let recentOfficialNetworkCountSourceURL = scenario.recentOfficialNetworkCountSourceURL {
+                    Link("IDFM · communiqué réseau du 21 octobre 2026", destination: recentOfficialNetworkCountSourceURL)
+                        .font(.caption)
+                }
                 Text("Budget IDFM 2026 : engagement publié de \(scenario.budgetEngagementEuro.formatted()) €. Sa période et sa nature comptable ne sont pas précisées ici ; ce montant n’est pas utilisé comme recette annuelle ni comme trésorerie de départ.")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
