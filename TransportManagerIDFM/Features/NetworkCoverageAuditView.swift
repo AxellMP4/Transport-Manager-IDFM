@@ -1,3 +1,4 @@
+import MapKit
 import SwiftUI
 
 struct NetworkCoverageAuditView: View {
@@ -211,7 +212,7 @@ struct NetworkCoverageAuditView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     sourceSummary
 
-                    GTFSTripQualityAuditSection(version: activeVersion, routes: library.busRoutes)
+                    GTFSTripQualityAuditSection(library: library, version: activeVersion, routes: library.busRoutes)
 
                     idfmToGTFSSection
 
@@ -1172,11 +1173,13 @@ private struct NetworkCoverageAssignmentView: View {
 }
 
 private struct GTFSTripQualityAuditSection: View {
+    @ObservedObject var library: NetworkLibrary
     let version: NetworkVersion?
     let routes: [GTFSRouteSummary]
 
     @State private var isExpanded = false
     @State private var selectedIssueKind: GTFSImportTripIssueKind?
+    @State private var selectedIssue: GTFSImportTripIssue?
     @State private var query = ""
     @State private var visibleIssueLimit = 100
 
@@ -1260,6 +1263,9 @@ private struct GTFSTripQualityAuditSection: View {
         }
         .padding(12)
         .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 10))
+        .sheet(item: $selectedIssue) { issue in
+            GTFSTripGeometryReviewSheet(library: library, versionID: version?.id ?? "", issue: issue)
+        }
         .onChange(of: selectedIssueKind) { _, _ in visibleIssueLimit = 100 }
         .onChange(of: query) { _, _ in visibleIssueLimit = 100 }
     }
@@ -1291,7 +1297,11 @@ private struct GTFSTripQualityAuditSection: View {
                 )
                 LazyVStack(spacing: 6) {
                     ForEach(Array(filteredIssues.prefix(visibleIssueLimit))) { issue in
-                        GTFSTripQualityAuditRow(issue: issue, routeName: routeNamesByID[issue.routeID])
+                        GTFSTripQualityAuditRow(
+                            issue: issue,
+                            routeName: routeNamesByID[issue.routeID],
+                            onInspect: { selectedIssue = issue }
+                        )
                     }
                 }
 
@@ -1329,6 +1339,7 @@ private struct GTFSQualityMetricRow: View {
 private struct GTFSTripQualityAuditRow: View {
     let issue: GTFSImportTripIssue
     let routeName: String?
+    let onInspect: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -1336,6 +1347,10 @@ private struct GTFSTripQualityAuditRow: View {
                 Text(routeName.map { "\($0) · \(issue.routeID)" } ?? issue.routeID)
                     .font(.caption.weight(.semibold))
                 Spacer(minLength: 8)
+                Button("Carte", systemImage: "map") { onInspect() }
+                    .labelStyle(.titleAndIcon)
+                    .controlSize(.small)
+                    .disabled(issue.shapeID == nil && (issue.stopIDsNotMatchedToShape ?? []).isEmpty && (issue.stopIDsWithoutCoordinates ?? []).isEmpty)
                 Text(issue.tripID)
                     .font(.caption2.monospaced())
                     .textSelection(.enabled)
@@ -1363,5 +1378,140 @@ private struct GTFSTripQualityAuditRow: View {
         .padding(8)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 7))
+    }
+}
+
+private struct GTFSTripGeometryReviewSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let library: NetworkLibrary
+    let versionID: String
+    let issue: GTFSImportTripIssue
+
+    @State private var review: GTFSGeometryReview?
+    @State private var cameraPosition: MapCameraPosition = .automatic
+    @State private var isLoading = true
+    @State private var errorMessage: String?
+
+    private var unprojectedStopIDs: Set<String> { Set(issue.stopIDsNotMatchedToShape ?? []) }
+    private var missingCoordinateStopIDs: [String] { issue.stopIDsWithoutCoordinates ?? [] }
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 12) {
+                if let review {
+                    map(for: review)
+                        .frame(minHeight: 360)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+
+                    HStack(spacing: 14) {
+                        Label("Forme GTFS", systemImage: "point.topleft.down.to.point.bottomright.curvepath")
+                        Label("Arrêts géolocalisés", systemImage: "circle.fill")
+                        Label("Non projetés", systemImage: "circle.fill")
+                            .foregroundStyle(.red)
+                    }
+                    .font(.caption)
+
+                    HStack(alignment: .top, spacing: 16) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Course \(review.tripID)").font(.subheadline.weight(.semibold))
+                            Text("Ligne \(review.routeID) · shape_id \(review.shapeID ?? "absent") · \(review.shapePoints.count) points · \(review.stops.count) arrêts")
+                                .font(.caption.monospaced())
+                                .foregroundStyle(.secondary)
+                                .textSelection(.enabled)
+                        }
+                        Spacer()
+                        if !missingCoordinateStopIDs.isEmpty {
+                            VStack(alignment: .trailing, spacing: 4) {
+                                Text("Arrêts sans coordonnées · \(missingCoordinateStopIDs.count)")
+                                    .font(.caption.weight(.semibold))
+                                Text(missingCoordinateStopIDs.joined(separator: ", "))
+                                    .font(.caption2.monospaced())
+                                    .foregroundStyle(.secondary)
+                                    .textSelection(.enabled)
+                            }
+                            .frame(maxWidth: 300, alignment: .trailing)
+                        }
+                    }
+                } else if isLoading {
+                    ProgressView("Chargement de la forme et des arrêts…")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    ContentUnavailableView(
+                        "Géométrie indisponible",
+                        systemImage: "map",
+                        description: Text(errorMessage ?? "Le calendrier de cette course n’a pas été retrouvé dans la version GTFS active.")
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+            .padding(16)
+            .navigationTitle("Examen géographique GTFS")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Fermer") { dismiss() }
+                }
+            }
+            .task(id: "\(versionID)|\(issue.tripID)") { await loadReview() }
+        }
+        .frame(minWidth: 760, minHeight: 620)
+    }
+
+    @ViewBuilder
+    private func map(for review: GTFSGeometryReview) -> some View {
+        let shapeCoordinates = review.shapePoints.map {
+            CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude)
+        }
+        Map(position: $cameraPosition, interactionModes: [.pan, .zoom]) {
+            if shapeCoordinates.count > 1 {
+                MapPolyline(coordinates: shapeCoordinates)
+                    .stroke(.teal, style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
+            }
+            ForEach(review.stops.filter { $0.latitude != nil && $0.longitude != nil }) { stop in
+                if let latitude = stop.latitude, let longitude = stop.longitude {
+                    let isUnprojected = unprojectedStopIDs.contains(stop.stopID)
+                    Annotation("\(stop.sequence) · \(stop.name ?? stop.stopID)", coordinate: CLLocationCoordinate2D(latitude: latitude, longitude: longitude)) {
+                        Circle()
+                            .fill(isUnprojected ? Color.red : Color.blue)
+                            .frame(width: isUnprojected ? 12 : 9, height: isUnprojected ? 12 : 9)
+                            .overlay(Circle().stroke(.white, lineWidth: 1.5))
+                    }
+                }
+            }
+        }
+        .mapStyle(.standard(elevation: .flat))
+        .onAppear { fitMap(to: review) }
+    }
+
+    private func fitMap(to review: GTFSGeometryReview) {
+        let coordinatePairs = review.shapePoints.map { ($0.latitude, $0.longitude) }
+            + review.stops.compactMap { stop -> (Double, Double)? in
+                guard let latitude = stop.latitude, let longitude = stop.longitude else { return nil }
+                return (latitude, longitude)
+            }
+        guard let first = coordinatePairs.first else { return }
+        let latitudes = coordinatePairs.map(\.0)
+        let longitudes = coordinatePairs.map(\.1)
+        let minLatitude = latitudes.min() ?? first.0
+        let maxLatitude = latitudes.max() ?? first.0
+        let minLongitude = longitudes.min() ?? first.1
+        let maxLongitude = longitudes.max() ?? first.1
+        let region = MKCoordinateRegion(
+            center: CLLocationCoordinate2D(latitude: (minLatitude + maxLatitude) / 2, longitude: (minLongitude + maxLongitude) / 2),
+            span: MKCoordinateSpan(latitudeDelta: max(0.01, (maxLatitude - minLatitude) * 1.25), longitudeDelta: max(0.01, (maxLongitude - minLongitude) * 1.25))
+        )
+        cameraPosition = .region(region)
+    }
+
+    @MainActor
+    private func loadReview() async {
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+        do {
+            review = try await library.loadTripGeometryReview(gtfsVersionID: versionID, tripID: issue.tripID)
+            if let review { fitMap(to: review) }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 }
