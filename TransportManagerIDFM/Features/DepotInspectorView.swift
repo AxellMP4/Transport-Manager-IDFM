@@ -258,7 +258,7 @@ struct DepotLineRosterView: View {
         .forServiceDate(serviceDate)
     }
 
-    private var canPrepareCareerAssignment: {
+    private var canPrepareCareerAssignment: Bool {
         selectedSite?.isOperational == true
             && scenario.referenceDepots.contains { $0.id == selectedDepotID }
             && library.catalog.activeContractVersion != nil
