@@ -69,8 +69,8 @@ enum DepotEnergyEvidenceCatalog {
         case ("neuilly-plaisance", .electricCharging):
             DepotEnergyEvidence(
                 status: .intentDocumented,
-                note: "La RATP classe Neuilly Bords de Marne dans son groupe de centres orientés vers l’électrique. IDFM relie le centre Bords de Marne à l’ancien centre de la Maltournée à Neuilly-Plaisance. La page RATP signale encore des conversions en cours début 2026 sans préciser le statut de ce site : sa mise sous tension, ses bornes et sa capacité restent à vérifier.",
-                dateLabel: "orientation publiée en 2026 · exploitation non confirmée",
+                note: "La page RATP mise à jour le 26 juin 2026 cite Neuilly Bords de Marne parmi les 13 centres adaptés pour accueillir 100 % de bus électriques. Son bilan indique aussi que 10 centres étaient convertis et que 4 sites restaient en travaux au début de 2026, sans nommer ces sites ni confirmer la mise en service de Neuilly Bords de Marne. IDFM relie ce site à l’ancien centre de la Maltournée à Neuilly-Plaisance. Le nombre de bornes, leur puissance et la capacité du dépôt restent inconnus.",
+                dateLabel: "adaptation électrique citée en 2026 · mise en service non confirmée",
                 sources: [
                     DepotEnergyEvidenceLink(
                         title: "RATP · programme bus2025 et centres orientés par énergie",
