@@ -440,6 +440,7 @@ enum GTFSImportTripIssueKind: String, Codable, CaseIterable, Hashable, Sendable 
     case invalidStopSequence
     case missingShapeReference
     case unavailableShape
+    case stopsNotMatchedToShape
     case inactiveService
     case invalidStopTimeRows
 
@@ -453,6 +454,7 @@ enum GTFSImportTripIssueKind: String, Codable, CaseIterable, Hashable, Sendable 
         case .invalidStopSequence: "séquence d’arrêts dupliquée"
         case .missingShapeReference: "forme non référencée"
         case .unavailableShape: "forme absente ou invalide"
+        case .stopsNotMatchedToShape: "arrêts non projetables sur la forme GTFS"
         case .inactiveService: "aucune date de service active"
         case .invalidStopTimeRows: "lignes de passage invalides"
         }
@@ -464,6 +466,8 @@ struct GTFSImportTripIssue: Codable, Hashable, Identifiable, Sendable {
     let tripID: String
     let issueKinds: Set<GTFSImportTripIssueKind>
     let invalidStopTimeRowCount: Int
+    let stopIDsWithoutCoordinates: [String]?
+    let stopIDsNotMatchedToShape: [String]?
 
     var id: String { "\(routeID)|\(tripID)" }
 
@@ -489,7 +493,10 @@ struct GTFSImportQuality: Codable, Hashable, Sendable {
     let tripsWithInvalidStopSequence: Int
     let tripsWithoutShapeReference: Int
     let tripsWithUnavailableShape: Int
-    let referencedShapeCount: Int
+    /// Trips whose geolocated stop sequence cannot be projected monotonically
+    /// onto its referenced GTFS shape. Nil for catalogs imported by older builds.
+    let tripsWithUnmatchedShapeStops: Int?
+    let referencedShapeCount:
     let availableShapeCount: Int
     let invalidShapeCount: Int
     let invalidStopTimeRowCount: Int
@@ -512,7 +519,10 @@ struct GTFSImportQuality: Codable, Hashable, Sendable {
     }
 
     var hasShapeIssues: Bool {
-        tripsWithoutShapeReference > 0 || tripsWithUnavailableShape > 0 || invalidShapeCount > 0
+        tripsWithoutShapeReference > 0
+            || tripsWithUnavailableShape > 0
+            || (tripsWithUnmatchedShapeStops ?? 0) > 0
+            || invalidShapeCount > 0
     }
 
     var hasServiceCalendarIssues: Bool {
