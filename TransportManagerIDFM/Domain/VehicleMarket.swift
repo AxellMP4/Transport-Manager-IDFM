@@ -2027,6 +2027,29 @@ enum VehicleMarketCatalog {
             fleetTitle: "Île-de-France Mobilités · essai réel Ebusco sur la ligne 1 R’Bus",
             fleetURL: "https://www.iledefrance-mobilites.fr/actualites/davantage-de-bus-en-faveur-de-la-transition-energetique-en-ile-de-france",
             marketAvailabilityNote: "Référence historique d’un essai Transdev sur R’Bus à partir du 22 décembre 2015. La source ne précise pas le modèle Ebusco, la batterie, une autonomie chiffrée, la disponibilité actuelle, un prix individuel ni une compatibilité avec les COB Bords de Marne ; aucune offre d’achat n’est proposée."
+        ),
+        model(
+            id: "volvo-7900-l-hybrid-idf",
+            manufacturer: "Volvo Buses",
+            commercialName: "7900 L Hybrid",
+            vehicleClass: .midibus,
+            length: 10.64,
+            doubleDoors: 2,
+            wheelchairSpaces: 1,
+            energy: .dieselHybrid,
+            maxCapacity: nil,
+            seatedCapacity: 48,
+            firstYear: 2016,
+            lastYear: 2026,
+            regionalEvidenceYear: 2026,
+            regionalEvidenceLabel: "Exemplaire francilien n° 169031 / 203015 · mis en service en 2016",
+            referencePrice: nil,
+            technicalTitle: "Volvo Buses · Rescue sheet Volvo 7900 Hybrid, 10.6 m · 2022",
+            technicalURL: "https://www.volvobuses.com/content/dam/volvo-buses/markets/master/why-volvo/safety-first/rescue-sheets/rs-b5lh-100-2-english.pdf",
+            technicalDataNote: "La fiche Volvo confirme la carrosserie basse de 10,6 m à deux portes et un début de production en 2012. La fiche secondaire de l’exemplaire francilien n° 169031 / 203015 donne 48 assises, un emplacement UFR et un groupe hybride Volvo D5K-240 / I-SAM de 110 kW. Cette implantation et cette motorisation décrivent cet exemplaire, pas nécessairement chaque 7900 L Hybrid.",
+            fleetTitle: "TC Infos · Volvo 7900 L Hybrid n° 169031 / 203015 · relevé du 2 août 2026",
+            fleetURL: "https://tc-infos.fr/vehicule/50665",
+            marketAvailabilityNote: "TC Infos documente cet exemplaire dans plusieurs réseaux franciliens de 2016 à 2026. La fiche de secours Volvo décrit la variante courte de 10,6 m, sans donner de prix ni de capacité voyageurs. Le relevé secondaire de 48 assises et un emplacement UFR est conservé pour cet exemplaire uniquement. Aucune disponibilité à l’achat, aucun prix individuel ni rattachement à Bords de Marne n’est établi ; aucune offre n’est simulée."
         )
     ]
 
