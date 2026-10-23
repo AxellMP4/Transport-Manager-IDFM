@@ -63,13 +63,13 @@
 
 - [x] Load calendars for the active GTFS version and query the selected Europe/Paris date and hour, including after-midnight service dates.
 - [x] Add date/time selection and an active-directions filter to the stop detail; visibly distinguish unknown schedule data from no service.
-- [ ] Connect the selected date/time to the persistent simulation clock when the simulation engine is built.
+- [x] Connect the selected date/time to the persistent simulation clock when a career is active; the stop detail reads `SimulationSession.simulatedAt` and the exploratory picker remains available before a career.
 
 ### Task 4: Update project status and verify
 
 **Files:**
 - Modify: `docs/IMPLEMENTATION_STATUS.md`
 
-- [x] Record the exploratory date/hour filter while keeping simulation-clock integration and live-export validation pending.
+- [x] Record the exploratory date/hour filter and its live simulation-clock integration; keep authenticated live-export validation pending.
 - [x] Run `xcodebuild -project TransportManagerIDFM.xcodeproj -scheme TransportManagerIDFM -destination 'generic/platform=macOS' -derivedDataPath /private/tmp/transport-manager-idfm-derived CODE_SIGNING_ALLOWED=NO -quiet build`.
 - [x] Run `plutil -lint TransportManagerIDFM.xcodeproj/project.pbxproj`.
