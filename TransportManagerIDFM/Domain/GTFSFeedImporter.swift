@@ -505,7 +505,8 @@ private final class BusRouteShapeCollector {
             }
             guard !malformedPointShapeIDs.contains(shapeID),
                   ordered.count >= 2,
-                  Set(ordered.map(\.sequence)).count == ordered.count else { return nil }
+                  Set(ordered.map(\.sequence)).count == ordered.count,
+                  hasPositiveLength(ordered) else { return nil }
             return GTFSRouteShape(shapeID: shapeID, points: ordered)
         }
         .sorted { $0.shapeID < $1.shapeID }
@@ -517,9 +518,22 @@ private final class BusRouteShapeCollector {
             let sequences = points.map(\.sequence)
             if points.count < 2 || Set(sequences).count != sequences.count {
                 invalidIDs.insert(shapeID)
+            } else if !hasPositiveLength(points.sorted { $0.sequence < $1.sequence }) {
+                invalidIDs.insert(shapeID)
             }
         }
         return invalidIDs
+    }
+
+    private func hasPositiveLength(_ points: [GTFSShapePoint]) -> Bool {
+        guard points.count >= 2 else { return false }
+        for (previous, current) in zip(points, points.dropFirst()) {
+            let meanLatitude = (previous.latitude + current.latitude) / 2 * .pi / 180
+            let deltaX = (current.longitude - previous.longitude) * cos(meanLatitude) * 111_320
+            let deltaY = (current.latitude - previous.latitude) * 111_320
+            if hypot(deltaX, deltaY) > 0 { return true }
+        }
+        return false
     }
 
     init(referencedShapeIDs: Set<String>) {
