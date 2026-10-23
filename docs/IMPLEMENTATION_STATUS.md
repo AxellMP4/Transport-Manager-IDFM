@@ -936,3 +936,9 @@ Vérification : `xcodebuild -project TransportManagerIDFM.xcodeproj -scheme Tran
 - Le plan officiel corrobore donc un détour dominical plausible et suggère que la forme GTFS est incomplète ou partagée avec l’itinéraire régulier. Son caractère schématique ne permet pas de vérifier les chaussées exactes. Aucune donnée de course n’est supprimée, aucune tolérance n’est modifiée et le cas reste inclus dans les 267 motifs non projetés à examiner. Une géométrie de référence appropriée, idéalement l’export PRIM authentifié, reste nécessaire pour conclure.
 - Le critère #286 demeure ouvert : cette revue renforce l’explication d’un motif mais ne valide pas les autres. Progression inchangée : 133/139 exigences (95,7 %). Le PDF reste temporaire et n’est pas intégré au jeu.
 - Vérification du 23 octobre 2026 : lecture visuelle du plan PDF RATP, contrôle de son empreinte, des arrêts, des horaires et du calendrier `IDFM:10020` dans le sous-ensemble GTFS temporaire; aucun test applicatif n’a été exécuté.
+
+## Validation Debug macOS après revue RATP — 23 octobre 2026, 14:58 CEST
+
+- Le build Debug macOS de `TransportManagerIDFM` termine avec le code 0. Le binaire du `.app` contient `x86_64` et `arm64`, vérifiés avec `lipo -info`.
+- `swiftc -frontend -parse` sur `GTFSFeedImporter.swift` et `NetworkCoverageAuditView.swift`, `plutil -lint TransportManagerIDFM.xcodeproj/project.pbxproj` et `git diff --check` réussissent. Les avertissements de connexion à CoreSimulator n’empêchent pas la compilation macOS.
+- Aucun test automatisé ni lancement interactif n’a été réalisé. La progression demeure 133/139 exigences (95,7 %); les six critères ouverts et leurs dépendances aux données/authentifications externes restent inchangés.
