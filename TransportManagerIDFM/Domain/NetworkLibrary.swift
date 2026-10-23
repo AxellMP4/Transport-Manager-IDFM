@@ -525,6 +525,18 @@ final class NetworkLibrary: ObservableObject {
         }.value
     }
 
+    func loadTripGeometryReview(
+        gtfsVersionID: String,
+        tripID: String
+    ) async throws -> GTFSGeometryReview? {
+        guard let version = catalog.versions.first(where: { $0.id == gtfsVersionID }) else {
+            throw NetworkLibraryError.missingPinnedGTFSVersion(gtfsVersionID)
+        }
+        return try await Task.detached(priority: .userInitiated) {
+            try NetworkVersionStore.loadTripGeometryReview(for: version, tripID: tripID)
+        }.value
+    }
+
     func loadRouteShapes(
         gtfsVersionID: String,
         routeIDs: Set<String>,
