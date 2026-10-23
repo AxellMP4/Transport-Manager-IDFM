@@ -220,6 +220,14 @@ enum GTFSFeedInspector {
         let tripsWithoutActiveServiceDates = tripCollector.tripByID.values.filter { trip in
             trip.serviceID.isEmpty || !serviceIDsWithActiveDates.contains(trip.serviceID)
         }.count
+        let tripIssues = Self.tripIssues(
+            tripByID: tripCollector.tripByID,
+            schedulesByTripID: schedulesByTripID,
+            geolocatedStopIDs: geolocatedStopIDs,
+            availableShapeIDs: availableShapeIDs,
+            serviceIDsWithActiveDates: serviceIDsWithActiveDates,
+            invalidStopTimeRowsByTripID: stopRouteCollector.invalidStopTimeRowsByTripID
+        )
         let quality = GTFSImportQuality(
             busTripCount: tripIDs.count,
             tripScheduleCount: busTripSchedules.count,
@@ -250,7 +258,8 @@ enum GTFSFeedInspector {
             invalidShapeCount: invalidShapeIDs.count,
             invalidStopTimeRowCount: stopRouteCollector.invalidStopTimeRowCount,
             tripsWithoutActiveServiceDates: tripsWithoutActiveServiceDates,
-            containsFrequenciesFile: archive.entry(named: "frequencies.txt") != nil
+            containsFrequenciesFile: archive.entry(named: "frequencies.txt") != nil,
+            tripIssues: tripIssues
         )
 
         return GTFSFeedInspection(
@@ -298,6 +307,48 @@ enum GTFSFeedInspector {
     private static func hasInvalidStopSequence(_ stops: [GTFSServiceTripStopTime]) -> Bool {
         let sequences = stops.map(\.stopSequence).sorted()
         return zip(sequences, sequences.dropFirst()).contains { $0.0 == $0.1 }
+    }
+
+    private static func tripIssues(
+        tripByID: [String: BusTripReference],
+        schedulesByTripID: [String: [GTFSServiceTripStopTime]],
+        geolocatedStopIDs: Set<String>,
+        availableShapeIDs: Set<String>,
+        serviceIDsWithActiveDates: Set<String>,
+        invalidStopTimeRowsByTripID: [String: Int]
+    ) -> [GTFSImportTripIssue] {
+        tripByID.keys.sorted().compactMap { tripID in
+            guard let trip = tripByID[tripID] else { return nil }
+            let stops = schedulesByTripID[tripID, default: []]
+            let invalidRowCount = invalidStopTimeRowsByTripID[tripID, default: 0]
+            var issueKinds = Set<GTFSImportTripIssueKind>()
+
+            if stops.isEmpty { issueKinds.insert(.missingStopTimes) }
+            if !stops.isEmpty, hasIncompleteTimes(stops) { issueKinds.insert(.incompleteTimes) }
+            if !stops.isEmpty, hasInvalidChronology(stops) { issueKinds.insert(.invalidChronology) }
+            if stops.contains(where: { !geolocatedStopIDs.contains($0.stopID) }) {
+                issueKinds.insert(.missingStopCoordinates)
+            }
+            if stops.count < 2 { issueKinds.insert(.tooFewStops) }
+            if hasInvalidStopSequence(stops) { issueKinds.insert(.invalidStopSequence) }
+            if let shapeID = trip.shapeID {
+                if !availableShapeIDs.contains(shapeID) { issueKinds.insert(.unavailableShape) }
+            } else {
+                issueKinds.insert(.missingShapeReference)
+            }
+            if trip.serviceID.isEmpty || !serviceIDsWithActiveDates.contains(trip.serviceID) {
+                issueKinds.insert(.inactiveService)
+            }
+            if invalidRowCount > 0 { issueKinds.insert(.invalidStopTimeRows) }
+
+            guard !issueKinds.isEmpty else { return nil }
+            return GTFSImportTripIssue(
+                routeID: trip.routeID,
+                tripID: tripID,
+                issueKinds: issueKinds,
+                invalidStopTimeRowCount: invalidRowCount
+            )
+        }
     }
 }
 
@@ -432,6 +483,7 @@ private final class BusStopRouteCollector {
     private var firstStopByTripID: [String: (stopSequence: Int, departureSeconds: Int?)] = [:]
     private var stopTimesByTripID: [String: [GTFSServiceTripStopTime]] = [:]
     private(set) var invalidStopTimeRowCount = 0
+    private(set) var invalidStopTimeRowsByTripID: [String: Int] = [:]
 
     var routeIDsByStopID: [String: Set<String>] { routeIDsByStopIDStorage }
     var collectedStopTimesByTripID: [String: [GTFSServiceTripStopTime]] { stopTimesByTripID }
@@ -500,6 +552,7 @@ private final class BusStopRouteCollector {
               let trip = tripByID[tripID] else { return }
         guard let stopID = row["stop_id"], !stopID.isEmpty else {
             invalidStopTimeRowCount += 1
+            invalidStopTimeRowsByTripID[tripID, default: 0] += 1
             return
         }
 
@@ -527,6 +580,7 @@ private final class BusStopRouteCollector {
             }
         } else {
             invalidStopTimeRowCount += 1
+            invalidStopTimeRowsByTripID[tripID, default: 0] += 1
         }
 
         routeIDsByStopIDStorage[stopID, default: []].insert(trip.routeID)
