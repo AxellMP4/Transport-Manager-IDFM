@@ -9,6 +9,8 @@ struct DepotFacilityObservation: Hashable, Sendable, Identifiable {
     let approximateLineCount: Int?
     let line113StandardBusCount: Int?
     let line113StandardBusLengthMeters: Int?
+    let standardBusParkingCapacity: Int?
+    let articulatedBusParkingCapacity: Int?
     let operationalNote: String
     let limitationNote: String
     let sourceTitle: String
@@ -23,6 +25,8 @@ struct DepotFacilityObservation: Hashable, Sendable, Identifiable {
         approximateLineCount: Int? = nil,
         line113StandardBusCount: Int? = nil,
         line113StandardBusLengthMeters: Int? = nil,
+        standardBusParkingCapacity: Int? = nil,
+        articulatedBusParkingCapacity: Int? = nil,
         operationalNote: String,
         limitationNote: String,
         sourceTitle: String,
@@ -36,6 +40,8 @@ struct DepotFacilityObservation: Hashable, Sendable, Identifiable {
         self.approximateLineCount = approximateLineCount
         self.line113StandardBusCount = line113StandardBusCount
         self.line113StandardBusLengthMeters = line113StandardBusLengthMeters
+        self.standardBusParkingCapacity = standardBusParkingCapacity
+        self.articulatedBusParkingCapacity = articulatedBusParkingCapacity
         self.operationalNote = operationalNote
         self.limitationNote = limitationNote
         self.sourceTitle = sourceTitle
@@ -55,11 +61,32 @@ struct DepotFacilityObservation: Hashable, Sendable, Identifiable {
             labels.append("Ligne 113 : \(line113StandardBusCount) autobus standards de \(line113StandardBusLengthMeters) m")
         }
 
+        if let standardBusParkingCapacity {
+            labels.append("Stationnement extérieur : capacité publiée de \(standardBusParkingCapacity) bus standards")
+        }
+
+        if let articulatedBusParkingCapacity {
+            labels.append("Stationnement extérieur : capacité publiée de \(articulatedBusParkingCapacity) bus articulés")
+        }
+
         return labels
     }
 }
 
 enum DepotFacilityEvidenceCatalog {
+    static let villiersLeBelCurrent = DepotFacilityObservation(
+        id: "villiers-le-bel-capacite-stationnement-2026",
+        periodLabel: "Site construit · page RATP modifiée le 26 juin 2026",
+        siteAreaSquareMeters: 17_000,
+        siteAreaQualifier: "d’emprise du terrain",
+        siteAreaIsApproximate: true,
+        standardBusParkingCapacity: 76,
+        articulatedBusParkingCapacity: 34,
+        operationalNote: "La RATP décrit une aire de stationnement à ciel ouvert complétée par un atelier de maintenance dans un bâtiment labellisé HQE.",
+        limitationNote: "Les capacités concernent l’aire extérieure de ce seul site et ne renseignent pas le nombre de places d’atelier, les équipements énergétiques ou la répartition des lignes.",
+        sourceTitle: "RATP · programme bus2025 · nouveau centre bus de Villiers-le-Bel",
+        sourceURL: URL(string: "https://www.ratp.fr/programme-bus2025")!
+    )
     static let neuillyPlaisanceHistorical = DepotFacilityObservation(
         id: "neuilly-plaisance-diagnostic-historique",
         periodLabel: "Diagnostic historique · références internes 2020–2022 · avant le transfert DSP45 du 1er novembre 2025",
