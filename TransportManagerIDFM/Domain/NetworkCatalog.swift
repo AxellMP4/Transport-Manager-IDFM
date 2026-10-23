@@ -475,6 +475,7 @@ enum DepotLineReferenceAuditMatch: Hashable, Sendable {
 enum DepotGTFSServiceAuditAvailability: Hashable, Sendable {
     case ready
     case feedUnavailable
+    case routeIndexUnavailable
     case validityUnknown
     case outsideFeedValidity
 
@@ -482,13 +483,14 @@ enum DepotGTFSServiceAuditAvailability: Hashable, Sendable {
         switch self {
         case .ready: "Services GTFS vérifiés pour la date choisie"
         case .feedUnavailable: "Aucune version GTFS active pour vérifier les départs"
+        case .routeIndexUnavailable: "Index de routes GTFS indisponible pour la version active; l’offre reste indéterminée"
         case .validityUnknown: "Période de validité GTFS inconnue; l’offre reste indéterminée"
         case .outsideFeedValidity: "Date hors de la période de validité de ce GTFS; l’offre reste indéterminée"
         }
     }
 }
 
-struct DepotLineServiceAuditEntry: Identifiable, Hashable, Sendable {
+struct DepotLineServiceAuditEntry:struct DepotLineServiceAuditEntry: Identifiable, Hashable, Sendable {
     let lineName: String
     let referenceMatch: DepotLineReferenceAuditMatch
     let routeIDs: [String]
