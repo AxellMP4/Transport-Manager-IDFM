@@ -25,6 +25,7 @@ Dernier point de suivi : 133/139 exigences réalisées (95,7 %). Le catalogue r�
 
 - Le premier lancement déclare la provenance PRIM de l’archive embarquée. Les imports de fichiers permettent de déclarer un export PRIM, le miroir public transport.data.gouv.fr ou une source manuelle inconnue; les appels génériques retombent sur « à vérifier ».
 - Les fiches de version conservent l’identifiant du jeu, le titre, la page source et la licence déclarée. Cette saisie décrit la provenance choisie par l’utilisateur, sans authentifier le contenu du ZIP.
+- Les catalogues déjà sauvegardés ne sont pas réattribués : sans les archives originales, leur ancienne provenance déclarée ne peut pas être vérifiée ni corrigée sans risquer de remplacer une source exacte.
 
 ## Préparation de la publication GitHub — 22 octobre 2026
 
