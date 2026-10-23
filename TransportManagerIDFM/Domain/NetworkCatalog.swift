@@ -441,6 +441,7 @@ enum GTFSImportTripIssueKind: String, Codable, CaseIterable, Hashable, Sendable 
     case missingShapeReference
     case unavailableShape
     case stopsNotMatchedToShape
+    case missingStopID
     case inactiveService
     case invalidStopTimeRows
 
@@ -455,6 +456,7 @@ enum GTFSImportTripIssueKind: String, Codable, CaseIterable, Hashable, Sendable 
         case .missingShapeReference: "forme non référencée"
         case .unavailableShape: "forme absente ou invalide"
         case .stopsNotMatchedToShape: "arrêts non projetables sur la forme GTFS"
+        case .missingStopID: "identifiant d’arrêt manquant"
         case .inactiveService: "aucune date de service active"
         case .invalidStopTimeRows: "lignes de passage invalides"
         }
@@ -466,6 +468,7 @@ struct GTFSImportTripIssue: Codable, Hashable, Identifiable, Sendable {
     let tripID: String
     let issueKinds: Set<GTFSImportTripIssueKind>
     let invalidStopTimeRowCount: Int
+    let missingStopIDRowCount: Int?
     let stopIDsWithoutCoordinates: [String]?
     let stopIDsNotMatchedToShape: [String]?
 
@@ -473,10 +476,17 @@ struct GTFSImportTripIssue: Codable, Hashable, Identifiable, Sendable {
 
     var summary: String {
         var labels = GTFSImportTripIssueKind.allCases
-            .filter { $0 != .invalidStopTimeRows && issueKinds.contains($0) }
+            .filter { $0 != .invalidStopTimeRows && $0 != .missingStopID && issueKinds.contains($0) }
             .map(\.displayName)
-        if invalidStopTimeRowCount > 0 {
-            labels.append("\(invalidStopTimeRowCount) \(GTFSImportTripIssueKind.invalidStopTimeRows.displayName)")
+        let missingStopIDRowCount = missingStopIDRowCount ?? 0
+        if missingStopIDRowCount > 0 {
+            let unit = missingStopIDRowCount == 1 ? "ligne de passage" : "lignes de passage"
+            labels.append("\(missingStopIDRowCount) \(unit) sans stop_id")
+        }
+        let otherInvalidStopTimeRowCount = max(0, invalidStopTimeRowCount - missingStopIDRowCount)
+        if otherInvalidStopTimeRowCount > 0 {
+            let unit = otherInvalidStopTimeRowCount == 1 ? "ligne de passage invalide" : "lignes de passage invalides"
+            labels.append("\(otherInvalidStopTimeRowCount) \(unit)")
         }
         return labels.joined(separator: " · ")
     }
@@ -500,6 +510,8 @@ struct GTFSImportQuality: Codable, Hashable, Sendable {
     let availableShapeCount: Int
     let invalidShapeCount: Int
     let invalidStopTimeRowCount: Int
+    /// Rows rejected specifically because stop_id was blank. Nil in older catalogs.
+    let missingStopIDRowCount: Int?
     /// Number of bus trips with a blank service_id or no dates active after
     /// applying calendar.txt and calendar_dates.txt. Nil for older catalogs.
     let tripsWithoutActiveServiceDates: Int?
@@ -516,6 +528,7 @@ struct GTFSImportQuality: Codable, Hashable, Sendable {
             || tripsWithTooFewStops > 0
             || tripsWithInvalidStopSequence > 0
             || invalidStopTimeRowCount > 0
+            || (missingStopIDRowCount ?? 0) > 0
     }
 
     var hasShapeIssues: Bool {
