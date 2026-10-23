@@ -1127,7 +1127,10 @@ enum NetworkVersionStore {
         try encoder.encode(catalog).write(to: root.appending(path: catalogFilename), options: .atomic)
     }
 
-    static func importGTFS(from sourceURL: URL) throws -> NetworkCatalog {
+    static func importGTFS(
+        from sourceURL: URL,
+        provenance: GTFSImportProvenance = .unverifiedManual
+    ) throws -> NetworkCatalog {
         let inspection = try GTFSFeedInspector.inspect(sourceURL)
         let sha256 = try digest(of: sourceURL)
         let versionFolderName = String(sha256.prefix(20))
@@ -1167,17 +1170,18 @@ enum NetworkVersionStore {
             options: .atomic
         )
 
+        let source = provenance.metadata
         let version = NetworkVersion(
             id: sha256,
             importedAt: Date(),
             validFrom: inspection.validFrom,
             validThrough: inspection.validThrough,
             sourceIDs: ["gtfs"],
-            sourceDatasetID: "offre-horaires-tc-gtfs-idfm",
-            sourceTitle: "Horaires prévus sur les lignes de transport en commun d’Île-de-France (GTFS Datahub)",
-            sourceURL: "https://prim.iledefrance-mobilites.fr/fr/jeux-de-donnees/offre-horaires-tc-gtfs-idfm",
-            license: "Licence Mobilité",
-            licenseURL: "https://prim.iledefrance-mobilites.fr/fr/licences",
+            sourceDatasetID: source.datasetID,
+            sourceTitle: source.title,
+            sourceURL: source.url,
+            license: source.license,
+            licenseURL: source.licenseURL,
             originalFilename: sourceURL.lastPathComponent,
             archiveRelativePath: relativeArchivePath,
             sha256: sha256,
