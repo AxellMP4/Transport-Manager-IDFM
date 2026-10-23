@@ -407,7 +407,10 @@ enum GTFSFeedInspector {
                 missingStopIDRowCount: missingStopIDRowCount > 0 ? missingStopIDRowCount : nil,
                 stopIDsWithoutCoordinates: stopIDsWithoutCoordinates.isEmpty ? nil : stopIDsWithoutCoordinates,
                 stopIDsNotMatchedToShape: stopIDsNotMatchedToShape,
-                stopProjectionDiagnostics: stopProjectionDiagnostics
+                stopProjectionDiagnostics: stopProjectionDiagnostics,
+                orderedStopSequence: stops.isEmpty ? nil : stops.map {
+                    GTFSStopSequenceEntry(stopID: $0.stopID, stopSequence: $0.stopSequence)
+                }
             )
         }
     }
@@ -474,6 +477,18 @@ private struct GTFSShapeStopAlignment {
     let progresses: [Double]?
     let unmatchedStopIDs: [String]
     let diagnostics: [GTFSStopShapeProjectionDiagnostic]
+}
+
+private struct GTFSShapeProjectionCandidate {
+    let errorMeters: Double
+    let progress: Double
+    let segment: Int
+}
+
+private struct GTFSShapeProjectionPathState {
+    let candidate: GTFSShapeProjectionCandidate
+    let cost: Double
+    let predecessorIndex: Int?
 }
 
 private struct GTFSStopShapeProjectionKey: Hashable {
@@ -1098,6 +1113,20 @@ final class CSVTableReader {
     }
 }
 
+private enum NetworkVersionStoreError: LocalizedError {
+    case versionNotFound
+    case archiveUnavailable
+    case archiveChecksumMismatch
+
+    var errorDescription: String? {
+        switch self {
+        case .versionNotFound: "La version GTFS à actualiser est introuvable."
+        case .archiveUnavailable: "L’archive GTFS conservée localement est indisponible."
+        case .archiveChecksumMismatch: "L’archive locale ne correspond plus à l’empreinte de la version; l’audit n’a pas été remplacé."
+        }
+    }
+}
+
 enum NetworkVersionStore {
     private static let folderName = "TransportManagerIDFM"
     private static let catalogFilename = "NetworkCatalog.json"
@@ -1125,6 +1154,29 @@ enum NetworkVersionStore {
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         try encoder.encode(catalog).write(to: root.appending(path: catalogFilename), options: .atomic)
+    }
+
+    static func refreshTripIssueSequences(for versionID: String) throws -> NetworkCatalog {
+        let initialCatalog = try loadCatalog()
+        guard let version = initialCatalog.versions.first(where: { $0.id == versionID }) else {
+            throw NetworkVersionStoreError.versionNotFound
+        }
+        guard let archiveURL = version.archiveURL,
+              FileManager.default.fileExists(atPath: archiveURL.path) else {
+            throw NetworkVersionStoreError.archiveUnavailable
+        }
+        guard try digest(of: archiveURL) == version.sha256 else {
+            throw NetworkVersionStoreError.archiveChecksumMismatch
+        }
+
+        let quality = try GTFSFeedInspector.inspect(archiveURL).quality
+        var latestCatalog = try loadCatalog()
+        guard let versionIndex = latestCatalog.versions.firstIndex(where: { $0.id == versionID }) else {
+            throw NetworkVersionStoreError.versionNotFound
+        }
+        latestCatalog.versions[versionIndex].gtfsQuality = quality
+        try saveCatalog(latestCatalog)
+        return latestCatalog
     }
 
     static func importGTFS(
@@ -1684,7 +1736,13 @@ enum NetworkVersionStore {
             }
             guard position.progress + 0.000_001 >= previousProgress else {
                 if projectionCandidate == nil {
-                    projectionCandidate = project(stop: stop, onto: shape.points, cumulative: cumulative, fromSegment: firstAllowedSegment)
+                    projectionCandidate = project(
+                        stop: stop,
+                        onto: shape.points,
+                        cumulative: cumulative,
+                        fromSegment: firstAllowedSegment,
+                        notBeforeProgress: previousProgress
+                    )
                 }
                 unmatchedStopIDs.append(stopTime.stopID)
                 diagnostics.append(GTFSStopShapeProjectionDiagnostic(
@@ -1702,11 +1760,143 @@ enum NetworkVersionStore {
         let fullyProjectedProgresses = progress.count == stopTimes.count && progress.allSatisfy { $0 != nil }
             ? progress.compactMap { $0 }
             : nil
+        if fullyProjectedProgresses == nil,
+           stopTimes.allSatisfy({ $0.shapeDistanceTraveled == nil }),
+           let loopAwareProgresses = projectStopSequenceAsCompletePath(
+                stopTimes,
+                stopsByID: stopsByID,
+                shape: shape,
+                cumulative: cumulative,
+                toleranceMeters: projectionToleranceMeters
+           ) {
+            return GTFSShapeStopAlignment(progresses: loopAwareProgresses, unmatchedStopIDs: [], diagnostics: [])
+        }
         return GTFSShapeStopAlignment(
             progresses: fullyProjectedProgresses,
             unmatchedStopIDs: unmatchedStopIDs,
             diagnostics: diagnostics
         )
+    }
+
+    private static func projectStopSequenceAsCompletePath(
+        _ stopTimes: [GTFSServiceTripStopTime],
+        stopsByID: [String: GTFSStopSummary],
+        shape: GTFSRouteShape,
+        cumulative: [Double],
+        toleranceMeters: Double
+    ) -> [Double]? {
+        guard !stopTimes.isEmpty,
+              shape.points.count == cumulative.count,
+              let totalDistance = cumulative.last,
+              totalDistance > 0 else { return nil }
+
+        var candidatesByStop: [[GTFSShapeProjectionCandidate]] = []
+        candidatesByStop.reserveCapacity(stopTimes.count)
+        for stopTime in stopTimes {
+            guard let stop = stopsByID[stopTime.stopID] else { return nil }
+            let candidates = allProjections(
+                of: stop,
+                onto: shape.points,
+                cumulative: cumulative
+            )
+            .filter { $0.errorMeters <= toleranceMeters }
+            .sorted {
+                if $0.progress != $1.progress { return $0.progress < $1.progress }
+                if $0.errorMeters != $1.errorMeters { return $0.errorMeters < $1.errorMeters }
+                return $0.segment < $1.segment
+            }
+            guard !candidates.isEmpty else { return nil }
+            candidatesByStop.append(candidates)
+        }
+
+        var statesByStop: [[GTFSShapeProjectionPathState]] = []
+        statesByStop.reserveCapacity(candidatesByStop.count)
+        statesByStop.append(candidatesByStop[0].map { candidate in
+            GTFSShapeProjectionPathState(
+                candidate: candidate,
+                cost: candidate.errorMeters * candidate.errorMeters,
+                predecessorIndex: nil
+            )
+        })
+
+        for stopIndex in 1..<candidatesByStop.count {
+            let previousStates = statesByStop[stopIndex - 1]
+            let candidates = candidatesByStop[stopIndex]
+            var previousIndex = 0
+            var bestPreviousIndex: Int?
+            var nextStates: [GTFSShapeProjectionPathState] = []
+            nextStates.reserveCapacity(candidates.count)
+
+            for candidate in candidates {
+                while previousIndex < previousStates.count,
+                      previousStates[previousIndex].candidate.progress <= candidate.progress + 0.000_001 {
+                    if let currentBestIndex = bestPreviousIndex {
+                        if previousStates[previousIndex].cost < previousStates[currentBestIndex].cost {
+                            bestPreviousIndex = previousIndex
+                        }
+                    } else {
+                        bestPreviousIndex = previousIndex
+                    }
+                    previousIndex += 1
+                }
+                guard let bestPreviousIndex else { continue }
+                nextStates.append(GTFSShapeProjectionPathState(
+                    candidate: candidate,
+                    cost: previousStates[bestPreviousIndex].cost + candidate.errorMeters * candidate.errorMeters,
+                    predecessorIndex: bestPreviousIndex
+                ))
+            }
+            guard !nextStates.isEmpty else { return nil }
+            statesByStop.append(nextStates)
+        }
+
+        guard let lastStateIndex = statesByStop.last?.indices.min(by: {
+            statesByStop[statesByStop.count - 1][$0].cost < statesByStop[statesByStop.count - 1][$1].cost
+        }) else { return nil }
+        var selectedIndices = Array(repeating: 0, count: statesByStop.count)
+        selectedIndices[selectedIndices.count - 1] = lastStateIndex
+        if selectedIndices.count > 1 {
+            for stopIndex in stride(from: selectedIndices.count - 1, through: 1, by: -1) {
+                guard let predecessor = statesByStop[stopIndex][selectedIndices[stopIndex]].predecessorIndex else {
+                    return nil
+                }
+                selectedIndices[stopIndex - 1] = predecessor
+            }
+        }
+        return statesByStop.indices.map { stopIndex in
+            statesByStop[stopIndex][selectedIndices[stopIndex]].candidate.progress
+        }
+    }
+
+    private static func allProjections(
+        of stop: GTFSStopSummary,
+        onto points: [GTFSShapePoint],
+        cumulative: [Double]
+    ) -> [GTFSShapeProjectionCandidate] {
+        guard points.count >= 2, cumulative.count == points.count,
+              let totalDistance = cumulative.last, totalDistance > 0 else { return [] }
+        let latitudeScale = cos(stop.latitude * .pi / 180)
+        return points.indices.dropLast().compactMap { segment in
+            let start = points[segment]
+            let end = points[segment + 1]
+            let startX = (start.longitude - stop.longitude) * latitudeScale
+            let startY = start.latitude - stop.latitude
+            let deltaX = (end.longitude - start.longitude) * latitudeScale
+            let deltaY = end.latitude - start.latitude
+            let lengthSquared = deltaX * deltaX + deltaY * deltaY
+            let fraction = lengthSquared == 0
+                ? 0
+                : min(1, max(0, -(startX * deltaX + startY * deltaY) / lengthSquared))
+            let errorX = startX + deltaX * fraction
+            let errorY = startY + deltaY * fraction
+            let errorMeters = hypot(errorX, errorY) * 111_320
+            let distance = cumulative[segment] + (cumulative[segment + 1] - cumulative[segment]) * fraction
+            return GTFSShapeProjectionCandidate(
+                errorMeters: errorMeters,
+                progress: distance / totalDistance,
+                segment: segment
+            )
+        }
     }
 
     private static func shapeProgress(
