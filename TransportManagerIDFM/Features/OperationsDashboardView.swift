@@ -41,10 +41,42 @@ private struct AdditionalScenarioCoverageView: View {
     let coverage: ScenarioLineCoverage
 
     var body: some View {
+        if !coverage.unresolvedActiveEntries.isEmpty {
+            DisclosureGroup("Routes actives dont le lien roster–ID_Line reste à vérifier (\(coverage.unresolvedActiveRouteCount))") {
+                VStack(alignment: .leading, spacing: 5) {
+                    ForEach(coverage.unresolvedActiveEntries) { entry in
+                        HStack(alignment: .firstTextBaseline) {
+                            Text(entry.lineName)
+                                .font(.caption.weight(.semibold))
+                            Spacer(minLength: 8)
+                            Text(entry.activeRouteIDs.joined(separator: ", "))
+                                .font(.caption2.monospaced())
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.trailing)
+                        }
+                        if !entry.lineReferenceIDs.isEmpty {
+                            Text("ID_Line candidats · \(entry.lineReferenceIDs.joined(separator: ", "))")
+                                .font(.caption2.monospaced())
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .padding(.top, 5)
+                Text("Le nom commercial correspond au repère, mais aucune correspondance unique entre l’ID_Line et la route GTFS n’est retenue.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 5)
+            }
+            .font(.caption.weight(.medium))
+        }
+
         if coverage.unlistedActiveEntries.isEmpty {
-            Text("Aucune autre route bus active hors du repère ce jour-là.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            if coverage.unresolvedActiveEntries.isEmpty {
+                Text("Aucune route bus active hors des ID_Line du repère ce jour-là.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         } else {
             DisclosureGroup("Routes GTFS actives hors du repère · à qualifier (\(coverage.unlistedActiveRouteCount))") {
                 VStack(alignment: .leading, spacing: 5) {
@@ -58,10 +90,15 @@ private struct AdditionalScenarioCoverageView: View {
                                 .foregroundStyle(.secondary)
                                 .multilineTextAlignment(.trailing)
                         }
+                        if !entry.lineReferenceIDs.isEmpty {
+                            Text("ID_Line · \(entry.lineReferenceIDs.joined(separator: ", "))")
+                                .font(.caption2.monospaced())
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
                 .padding(.top, 5)
-                Text("Ces routes ont au moins un départ dans le GTFS actif, mais leur nom ne figure pas dans le repère publié. Leur présence ne confirme ni un rattachement à la DSP 45 ni une répartition entre COB.")
+                Text("Ces routes ont au moins un départ ce jour-là, mais leur ID_Line n’est pas dans le repère publié. Leur présence ne confirme ni un rattachement à la DSP 45 ni une répartition entre COB.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -297,7 +334,7 @@ struct OperationsDashboardView: View {
         let calendar = GTFSServiceDate.calendar(timeZone: GTFSServiceDate.parisTimeZone)
         let serviceDate = calendar.startOfDay(for: careerStartMoment)
         let dateKey = GTFSServiceDate.key(for: serviceDate, timeZone: GTFSServiceDate.parisTimeZone) ?? -1
-        return "\(simulation.session?.id ?? "préparation")|\(catalog.activeVersion?.id ?? "aucune")|\(dateKey)|\(library.busRoutes.count)"
+        return "\(simulation.session?.id ?? "préparation")|\(catalog.activeVersion?.id ?? "aucune")|\(catalog.activeLineReferenceVersion?.id ?? "aucune-référence")|\(dateKey)|\(library.busRoutes.count)|\(library.lineReferences.count)"
     }
 
     private var scenarioLineChecklist: ScenarioLineChecklist? {
@@ -1350,8 +1387,10 @@ struct OperationsDashboardView: View {
                     depotCoverageMetric("Plans · fiches horaires", value: "\(selectedDepotLineCoverage.planCoverage) · \(selectedDepotLineCoverage.timetableCoverage)", symbol: "doc.text")
                     depotCoverageMetric("Références ambiguës / absentes", value: "\(selectedDepotLineCoverage.ambiguousReferenceCount) / \(selectedDepotLineCoverage.missingReferenceCount)", symbol: "questionmark.circle")
                     depotCoverageMetric("Sans route GTFS", value: "\(selectedDepotLineCoverage.missingGTFSCount)", symbol: "bus")
+                    depotCoverageMetric("Variantes sans plan · horaire", value: "\(selectedDepotLineCoverage.routesWithoutPlans.count) · \(selectedDepotLineCoverage.routesWithoutTimetables.count)", symbol: "doc.text")
                     depotCoverageMetric("COB non confirmé", value: "\(selectedDepotLineCoverage.unconfirmedDepotEvidenceCount)/\(selectedDepotLineCoverage.uniqueLineCount)", symbol: "building.2")
                 }
+                DepotMissingRouteDocumentsDisclosure(coverage: selectedDepotLineCoverage)
                 if DepotLineRoster.bordsDeMarneManifestSiteIDs.contains(selectedDepotID) {
                     Label(
                         "\(DepotLineRosterManifestCatalog.state.summary) · \(DepotLineRosterManifestCatalog.entries(for: selectedDepotRosterDate).count) actives à cette date",
@@ -1814,7 +1853,9 @@ struct OperationsDashboardView: View {
             let activeRoutes = candidateRoutes.filter { activeRouteIDs.contains($0.routeID) }
             scenarioLineCoverage = .compare(
                 expectedLineNames: expectedNames,
-                against: activeRoutes
+                activeReferences: library.lineReferences,
+                against: activeRoutes,
+                on: careerStartMoment
             )
             scenarioLineCoverageError = nil
         } catch {
@@ -2238,12 +2279,24 @@ struct OperationsDashboardView: View {
                             .foregroundStyle(.orange)
                             .fixedSize(horizontal: false, vertical: true)
                     } else if let scenarioLineCoverage {
-                        Text("\(scenarioLineCoverage.matchedCount) / \(checklist.lineNames.count) noms de la liste ont au moins un départ GTFS le \(careerStartMoment.formatted(date: .abbreviated, time: .omitted)).")
+                        Text("\(scenarioLineCoverage.matchedCount) / \(checklist.lineNames.count) lignes ont un ID_Line unique et au moins un départ GTFS exact le \(careerStartMoment.formatted(date: .abbreviated, time: .omitted)).")
                             .font(.caption.weight(.medium))
                             .foregroundStyle(scenarioLineCoverage.matchedCount == checklist.lineNames.count ? Color.green : Color.orange)
                             .fixedSize(horizontal: false, vertical: true)
                         if !scenarioLineCoverage.missingLineNames.isEmpty {
                             Text("Sans départ trouvé ce jour-là : \(scenarioLineCoverage.missingLineNames.joined(separator: ", ")).")
+                                .font(.caption2)
+                                .foregroundStyle(.orange)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        if !scenarioLineCoverage.missingReferenceNames.isEmpty {
+                            Text("Sans référence IDFM active : \(scenarioLineCoverage.missingReferenceNames.joined(separator: ", ")).")
+                                .font(.caption2)
+                                .foregroundStyle(.orange)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        if !scenarioLineCoverage.ambiguousReferenceEntries.isEmpty {
+                            Text("Référence IDFM ambiguë : \(scenarioLineCoverage.ambiguousReferenceEntries.map { "\($0.lineName) (\($0.lineReferenceIDs.joined(separator: ", ")))" }.joined(separator: "; ")).")
                                 .font(.caption2)
                                 .foregroundStyle(.orange)
                                 .fixedSize(horizontal: false, vertical: true)
@@ -2255,7 +2308,7 @@ struct OperationsDashboardView: View {
                                         Text(entry.lineName)
                                             .font(.caption.weight(.semibold).monospaced())
                                         Spacer(minLength: 8)
-                                        Text(entry.activeRouteIDs.joined(separator: ", "))
+                                        Text("\(entry.lineReferenceIDs.first ?? "ID_Line ?") → \(entry.activeRouteIDs.joined(separator: ", "))")
                                             .font(.caption2.monospaced())
                                             .foregroundStyle(.secondary)
                                             .multilineTextAlignment(.trailing)
