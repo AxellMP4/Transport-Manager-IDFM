@@ -76,10 +76,10 @@
 - A line row receives one roster entry, zero or more exact GTFS route IDs, document links, and evidence status.
 
 - [x] Add an entry point from the selected depot's operations panel to its line catalogue.
-- [ ] Group lines by confirmed assignment, historical/probable candidate, shared/unassigned, and active route IDs needing qualification.
+- [x] Group lines by confirmed, candidate, shared/partial/observed, unassigned/conflicting, and planned evidence; show exact route IDs from the loaded GTFS snapshot in a separate qualification disclosure, without implying service on the selected date.
 - [x] Show route variants and their GTFS identifiers next to the commercial line name.
 - [x] Show every official plan and timetable link returned for each matched route; include source type and any known validity dates.
-- [ ] Show distinct states for missing GTFS, missing reference, missing documents, and unconfirmed depot evidence.
+- [x] Show distinct states for missing GTFS, missing/ambiguous IDFM reference, missing documents, and unconfirmed depot evidence.
 - [x] Provide an action to download/import the official line-reference and documents CSVs using the existing NetworkLibrary methods.
 
 ### Task 4: Date-aware timetable grid
@@ -115,5 +115,5 @@
 - The CSV is bundled and has a runtime loader that validates its schema, line categories, date ranges, unique dated rows, depot IDs, and HTTP(S) evidence/document URLs. It now preserves secondary evidence, historical center labels and periods, service announcements, document validity text, multiple plan/timetable URLs, and titled project documents. The line detail exposes these records while explicitly keeping site IDs and center labels from acting as COB assignment evidence. The richer per-depot claim graph and operational catalog rows still come from Swift; migrate those only after preserving claim kind, site, and validity dates.
 - The coverage report now deduplicates lines by `ID_Line`, distinguishes route variants and reports reference/GTFS/document/official-trace coverage per depot. It still needs an explicit count/list of active GTFS routes outside the depot roster, plus a per-route document-missing diagnostic.
 - The service-date picker reports dates outside the selected GTFS feed's validity, but still permits choosing them; constrain the picker or provide a bounded date selection.
-- Latest source review and build: macOS Debug `x86_64`, **BUILD SUCCEEDED**, 21 October 2026, 02:42 Europe/Paris. No automated tests were run. Xcode emitted CoreSimulator/App Intents environment warnings; the macOS target completed successfully. The app was not launched, so the runtime validation label was compiled but not observed in a running window.
+- Latest source review and build: macOS Debug, **BUILD SUCCEEDED**, 23 October 2026, 06:48 Europe/Paris, with `x86_64` and `arm64` in the resulting app. `swiftc -frontend -parse` and `git diff --check` also succeed. No automated tests were run, as required by this plan. Xcode reported unavailable CoreSimulator services and skipped App Intents metadata extraction because the app has no AppIntents dependency; neither prevented the macOS build. The app was not launched.
 
