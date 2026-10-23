@@ -708,6 +708,8 @@ struct GTFSImportMetadata: Sendable {
 }
 
 enum GTFSImportProvenance: String, CaseIterable, Identifiable, Sendable {
+    static let bundledArchiveSHA256 = "3c3fe0eb7e165dde283ff87489339b48b4c3dcf69be011cc7ae2bc78d1764500"
+
     case prim
     case publicMirror
     case unverifiedManual
@@ -763,6 +765,7 @@ struct NetworkVersion: Identifiable, Codable, Hashable, Sendable {
     let sourceURL: String
     let license: String
     let licenseURL: String
+    let sourceProvenanceIsDeclared: Bool
     let originalFilename: String
     let archiveRelativePath: String
     let sha256: String
@@ -770,6 +773,14 @@ struct NetworkVersion: Identifiable, Codable, Hashable, Sendable {
     let busStopCount: Int
     let feedStopCount: Int
     let gtfsQuality: GTFSImportQuality?
+
+    var displaySourceTitle: String {
+        sourceProvenanceIsDeclared ? sourceTitle : "Source GTFS à vérifier"
+    }
+
+    var displayLicense: String {
+        sourceProvenanceIsDeclared ? license : "À vérifier"
+    }
 
     var archiveURL: URL? {
         try? NetworkVersionStore.rootDirectory()
@@ -945,6 +956,7 @@ extension NetworkVersion {
         case sourceURL
         case license
         case licenseURL
+        case sourceProvenanceIsDeclared
         case originalFilename
         case archiveRelativePath
         case sha256
@@ -961,14 +973,21 @@ extension NetworkVersion {
         validFrom = try values.decodeIfPresent(Date.self, forKey: .validFrom)
         validThrough = try values.decodeIfPresent(Date.self, forKey: .validThrough)
         sourceIDs = try values.decode([String].self, forKey: .sourceIDs)
-        sourceDatasetID = try values.decode(String.self, forKey: .sourceDatasetID)
+        let decodedDatasetID = try values.decode(String.self, forKey: .sourceDatasetID)
+        sourceDatasetID = decodedDatasetID
         sourceTitle = try values.decode(String.self, forKey: .sourceTitle)
         sourceURL = try values.decode(String.self, forKey: .sourceURL)
         license = try values.decode(String.self, forKey: .license)
         licenseURL = try values.decode(String.self, forKey: .licenseURL)
+        let decodedSHA256 = try values.decode(String.self, forKey: .sha256)
+        sourceProvenanceIsDeclared = try values.decodeIfPresent(Bool.self, forKey: .sourceProvenanceIsDeclared)
+            ?? (
+                decodedDatasetID == "offre-horaires-tc-gtfs-idfm"
+                    && decodedSHA256 == GTFSImportProvenance.bundledArchiveSHA256
+            )
         originalFilename = try values.decode(String.self, forKey: .originalFilename)
         archiveRelativePath = try values.decode(String.self, forKey: .archiveRelativePath)
-        sha256 = try values.decode(String.self, forKey: .sha256)
+        sha256 = decodedSHA256
         busRouteCount = try values.decode(Int.self, forKey: .busRouteCount)
         busStopCount = try values.decodeIfPresent(Int.self, forKey: .busStopCount) ?? 0
         feedStopCount = try values.decode(Int.self, forKey: .feedStopCount)
