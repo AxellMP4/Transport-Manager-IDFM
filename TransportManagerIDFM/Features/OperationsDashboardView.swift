@@ -305,6 +305,7 @@ struct OperationsDashboardView: View {
     @State private var routeDetourExtensionError: String?
     @State private var isDataImporterPresented = false
     @State private var localImportKind: LocalImportKind = .gtfs
+    @State private var gtfsImportProvenance: GTFSImportProvenance = .unverifiedManual
     @State private var isRouteLibraryPresented = false
     @State private var isContractLibraryPresented = false
     @State private var isRegionalDepotRegistryPresented = false
@@ -692,7 +693,7 @@ struct OperationsDashboardView: View {
                 guard let url = urls.first else { return }
                 switch localImportKind {
                 case .gtfs:
-                    library.importGTFS(from: url)
+                    library.importGTFS(from: url, provenance: gtfsImportProvenance)
                 case .routeGeometry:
                     library.importRouteGeometries(from: url)
                 case .contracts:
@@ -3643,15 +3644,22 @@ struct OperationsDashboardView: View {
     }
 
     private var importButton: some View {
-        Button {
-            localImportKind = .gtfs
-            isDataImporterPresented = true
+        Menu {
+            ForEach(GTFSImportProvenance.allCases) { provenance in
+                Button {
+                    gtfsImportProvenance = provenance
+                    localImportKind = .gtfs
+                    isDataImporterPresented = true
+                } label: {
+                    Label(provenance.menuTitle, systemImage: "archivebox")
+                }
+            }
         } label: {
             Label(catalog.activeVersion == nil ? "Choisir le ZIP GTFS…" : "Importer une nouvelle version…", systemImage: "square.and.arrow.down")
         }
         .buttonStyle(.borderedProminent)
         .disabled(library.importState.isImporting || simulation.session != nil)
-        .help("Choisissez l’archive exportée depuis votre compte PRIM.")
+        .help("Choisissez la provenance déclarée de l’archive GTFS avant de sélectionner le ZIP.")
     }
 
     private func eyebrow(_ title: String) -> some View {
