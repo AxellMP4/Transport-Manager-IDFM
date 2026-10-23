@@ -3090,8 +3090,15 @@ struct OperationsDashboardView: View {
                         }
                         Text("Formes : \(quality.availableShapeCount)/\(quality.referencedShapeCount) formes référencées disponibles • \(quality.tripsWithoutShapeReference) courses sans forme • \(quality.tripsWithUnavailableShape) courses avec forme référencée absente ou invalide • \(quality.invalidShapeCount) formes écartées.")
                             .foregroundStyle(quality.hasShapeIssues ? Color.orange : Color.secondary)
+                        if let tripsWithUnmatchedShapeStops = quality.tripsWithUnmatchedShapeStops {
+                            Text("Séquence arrêts–forme : \(tripsWithUnmatchedShapeStops) courses géolocalisées dont les arrêts ne se projettent pas en ordre sur la forme GTFS dans une tolérance de 350 m. Elles utilisent une estimation entre coordonnées d’arrêts.")
+                                .foregroundStyle(tripsWithUnmatchedShapeStops > 0 ? Color.orange : Color.secondary)
+                        } else {
+                            Text("La compatibilité séquence d’arrêts–forme n’est pas archivée pour cet ancien import.")
+                                .foregroundStyle(.secondary)
+                        }
                         tripIssueDetails(quality.tripIssues)
-                        Text("Un audit structurel ne confirme pas le tracé réel ni le rattachement des arrêts ; ces données restent à valider sur un export PRIM.")
+                        Text("Cet audit vérifie la projection structurelle des arrêts géolocalisés sur leur forme GTFS ; il ne confirme pas la géométrie routière réelle ni les itinéraires de terrain.")
                             .foregroundStyle(.secondary)
                     }
                     .font(.caption2)
@@ -3412,6 +3419,18 @@ struct OperationsDashboardView: View {
                                                 .font(.caption2)
                                                 .foregroundStyle(.orange)
                                                 .fixedSize(horizontal: false, vertical: true)
+                                            if let stopIDs = issue.stopIDsWithoutCoordinates, !stopIDs.isEmpty {
+                                                Text("Arrêts sans coordonnées : \(stopIDs.joined(separator: ", "))")
+                                                    .font(.caption2.monospaced())
+                                                    .foregroundStyle(.orange)
+                                                    .textSelection(.enabled)
+                                            }
+                                            if let stopIDs = issue.stopIDsNotMatchedToShape, !stopIDs.isEmpty {
+                                                Text("Arrêts non projetés : \(stopIDs.joined(separator: ", "))")
+                                                    .font(.caption2.monospaced())
+                                                    .foregroundStyle(.orange)
+                                                    .textSelection(.enabled)
+                                            }
                                         }
                                         .padding(.vertical, 2)
                                     }
