@@ -67,6 +67,8 @@ struct DepotLineRosterSite: Identifiable, Hashable, Sendable {
     let documentedAddress: String?
     let evidenceTitle: String?
     let idfmBusContractID: String?
+    let additionalEvidenceTitle: String?
+    let additionalEvidenceURL: URL?
 
     var isOperational: Bool { availability.isOperational }
 
@@ -86,7 +88,9 @@ struct DepotLineRosterSite: Identifiable, Hashable, Sendable {
         sourceURL: URL?,
         documentedAddress: String? = nil,
         evidenceTitle: String? = nil,
-        idfmBusContractID: String? = nil
+        idfmBusContractID: String? = nil,
+        additionalEvidenceTitle: String? = nil,
+        additionalEvidenceURL: URL? = nil
     ) {
         self.id = id
         self.name = name
@@ -98,6 +102,8 @@ struct DepotLineRosterSite: Identifiable, Hashable, Sendable {
         self.documentedAddress = documentedAddress
         self.evidenceTitle = evidenceTitle
         self.idfmBusContractID = idfmBusContractID
+        self.additionalEvidenceTitle = additionalEvidenceTitle
+        self.additionalEvidenceURL = additionalEvidenceURL
     }
 }
 
@@ -319,6 +325,7 @@ enum DepotLineRoster {
     static let documentsDatasetURL = URL(string: "https://data.iledefrance-mobilites.fr/explore/dataset/fiches-horaires-et-plans/")!
     static let lineReferenceURL = URL(string: "https://data.iledefrance-mobilites.fr/explore/dataset/referentiel-des-lignes/")!
     private static let ratpBus2025URL = URL(string: "https://www.ratp.fr/programme-bus2025")!
+    private static let ratpDSP45DepotSplitURL = URL(string: "https://askip.ratpgroup.com/question/ile-de-france-mobilites-vient-de-publier-4-appels-doffres-quels-sont-les-centres-bus-concernes/")!
     private static let idfmDSP41To47URL = URL(string: "https://presse.iledefrance-mobilites.fr/ile-de-france-mobilites-designe-les-operateurs-bus-de-quatre-lots-en-petite-couronne-et-dun-lot-en-grande-couronne/?lang=fr")!
     private static let idfmDSP36To40URL = URL(string: "https://presse.iledefrance-mobilites.fr/ile-de-france-mobilites-designe-les-operateurs-bus-de-trois-lots-en-petite-couronne-et-reattribue-un-lot-en-grande-couronne/?lang=fr")!
     private static let idfmDSP1And18And24URL = URL(string: "https://presse.iledefrance-mobilites.fr/ile-de-france-mobilites-confirme-lattribution-de-deux-lots-de-bus-et-le-marche-pam/?lang=fr")!
@@ -332,9 +339,11 @@ enum DepotLineRoster {
             locality: "Saint-Maur-des-Fossés",
             status: "COB DSP45 · affectations par ligne à établir",
             availability: .operational,
-            evidenceNote: "Le site figure parmi les deux COB de la DSP45. Le tableau ligne–centre de l’ancien contrat IDFM–RATP documente Saint-Maur avant le transfert du 1er novembre 2025 ; les lignes du nouvel exploitant ne sont pas ventilées par COB dans les sources consultées.",
+            evidenceNote: "Le site figure parmi les deux COB de la DSP45. Le tableau ligne–centre de l’ancien contrat IDFM–RATP documente Saint-Maur avant le transfert du 1er novembre 2025 ; les lignes du nouvel exploitant ne sont pas ventilées par COB dans les sources consultées. RATP Group chiffre rétrospectivement neuf lignes pour Saint-Maur dans la préparation du lot 45 en 2022, sans en publier les numéros dans cet article.",
             sourceURL: contractEvidenceURL,
-            idfmBusContractID: "45"
+            idfmBusContractID: "45",
+            additionalEvidenceTitle: "RATP Group · répartition des lignes du lot 45 par centre-bus · 29 mars 2022",
+            additionalEvidenceURL: ratpDSP45DepotSplitURL
         ),
         DepotLineRosterSite(
             id: "neuilly-plaisance",
@@ -342,10 +351,12 @@ enum DepotLineRoster {
             locality: "Neuilly-Plaisance",
             status: "COB recensé · lignes DSP45 à ventiler",
             availability: .operational,
-            evidenceNote: "La brochure RATP d’avril 2026 identifie le COB Neuilly-Plaisance parmi ses sites opérationnels et indique séparément que la DSP 45 Boucles de Marne est exploitée par RATP Cap IDF depuis le 1er novembre 2025. Elle ne répartit pas les lignes du contrat entre les COB. Le tableau ligne–centre de l’ancien contrat IDFM–RATP reste borné au 31 octobre 2025.",
+            evidenceNote: "La brochure RATP d’avril 2026 identifie le COB Neuilly-Plaisance parmi ses sites opérationnels et indique séparément que la DSP 45 Boucles de Marne est exploitée par RATP Cap IDF depuis le 1er novembre 2025. Elle ne répartit pas les lignes du contrat entre les COB. En 2022, RATP Group comptait treize lignes du centre-bus de Bords-de-Marne pour le lot 45, sans donner leurs numéros dans cet article ni établir les affectations après le transfert. Le tableau ligne–centre de l’ancien contrat IDFM–RATP reste borné au 31 octobre 2025.",
             sourceURL: ratpSeineSaintDenisBrochure2026URL,
             evidenceTitle: "RATP · présence en Seine-Saint-Denis · avril 2026",
-            idfmBusContractID: "45"
+            idfmBusContractID: "45",
+            additionalEvidenceTitle: "RATP Group · répartition des lignes du lot 45 par centre-bus · 29 mars 2022",
+            additionalEvidenceURL: ratpDSP45DepotSplitURL
         ),
         DepotLineRosterSite(
             id: "freres-lumiere",
