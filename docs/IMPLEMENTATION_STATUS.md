@@ -1,11 +1,13 @@
 # État de réalisation
 
-## Recontrôle du GTFS public et espace de build — 25 octobre 2026, 00:10 CEST
+## Recontrôle du GTFS public et livraison jouable — 25 octobre 2026, 00:13 CEST
 
 - La fiche PAN 80921 affiche maintenant une période du 21 octobre au 22 novembre 2026, mais son rapport de validation indique toujours le fichier en vigueur au 24 octobre à 08:27. Le lien de téléchargement pointe vers le miroir ZIP, que le navigateur de consultation ne peut pas transférer et que le terminal ne résout pas actuellement (`curl: Could not resolve host: eu.ftp.opendatasoft.com`). Cette métadonnée ne permet donc pas de prouver qu’un nouvel archive est disponible ni d’en vérifier les courses.
 - Le snapshot embarqué reste celui du 24 octobre vérifié dans le dépôt : 143 courses 214, aucune active du 1er au 3 novembre, et aucune route 314. Aucun horaire n’est extrapolé de la fenêtre de couverture. #280 reste ouvert en attente d’un ZIP téléchargeable et inspecté ou d’un export PRIM authentifié; l’utilisateur n’a pas de compte PRIM.
 - Le point de suivi #280 ci-dessous est corrigé pour identifier le snapshot embarqué du 24 octobre plutôt que celui du 23. Progression inchangée : 133/139 exigences (95,7 %).
 - L’espace disque vérifié avant le build est de 13 Gio disponibles; l’erreur « No space left on device » du précédent essai ne se reproduit pas dans l’environnement actuel.
+- Compilation Debug macOS de `TransportManagerIDFM` terminée avec le code 0, `ONLY_ACTIVE_ARCH=NO`, `CODE_SIGNING_ALLOWED=NO`, `-jobs 2`. Le produit est signé ad hoc pour usage local; `codesign --verify --deep --strict`, `plutil -lint` et `lipo -info` passent, avec architectures `x86_64` et `arm64`. Xcode émet des avertissements CoreSimulator indisponible, sans bloquer la cible macOS.
+- Le ZIP visible dans le workspace était un placeholder illisible; il a été remplacé par l’archive reconstruite depuis le bundle compilé. Les 18 fragments GTFS du 24 octobre sont présents. `unzip -tq` confirme l’intégrité du paquet jouable `build/Debug/TransportManagerIDFM-Playable.zip` : 177 557 431 octets, SHA-256 `9a0975d30b1b3fc93f0281d944192b94a010a8b1552d0d84a1b87f20ead0daa9`. Aucune notarisation.
 - Source consultée : [fiche GTFS officielle PAN 80921](https://transport.data.gouv.fr/resources/80921).
 
 ## Référence Mercedes-Benz eCitaro CATP — 25 octobre 2026, 00:04 CEST
