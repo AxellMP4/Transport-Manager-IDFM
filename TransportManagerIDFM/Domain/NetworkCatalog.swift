@@ -603,6 +603,7 @@ enum GTFSImportTripIssueKind: String, Codable, CaseIterable, Hashable, Sendable 
     case incompleteTimes
     case invalidChronology
     case missingStopCoordinates
+    case missingStopRecord
     case tooFewStops
     case invalidStopSequence
     case missingShapeReference
@@ -618,6 +619,7 @@ enum GTFSImportTripIssueKind: String, Codable, CaseIterable, Hashable, Sendable 
         case .incompleteTimes: "horaires incomplets"
         case .invalidChronology: "horaires non chronologiques"
         case .missingStopCoordinates: "arrêts sans coordonnées"
+        case .missingStopRecord: "stop_id absent de stops.txt"
         case .tooFewStops: "moins de deux arrêts"
         case .invalidStopSequence: "séquence d’arrêts dupliquée"
         case .missingShapeReference: "forme non référencée"
@@ -675,6 +677,8 @@ struct GTFSImportTripIssue: Codable, Hashable, Identifiable, Sendable {
     let invalidStopTimeRowCount: Int
     let missingStopIDRowCount: Int?
     let stopIDsWithoutCoordinates: [String]?
+    /// IDs referenced by stop_times.txt but not present in stops.txt. Nil in older catalogs.
+    let stopIDsMissingFromFeed: [String]?
     let stopIDsNotMatchedToShape: [String]?
     /// Per-stop reason and distance for rejected shape projections. Nil in older catalogs.
     let stopProjectionDiagnostics: [GTFSStopShapeProjectionDiagnostic]?
@@ -709,6 +713,8 @@ struct GTFSImportQuality: Codable, Hashable, Sendable {
     let tripsWithIncompleteTimes: Int
     let tripsWithInvalidChronology: Int
     let tripsWithMissingStopCoordinates: Int
+    /// Trips referencing stop IDs absent from stops.txt. Nil for older catalogs.
+    let tripsWithMissingStopRecords: Int?
     let tripsWithTooFewStops: Int
     let tripsWithInvalidStopSequence: Int
     let tripsWithoutShapeReference: Int
@@ -737,6 +743,7 @@ struct GTFSImportQuality: Codable, Hashable, Sendable {
             || tripsWithIncompleteTimes > 0
             || tripsWithInvalidChronology > 0
             || tripsWithMissingStopCoordinates > 0
+            || (tripsWithMissingStopRecords ?? 0) > 0
             || tripsWithTooFewStops > 0
             || tripsWithInvalidStopSequence > 0
             || invalidStopTimeRowCount > 0
