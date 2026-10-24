@@ -86,6 +86,36 @@ struct VehicleMarketPricingSmoke {
             "La variante MAN doit citer le constructeur sans créer d’offre individuelle."
         )
 
+        guard let ebuscoRBus = VehicleMarketCatalog.model(id: "ebusco-electric-standard-2015"),
+              let ebusco22Variant = ebuscoRBus.technicalVariants?.first(where: {
+                  $0.id == "ebusco-22-12m-range-2020"
+              }) else {
+            fatalError("La variante Ebusco 2.2 doit rester distincte de l’essai R’Bus dont le sous-modèle est inconnu.")
+        }
+        precondition(
+            ebuscoRBus.lengthMeters == 12
+                && ebuscoRBus.maximumCapacity == 95
+                && ebuscoRBus.seatedCapacity == nil,
+            "La fiche R’Bus doit conserver ses données IDFM de 2015 sans les remplacer par celles du 2.2."
+        )
+        precondition(
+            ebusco22Variant.lengthMeters == 12
+                && ebusco22Variant.widthMeters == 2.55
+                && ebusco22Variant.heightMeters == 3.35
+                && ebusco22Variant.maximumCapacity == 90
+                && ebusco22Variant.seatedCapacity == 41
+                && ebusco22Variant.maximumPowerKilowatts == 270
+                && ebusco22Variant.batteryCapacityKWh == nil
+                && ebusco22Variant.applicabilityNote.contains("363 ou 423 kWh")
+                && ebusco22Variant.applicabilityNote.contains("pas attribuées à l’essai R’Bus de 2015"),
+            "La brochure Ebusco doit conserver ses options de batterie et ne pas les attribuer au bus essayé en 2015."
+        )
+        precondition(
+            ebusco22Variant.evidenceURL == "https://www.ebusco.com/wp-content/uploads/Ebusco-2.2-Brochure-2020-FR-Online.pdf"
+                && VehicleMarketCatalog.offers(for: 2026).allSatisfy { $0.modelID != ebuscoRBus.id },
+            "La variante Ebusco doit citer la brochure constructeur sans créer d’offre individuelle."
+        )
+
         print("Validation de l’indexation tarifaire du marché réussie.")
     }
 }
