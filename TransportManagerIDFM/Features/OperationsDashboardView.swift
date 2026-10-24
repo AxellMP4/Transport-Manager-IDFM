@@ -3219,10 +3219,15 @@ struct OperationsDashboardView: View {
                         }
                         if quality.hasScheduleIssues {
                             let missingStopIDDetail = quality.missingStopIDRowCount.map { ", dont \($0) sans stop_id" } ?? ""
-                            Text("À contrôler : \(quality.tripsWithIncompleteTimes) horaires incomplets, \(quality.tripsWithInvalidChronology) chronologies incohérentes, \(quality.tripsWithMissingStopCoordinates) courses avec arrêts sans coordonnées, \(quality.tripsWithTooFewStops) courses avec moins de deux arrêts, \(quality.tripsWithInvalidStopSequence) séquences dupliquées et \(quality.invalidStopTimeRowCount) lignes de passage invalides\(missingStopIDDetail).")
+                            let missingStopRecordDetail = quality.tripsWithMissingStopRecords.map { ", \($0) courses avec stop_id absent de stops.txt" } ?? ""
+                            Text("À contrôler : \(quality.tripsWithIncompleteTimes) horaires incomplets, \(quality.tripsWithInvalidChronology) chronologies incohérentes, \(quality.tripsWithMissingStopCoordinates) courses avec arrêts sans coordonnées\(missingStopRecordDetail), \(quality.tripsWithTooFewStops) courses avec moins de deux arrêts, \(quality.tripsWithInvalidStopSequence) séquences dupliquées et \(quality.invalidStopTimeRowCount) lignes de passage invalides\(missingStopIDDetail).")
                                 .foregroundStyle(.orange)
                         } else {
                             Text("Aucun défaut de séquence, horaire ou coordonnées détecté dans ces contrôles.")
+                                .foregroundStyle(.secondary)
+                        }
+                        if quality.tripsWithMissingStopRecords == nil {
+                            Text("La présence des arrêts de stop_times.txt dans stops.txt n’est pas enregistrée pour cet ancien import.")
                                 .foregroundStyle(.secondary)
                         }
                         Text("Formes : \(quality.availableShapeCount)/\(quality.referencedShapeCount) formes référencées disponibles • \(quality.tripsWithoutShapeReference) courses sans forme • \(quality.tripsWithUnavailableShape) courses avec forme référencée absente ou invalide • \(quality.invalidShapeCount) formes écartées.")
@@ -3558,6 +3563,12 @@ struct OperationsDashboardView: View {
                                                 .fixedSize(horizontal: false, vertical: true)
                                             if let stopIDs = issue.stopIDsWithoutCoordinates, !stopIDs.isEmpty {
                                                 Text("Arrêts sans coordonnées : \(stopIDs.joined(separator: ", "))")
+                                                    .font(.caption2.monospaced())
+                                                    .foregroundStyle(.orange)
+                                                    .textSelection(.enabled)
+                                            }
+                                            if let stopIDs = issue.stopIDsMissingFromFeed, !stopIDs.isEmpty {
+                                                Text("stop_id absents de stops.txt : \(stopIDs.joined(separator: ", "))")
                                                     .font(.caption2.monospaced())
                                                     .foregroundStyle(.orange)
                                                     .textSelection(.enabled)
