@@ -441,7 +441,7 @@ struct ScenarioDefinition: Identifiable, Hashable {
 
     var cobCountReconciliationNote: String? {
         guard id == "bords-de-marne" else { return nil }
-        return "Les sources datées divergent sur les centres de la DSP45. La présélection IDFM du 24 octobre 2024 cite trois COB, dont un nouveau site à Neuilly-sur-Marne; l’annonce d’attribution RATP Cap du 12 novembre n’en nomme que deux. Le rapport RATP 2025 décrit ensuite trois COB et 320 véhicules pour le lot mis en service en novembre 2025. La carte RATP Cap de mars 2026 situe un COB à Neuilly-sur-Marne, sans publier son nom ni son adresse. Le lien avec le site Frères-Lumière reste à confirmer. Le futur COB du projet Bus Bords de Marne IDFM est un autre site."
+        return "Les sources décrivent des stades différents. À la présélection, IDFM cite trois COB. Sa présentation de la DSP45 précise deux centres existants (Saint-Maur et Neuilly-Plaisance) et un troisième à aménager à Neuilly-sur-Marne; elle donne 315 véhicules et 13,9 millions de kilomètres commerciaux contractuels. RATP Cap ne nomme que les deux centres existants; le rapport RATP 2025 décrit ensuite trois COB et 320 véhicules en exploitation. La carte RATP Cap de mars 2026 marque un COB à Neuilly-sur-Marne sans en donner le nom ni l’adresse. Le rapprochement avec Frères-Lumière reste non prouvé. Le futur COB du projet Bus Bords de Marne IDFM est un autre site."
     }
 
     var recentOfficialNetworkCountSourceURL: URL? {
@@ -476,7 +476,7 @@ struct ScenarioDefinition: Identifiable, Hashable {
         contractPlannedCOBCount: 1,
         contractFleetCount: 315,
         contractCommercialKilometers: 13_900_000,
-        contractSourceTitle: "IDFM · attribution de la DSP 45",
+        contractSourceTitle: "IDFM · DSP 45 : deux centres existants et un troisième à aménager",
         contractSourceURL: URL(string: "https://presse.iledefrance-mobilites.fr/mise-en-concurrence-des-transports-franciliens/?lang=fr")!,
         operatorReportDurationYears: 8,
         operatorReportLineCount: 31,
