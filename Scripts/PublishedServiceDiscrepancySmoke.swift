@@ -26,6 +26,14 @@ struct PublishedServiceDiscrepancySmoke {
             "The replacement timetable URL should resolve to the current official IDFM PDF."
         )
         precondition(
+            notice.gtfsSourceTitle == "Ressource GTFS publique IDFM",
+            "The notice should label its public timetable data source clearly."
+        )
+        precondition(
+            notice.gtfsSourceURL.absoluteString == "https://transport.data.gouv.fr/resources/80921",
+            "The notice should link to the public IDFM GTFS resource page."
+        )
+        precondition(
             notice.sourceURL.absoluteString == "https://presse.iledefrance-mobilites.fr/ile-de-france-mobilites-restructure-et-reorganise-loffre-de-bus-sur-les-territoires-des-bords-de-marne-et-de-boucle-nord-de-seine/?lang=fr",
             "The notice should link to the primary IDFM announcement."
         )

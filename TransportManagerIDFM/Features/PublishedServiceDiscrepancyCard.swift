@@ -23,6 +23,11 @@ struct PublishedServiceDiscrepancyCard: View {
                     Label(notice.timetableTitle, systemImage: "clock.arrow.circlepath")
                         .font(.caption)
                 }
+
+                Link(destination: notice.gtfsSourceURL) {
+                    Label(notice.gtfsSourceTitle, systemImage: "tablecells")
+                        .font(.caption)
+                }
             }
         }
         .padding(13)

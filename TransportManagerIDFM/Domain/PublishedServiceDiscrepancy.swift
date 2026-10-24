@@ -7,6 +7,8 @@ struct PublishedServiceDiscrepancy: Hashable, Sendable {
     let sourceURL: URL
     let timetableTitle: String
     let timetableURL: URL
+    let gtfsSourceTitle: String
+    let gtfsSourceURL: URL
 
     static func forRoute(
         shortName: String,
@@ -28,7 +30,9 @@ struct PublishedServiceDiscrepancy: Hashable, Sendable {
             sourceTitle: "Communiqué IDFM du 21 octobre 2026",
             sourceURL: URL(string: "https://presse.iledefrance-mobilites.fr/ile-de-france-mobilites-restructure-et-reorganise-loffre-de-bus-sur-les-territoires-des-bords-de-marne-et-de-boucle-nord-de-seine/?lang=fr")!,
             timetableTitle: "Horaires officiels de la ligne 314 · 1er novembre 2026–11 juillet 2027",
-            timetableURL: URL(string: "https://ilico.iledefrance-mobilites.fr/uploads/fiches/20261021T153740Z-878f05ec-b765-486b-bb83-7d8a6d99c48b.pdf")!
+            timetableURL: URL(string: "https://ilico.iledefrance-mobilites.fr/uploads/fiches/20261021T153740Z-878f05ec-b765-486b-bb83-7d8a6d99c48b.pdf")!,
+            gtfsSourceTitle: "Ressource GTFS publique IDFM",
+            gtfsSourceURL: URL(string: "https://transport.data.gouv.fr/resources/80921")!
         )
     }
 
