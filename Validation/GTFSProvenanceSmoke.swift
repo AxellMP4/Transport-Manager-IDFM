@@ -3,6 +3,10 @@ import Foundation
 @main
 struct GTFSProvenanceSmoke {
     static func main() throws {
+        guard CommandLine.arguments.count == 2 else {
+            fatalError("Le smoke attend une archive GTFS de qualité synthétique.")
+        }
+
         let bundledSHA256 = GTFSImportProvenance.bundledArchiveSHA256
 
         let unverified = try decodeVersion(
@@ -52,8 +56,46 @@ struct GTFSProvenanceSmoke {
         precondition(roundTrip.displaySourceTitle == "Source GTFS à vérifier")
 
         verifyTripMotifGrouping()
+        try verifyMissingStopDiagnostics(in: URL(fileURLWithPath: CommandLine.arguments[1]))
 
-        print("PASS: GTFS provenance migration and deterministic trip-motif grouping")
+        print("PASS: GTFS provenance, trip motifs, and missing-stop diagnostics")
+    }
+
+    private static func verifyMissingStopDiagnostics(in archiveURL: URL) throws {
+        let inspection = try GTFSFeedInspector.inspect(archiveURL)
+        let quality = inspection.quality
+        precondition(quality.tripsWithMissingStopCoordinates == 1)
+        precondition(quality.tripsWithMissingStopRecords == 1)
+        precondition(quality.missingStopIDRowCount == 1)
+
+        let issuesByTripID = Dictionary(uniqueKeysWithValues: (quality.tripIssues ?? []).map { ($0.tripID, $0) })
+        guard let missingStopRecord = issuesByTripID["trip-missing-stop-record"],
+              let missingCoordinates = issuesByTripID["trip-missing-coordinates"],
+              let missingStopID = issuesByTripID["trip-missing-stop-id"] else {
+            fatalError("Chaque anomalie d’arrêt doit conserver le diagnostic de sa course.")
+        }
+        precondition(
+            missingStopRecord.stopIDsWithoutCoordinates == nil
+                && missingStopRecord.stopIDsMissingFromFeed == ["stop-not-in-feed"]
+                && missingStopRecord.issueKinds.contains(.missingStopRecord)
+                && !missingStopRecord.issueKinds.contains(.missingStopCoordinates)
+                && missingStopRecord.summary.contains("stop_id absent de stops.txt"),
+            "Un identifiant sans fiche stops.txt ne doit pas être appelé arrêt sans coordonnées."
+        )
+        precondition(
+            missingCoordinates.stopIDsWithoutCoordinates == ["stop-no-coordinates"]
+                && missingCoordinates.stopIDsMissingFromFeed == nil
+                && missingCoordinates.issueKinds.contains(.missingStopCoordinates)
+                && !missingCoordinates.issueKinds.contains(.missingStopRecord)
+                && missingCoordinates.summary.contains("arrêts sans coordonnées"),
+            "Un arrêt présent dans stops.txt mais sans coordonnées doit rester explicitement identifiable."
+        )
+        precondition(
+            missingStopID.missingStopIDRowCount == 1
+                && missingStopID.summary.contains("1 ligne de passage sans stop_id"),
+            "Une ligne stop_times sans stop_id doit rester séparée des autres erreurs d’arrêt."
+        )
+        precondition(quality.hasScheduleIssues, "Ces anomalies doivent signaler un audit d’horaires à contrôler.")
     }
 
     private static func verifyTripMotifGrouping() {
