@@ -1,5 +1,11 @@
 # Archive GTFS IDFM
 
+## Recontrôle HTTP du miroir et de PRIM — 24 octobre 2026, 06:08 CEST
+
+- Requête `HEAD` au fichier relié depuis la [fiche publique du Point d’Accès National](https://transport.data.gouv.fr/resources/80921) : HTTP 200, 150 257 397 octets annoncés, `Last-Modified: 23 octobre 2026 12:24:06 CEST`, ETag `6adb35c6-8f4bef5`, inchangés depuis le téléchargement intégral vérifié à 05:20. Ce contrôle n’a pas retéléchargé l’archive ni calculé de nouvelle empreinte SHA-256.
+- La [fiche GTFS de PRIM](https://prim.iledefrance-mobilites.fr/fr/jeux-de-donnees/offre-horaires-tc-gtfs-idfm) affichait encore un dernier traitement des données au 22 octobre 2026 à 17:00; l’export reste accessible après connexion. Le site annonce une fenêtre mobile et des mises à jour quotidiennes, mais aucun nouveau contenu de courses n’a été inspecté ici.
+- Le snapshot embarqué reste l’archive complète contrôlée à 05:20, pour laquelle `routes.txt`, `trips.txt` et les calendriers ont confirmé 143 courses de la 214, aucune active après le 31 octobre, et aucune route 314. Les métadonnées HEAD seules ne changent pas cette preuve ni ne justifient une mise à jour. Le critère des courses 214/314 post-réorganisation reste ouvert.
+
 ## Snapshot GTFS actuellement embarqué — 24 octobre 2026, 03:49 CEST
 
 - Le jeu embarque maintenant l’archive complète du miroir public IDFM contrôlée le 24 octobre à 02:17 : HTTP 200, `Last-Modified` 23 octobre 12:24:06 CEST, 150 257 397 octets, ETag `6adb35c6-8f4bef5`, SHA-256 `6eb741b6eedb6b72d53bb3b76160ad3751aa33939357713759e0ca3ba96f8eb3`. Le ZIP passe `unzip -tq`; les 18 fragments `idfm-gtfs-2026-10-23-part-00.bin` à `-17.bin` sont assemblés au premier lancement s’il n’existe pas déjà de GTFS actif; leur taille/empreinte sont revérifiées avant import. La provenance enregistrée est « miroir public »; l’ancienne archive du 20 octobre reste reconnue lors de la migration des versions locales déjà importées.

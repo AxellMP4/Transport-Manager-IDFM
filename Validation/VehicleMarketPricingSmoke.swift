@@ -15,6 +15,13 @@ struct VehicleMarketPricingSmoke {
         precondition(yearBeforeReference == 305_000, "Le prix estimé avant l’année de référence doit refléter une année d’indexation inverse.")
         precondition(yearAfterReference == 315_000, "Le prix estimé après l’année de référence doit continuer à refléter l’indexation annuelle.")
 
+        let historicalUsedOffers = VehicleMarketCatalog.offers(for: 2023).filter { $0.condition == .used }
+        precondition(!historicalUsedOffers.isEmpty, "Le marché historique doit garder les offres d’occasion déjà existantes.")
+        precondition(
+            historicalUsedOffers.allSatisfy { $0.vehicleYear <= 2023 },
+            "Une carrière 2023 ne doit pas proposer un bus d’occasion construit après 2023."
+        )
+
         print("Validation de l’indexation tarifaire du marché réussie.")
     }
 }

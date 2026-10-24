@@ -2066,6 +2066,7 @@ enum VehicleMarketCatalog {
         ]
         var results: [VehicleMarketOffer] = usedStock.compactMap { item -> VehicleMarketOffer? in
             let (modelID, vehicleYear, odometer, condition) = item
+            guard vehicleYear <= gameYear else { return nil }
             guard let vehicleModel = models.first(where: { $0.id == modelID }),
                   let newPrice = estimatedNewPrice(for: vehicleModel, gameYear: gameYear) else { return nil }
             let age = max(1, gameYear - vehicleYear)
