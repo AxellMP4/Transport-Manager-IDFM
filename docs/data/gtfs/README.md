@@ -1,5 +1,9 @@
 # Archive GTFS IDFM
 
+## Relecture de la fiche publique — 24 octobre 2026
+
+La fiche officielle 80921 affiche une période globale du 20 octobre au 21 novembre, une couverture « Bord de Marne » du 23 octobre au 8 novembre et un rapport de validation du fichier courant exécuté le 23 octobre à 14:31. La période de couverture est agrégée et ne prouve pas que les départs annoncés pour la 214 ou la nouvelle 314 figurent dans l’archive. Aucun changement de données n’a été intégré à partir de cette page; conserver les contrôles d’horaires par ligne et calendrier ci-dessous.
+
 ## Vérification des arrêts référencés — 24 octobre 2026
 
 - L’import conserve les `stop_id` non vides déclarés dans `stops.txt`, même si la ligne a des coordonnées vides ou invalides. Cela permet de distinguer un identifiant de passage absent de `stops.txt` d’un arrêt dont la fiche existe mais n’est pas géolocalisable.
