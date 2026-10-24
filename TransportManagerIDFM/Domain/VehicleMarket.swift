@@ -2064,6 +2064,26 @@ enum VehicleMarketCatalog {
             referencePrice: 554_500,
             priceReferenceYear: 2024,
             priceEstimateNote: "Repère de jeu à faible confiance : l’essai IDFM décrit un bus électrique standard de 12 m sans identifier sa version Ebusco ; la base est le coût moyen CATP 2024 d’un autobus électrique standard 12 m à charge lente, 554 500 € HT. Ce n’est pas un prix Ebusco individuel ni une offre de vente.",
+            technicalTitle: "Ebusco · brochure française de la gamme 2.2 · 2020",
+            technicalURL: "https://www.ebusco.com/wp-content/uploads/Ebusco-2.2-Brochure-2020-FR-Online.pdf",
+            technicalDataNote: "La brochure constructeur 2.2 présente deux configurations standard de 12 m : accès surbaissé à 2 portes ou plancher surbaissé à 2/3 portes. Les valeurs ci-dessous appartiennent à cette gamme 2.2 et ne permettent pas d’identifier le sous-modèle du bus de l’essai R’Bus 2015.",
+            technicalVariants: [
+                VehicleTechnicalVariant(
+                    id: "ebusco-22-12m-range-2020",
+                    title: "Ebusco 2.2 · standard 12 m · brochure 2020",
+                    lengthMeters: 12,
+                    widthMeters: 2.55,
+                    heightMeters: 3.35,
+                    batteryCapacityKWh: nil,
+                    maximumPowerKilowatts: 270,
+                    maximumCapacity: 90,
+                    seatedCapacity: 41,
+                    rangeKilometers: nil,
+                    applicabilityNote: "La fiche donne 90 voyageurs, jusqu’à 41 places assises et 270 kW de puissance de crête. Les packs batterie sont au choix, 363 ou 423 kWh. Ces caractéristiques sont celles de l’Ebusco 2.2 de la brochure et ne sont pas attribuées à l’essai R’Bus de 2015, dont le sous-modèle n’est pas publié.",
+                    evidenceTitle: "Ebusco · brochure française 2.2 · 2020",
+                    evidenceURL: "https://www.ebusco.com/wp-content/uploads/Ebusco-2.2-Brochure-2020-FR-Online.pdf"
+                )
+            ],
             fleetTitle: "Île-de-France Mobilités · essai réel Ebusco sur la ligne 1 R’Bus",
             fleetURL: "https://www.iledefrance-mobilites.fr/actualites/davantage-de-bus-en-faveur-de-la-transition-energetique-en-ile-de-france",
             marketAvailabilityNote: "Référence historique d’un essai Transdev sur R’Bus à partir du 22 décembre 2015. La source ne précise pas le modèle Ebusco, la batterie, une autonomie chiffrée, la disponibilité actuelle, un prix individuel ni une compatibilité avec les COB Bords de Marne ; aucune offre d’achat n’est proposée."
