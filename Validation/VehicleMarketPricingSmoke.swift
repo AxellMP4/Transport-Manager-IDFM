@@ -67,6 +67,10 @@ struct VehicleMarketPricingSmoke {
             "Les caractéristiques précises de la série RATP 2020 ne sont pas publiées par MAN."
         )
         precondition(
+            manParis.regionalEvidenceLabel?.contains("en cours de livraison") == true,
+            "Le communiqué d’octobre 2020 décrit les 100 bus parisiens comme étant en cours de livraison."
+        )
+        precondition(
             manCurrentVariant.lengthMeters == 12.185
                 && manCurrentVariant.widthMeters == 2.55
                 && manCurrentVariant.heightMeters == 3.295
