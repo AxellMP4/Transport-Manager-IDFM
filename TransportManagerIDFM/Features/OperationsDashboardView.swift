@@ -5174,6 +5174,8 @@ private struct VehicleMarketView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(Color.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
 
+                    CATPOwnershipCostBenchmarkView()
+
                     let serviceRevenueRate = VehicleMarketCatalog.estimatedServiceRevenuePerVehicleKilometerEuro
                     Text("Contribution contractuelle estimée (règle de jeu) : \(serviceRevenueRate.formatted(.currency(code: "EUR").precision(.fractionLength(2)))) par véhicule-kilomètre réellement parcouru. Au bilan quotidien, le taux de courses terminées ajoute 3 % à partir de 98 % de production, ou retire 5 % sous 94 %. Ces montants et seuils sont des règles de jeu, pas des clauses tarifaires de la DSP 45.")
                         .font(.caption)
