@@ -182,6 +182,49 @@ struct GTFSServiceTripMotif: Codable, Hashable, Identifiable, Sendable {
     var id: String { tripIDs.first ?? "\(routeID)|\(shapeID ?? "sans-forme")" }
 }
 
+enum GTFSServiceTripMotifCatalog {
+    private struct Key: Hashable {
+        let routeID: String
+        let shapeID: String?
+        let orderedStopSequence: [GTFSStopSequenceEntry]
+    }
+
+    static func build(from schedules: [GTFSServiceTripSchedule]) -> [GTFSServiceTripMotif] {
+        var tripsByMotif: [Key: [String]] = [:]
+        for schedule in schedules where !schedule.stops.isEmpty {
+            let orderedStopSequence = schedule.stops
+                .sorted {
+                    if $0.stopSequence != $1.stopSequence {
+                        return $0.stopSequence < $1.stopSequence
+                    }
+                    return $0.stopID.localizedStandardCompare($1.stopID) == .orderedAscending
+                }
+                .map { GTFSStopSequenceEntry(stopID: $0.stopID, stopSequence: $0.stopSequence) }
+            let key = Key(
+                routeID: schedule.routeID,
+                shapeID: schedule.shapeID,
+                orderedStopSequence: orderedStopSequence
+            )
+            tripsByMotif[key, default: []].append(schedule.tripID)
+        }
+
+        return tripsByMotif.map { key, tripIDs in
+            GTFSServiceTripMotif(
+                routeID: key.routeID,
+                shapeID: key.shapeID,
+                orderedStopSequence: key.orderedStopSequence,
+                tripIDs: tripIDs.sorted()
+            )
+        }.sorted { lhs, rhs in
+            let routeOrder = lhs.routeID.localizedStandardCompare(rhs.routeID)
+            if routeOrder != .orderedSame { return routeOrder == .orderedAscending }
+            let shapeOrder = (lhs.shapeID ?? "").localizedStandardCompare(rhs.shapeID ?? "")
+            if shapeOrder != .orderedSame { return shapeOrder == .orderedAscending }
+            return lhs.id < rhs.id
+        }
+    }
+}
+
 struct GTFSShapePoint: Codable, Hashable, Sendable {
     let sequence: Int
     let latitude: Double
