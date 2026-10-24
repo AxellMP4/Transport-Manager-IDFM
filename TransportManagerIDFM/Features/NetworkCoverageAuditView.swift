@@ -1234,6 +1234,7 @@ private struct GTFSTripQualityAuditSection: View {
             let stopIDs = (issue.stopIDsWithoutCoordinates ?? [])
                 + (issue.stopIDsNotMatchedToShape ?? [])
             return issue.routeID.localizedCaseInsensitiveContains(search)
+                || (routeNames[issue.routeID] ?? "").localizedCaseInsensitiveContains(search)
                 || issue.tripID.localizedCaseInsensitiveContains(search)
                 || (issue.shapeID ?? "").localizedCaseInsensitiveContains(search)
                 || stopIDs.contains { $0.localizedCaseInsensitiveContains(search) }
@@ -1253,6 +1254,7 @@ private struct GTFSTripQualityAuditSection: View {
             }
             if !search.isEmpty {
                 let matchesQuery = motif.routeID.localizedCaseInsensitiveContains(search)
+                    || (routeNames[motif.routeID] ?? "").localizedCaseInsensitiveContains(search)
                     || (motif.shapeID ?? "").localizedCaseInsensitiveContains(search)
                     || motif.tripIDs.contains { $0.localizedCaseInsensitiveContains(search) }
                     || motif.orderedStopSequence.contains { $0.stopID.localizedCaseInsensitiveContains(search) }
@@ -1399,7 +1401,7 @@ private struct GTFSTripQualityAuditSection: View {
                     .pickerStyle(.menu)
                 }
 
-                TextField("Filtrer ligne, course, forme ou arrêt", text: $query)
+                TextField("Filtrer numéro ou nom de ligne, course, forme ou arrêt", text: $query)
                     .textFieldStyle(.roundedBorder)
             }
 
