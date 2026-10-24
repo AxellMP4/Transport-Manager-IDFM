@@ -450,13 +450,21 @@ enum DepotLineRoster {
             locality: "Neuilly-Plaisance",
             status: "COB recensé · lignes DSP45 à ventiler",
             availability: .operational,
-            evidenceNote: "La brochure RATP d’avril 2026 identifie le COB Neuilly-Plaisance parmi ses sites opérationnels et indique séparément que la DSP 45 Boucles de Marne est exploitée par RATP Cap IDF depuis le 1er novembre 2025. Une offre RATP Cap consultée le 24 octobre 2026 décrit le centre de Neuilly-Plaisance comme en transition énergétique vers une flotte 100 % électrique; la date de publication de l’offre n’est pas affichée et cette formulation ne confirme ni l’état actuel de la transition ni les bornes, leur puissance ou la capacité du site. Aucune de ces sources ne répartit les lignes du contrat entre les COB. En 2022, RATP Group comptait treize lignes du centre-bus de Bords-de-Marne pour le lot 45, sans donner leurs numéros dans cet article ni établir les affectations après le transfert. Le tableau ligne–centre de l’ancien contrat IDFM–RATP reste borné au 31 octobre 2025.",
+            evidenceNote: "La brochure RATP d’avril 2026 identifie le COB Neuilly-Plaisance parmi ses sites opérationnels et indique séparément que la DSP 45 Boucles de Marne est exploitée par RATP Cap IDF depuis le 1er novembre 2025. Le rapport des comptes administratifs IDFM 2024 mentionne une convention de financement de 12,1 M€ pour adapter Neuilly-Plaisance aux bus à batteries électriques. La page RATP Bus2025 modifiée le 26 juin 2026 liste Neuilly Bords de Marne parmi les centres adaptés pour accueillir 100 % de bus électriques; elle précise toutefois que, début 2026, dix centres étaient convertis à l’électrique et quatre sites restaient en travaux, sans les identifier. Ces sources établissent une convention de financement et un périmètre d’adaptation, pas l’achèvement des travaux à Neuilly-Plaisance, le nombre ou la puissance des bornes, ni la capacité électrique ou de remisage actuelle. Une offre RATP Cap consultée le 24 octobre 2026 décrit aussi une transition vers une flotte 100 % électrique, sans date de publication visible. Aucune de ces sources ne répartit les lignes du contrat entre les COB. En 2022, RATP Group comptait treize lignes du centre-bus de Bords-de-Marne pour le lot 45, sans donner leurs numéros dans cet article ni établir les affectations après le transfert. Le tableau ligne–centre de l’ancien contrat IDFM–RATP reste borné au 31 octobre 2025.",
             sourceURL: ratpSeineSaintDenisBrochure2026URL,
             evidenceTitle: "RATP · présence en Seine-Saint-Denis · avril 2026",
             idfmBusContractID: "45",
             additionalEvidenceTitle: "RATP Group · répartition des lignes du lot 45 par centre-bus · 29 mars 2022",
             additionalEvidenceURL: ratpDSP45DepotSplitURL,
             supportingEvidence: [
+                DepotSiteEvidenceLink(
+                    title: "IDFM · convention de financement pour l’adaptation électrique · 2024",
+                    url: URL(string: "https://www.iledefrance-mobilites.fr/medias/portail-idfm/aADLYOvxEdbNPLZd_RapportCA2024.pdf")!
+                ),
+                DepotSiteEvidenceLink(
+                    title: "RATP · centres adaptés aux bus 100 % électriques · Bus2025",
+                    url: URL(string: "https://www.ratp.fr/programme-bus2025")!
+                ),
                 DepotSiteEvidenceLink(
                     title: "RATP Cap · offre mécanicien · transition électrique annoncée à Neuilly-Plaisance",
                     url: ratpCapNeuillyPlaisanceElectricTransitionURL

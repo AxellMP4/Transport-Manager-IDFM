@@ -24,12 +24,20 @@ Le schéma de principe IDFM du Bus Bords de Marne décrit l’ancien Centre bus 
 
 Ces références historiques précèdent le transfert DSP45 au 1er novembre 2025. Elles documentent le site et un état d’exploitation antérieur, pas la capacité maximale ou les équipements présents aujourd’hui, ni les lignes désormais rattachées au COB. Le registre affiche ces chiffres comme observation historique distincte des comptages de parc TC Infos et des projets de futur COB.
 
+## Transition électrique du COB Neuilly-Plaisance
+
+- Le rapport des comptes administratifs IDFM 2024 mentionne une convention de financement de 12,1 M€ pour l’adaptation du dépôt de Neuilly-Plaisance aux bus à batteries électriques. Il s’agit du montant associé à la convention dans le rapport, pas d’un coût final certifié ni d’une preuve d’exécution achevée.
+- La [page RATP Bus2025](https://www.ratp.fr/programme-bus2025), modifiée le 26 juin 2026, inclut « Neuilly Bords de Marne » dans sa liste des centres adaptés afin d’accueillir 100 % de bus électriques. La même page rapporte qu’au début de 2026 dix centres étaient convertis à l’électrique et que quatre sites restaient en travaux, sans préciser lesquels. Elle décrit à l’échelle du programme les types d’infrastructures de conversion — raccordement électrique, transformateurs, bornes, sécurité incendie et adaptation des ateliers — sans publier les quantités ou puissances propres à Neuilly-Plaisance.
+- Ces sources attestent un financement et une orientation d’adaptation électrique pour le COB, mais ne permettent pas de confirmer que les travaux de Neuilly-Plaisance sont achevés, combien de bornes y sont installées, leur puissance, ni la capacité d’alimentation, de remisage ou d’atelier actuelle. L’offre RATP Cap consultée le 24 octobre 2026 qui parle d’une transition vers une flotte 100 % électrique ne porte pas de date de publication visible et reste un indice qualitatif.
+
 ## Sources
 
 - [IDFM · Attribution de la DSP 45, ses deux COB actuels et son périmètre annoncé](https://presse.iledefrance-mobilites.fr/mise-en-concurrence-des-transports-franciliens/?lang=fr)
 - [IDFM · Contrat bus 2025–2026 et lignes avec libellés de centres d’exploitation](https://www.iledefrance-mobilites.fr/medias/portail-idfm/aTFjzHNYClf9nz_6_ContratBUS2025-2026_vsigne%CC%81eLP.pdf)
 - [IDFM · Centre bus des Bords de Marne situé à Neuilly-Plaisance](https://www.iledefrance-mobilites.fr/le-reseau/projets/bus-bordsdemarne/questions/quelles-seront-les-caracteristiques-du-materiel-roulant)
 - [IDFM · Schéma de principe Bus Bords de Marne, diagnostic historique du centre bus](https://www.iledefrance-mobilites.fr/medias/portail-idfm-projets/e1b086d3-0a35-413f-978c-7919496a980b_BBM_SDP_VFFF.pdf)
+- [IDFM · Rapport des comptes administratifs 2024, p. 33 · convention d’adaptation électrique de Neuilly-Plaisance](https://www.iledefrance-mobilites.fr/medias/portail-idfm/aADLYOvxEdbNPLZd_RapportCA2024.pdf)
+- [RATP · Programme Bus2025 · centres adaptés à l’électrique et point d’avancement début 2026](https://www.ratp.fr/programme-bus2025)
 - [IDFM · Réorganisation et création de la ligne 314 au 1er novembre 2026](https://www.iledefrance-mobilites.fr/actualites/locales/detail/a-compter-du-1er-novembre-2026-ile-de-france-mobil)
 - [IDFM · Communiqué du 21 octobre 2026 sur la réorganisation et la création de la ligne 314](https://presse.iledefrance-mobilites.fr/ile-de-france-mobilites-restructure-et-reorganise-loffre-de-bus-sur-les-territoires-des-bords-de-marne-et-de-boucle-nord-de-seine/?lang=fr)
 - [IDFM · Catalogue des plans et fiches horaires](https://data.iledefrance-mobilites.fr/explore/dataset/fiches-horaires-et-plans/)
