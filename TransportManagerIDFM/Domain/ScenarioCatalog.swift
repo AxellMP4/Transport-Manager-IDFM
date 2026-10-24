@@ -579,9 +579,9 @@ struct ScenarioDefinition: Identifiable, Hashable {
                 name: "Neuilly-sur-Marne · futur COB du projet IDFM",
                 locality: "Seine-Saint-Denis",
                 locationDescription: "Site retenu dans le secteur des délaissés de l’A103, au nord de l’ex-RN34 ; l’adresse opérationnelle et les équipements restent à confirmer.",
-                statusDescription: "Projet IDFM distinct du COB d’exploitation que le rapport RATP 2025 situe dans la même commune. Les travaux sont envisagés à partir de 2027 ; ce site n’est pas traité comme un dépôt jouable.",
-                sourceTitle: "IDFM · avancement du projet Bus Bords de Marne",
-                sourceURL: URL(string: "https://www.iledefrance-mobilites.fr/le-reseau/projets/bus-bordsdemarne/mise-en-oeuvre-bbdm")!
+                statusDescription: "Projet IDFM distinct du COB d’exploitation situé dans la même commune. La lettre d’information n°4 publiée le 1er octobre 2026 fait le point sur les études d’avant-projet en cours; elle ne confirme pas le démarrage des travaux. Ce site n’est pas traité comme un dépôt jouable.",
+                sourceTitle: "IDFM · Lettre d’information n°4 du 1er octobre 2026",
+                sourceURL: URL(string: "https://www.iledefrance-mobilites.fr/le-reseau/projets/bus-bordsdemarne/actualites/photo-de-la-couverture-de-la-lettre-dinfo")!
             )
         ],
         networkChanges: [
