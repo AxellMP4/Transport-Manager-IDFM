@@ -1,5 +1,11 @@
 # Archive GTFS IDFM
 
+## Dernier contrôle du miroir et divergences des fiches PRIM — 24 octobre 2026, 06:19 CEST
+
+- Requête `HEAD` au ZIP indiqué par la [fiche publique du Point d’Accès National](https://transport.data.gouv.fr/resources/80921) à 06:19 CEST : HTTP 200, 150 257 397 octets, `Last-Modified: 23 octobre 2026 12:24:06 CEST`, ETag `6adb35c6-8f4bef5`. Ces en-têtes correspondent à l’archive intégralement vérifiée à 05:20 et à son SHA-256 `6eb741b6eedb6b72d53bb3b76160ad3751aa33939357713759e0ca3ba96f8eb3`; aucun nouveau téléchargement ni calcul de hash n’a été effectué à 06:19.
+- La recherche indexée du [catalogue PRIM français](https://prim.iledefrance-mobilites.fr/jeux-de-donnees/offre-horaires-tc-gtfs-idfm) affiche un traitement au 23 octobre à 17:00, et sa version anglaise au 23 octobre à 13:00. À l’ouverture directe, les pages correspondantes affichent des dates antérieures (21 octobre à 08:00 en français et 21 octobre à 17:00 en anglais). Ces métadonnées ne permettent pas de déterminer avec certitude quelle version PRIM est exportable; l’accès au téléchargement reste soumis à connexion.
+- La fiche PAN décrit toujours le fichier comme valable du 20 octobre au 21 novembre et donne, pour Bord de Marne, une couverture du 23 octobre au 8 novembre; son rapport de validation porte sur le fichier du 23 octobre à 14:31. L’archive vérifiée à 05:20 contient 143 courses 214 jusqu’au 31 octobre et aucune route 314. Faute d’un nouveau ZIP inspecté ou d’un export PRIM authentifié, le critère des horaires post-réorganisation reste ouvert.
+
 ## Recontrôle HTTP du miroir et de PRIM — 24 octobre 2026, 06:08 CEST
 
 - Requête `HEAD` au fichier relié depuis la [fiche publique du Point d’Accès National](https://transport.data.gouv.fr/resources/80921) : HTTP 200, 150 257 397 octets annoncés, `Last-Modified: 23 octobre 2026 12:24:06 CEST`, ETag `6adb35c6-8f4bef5`, inchangés depuis le téléchargement intégral vérifié à 05:20. Ce contrôle n’a pas retéléchargé l’archive ni calculé de nouvelle empreinte SHA-256.
