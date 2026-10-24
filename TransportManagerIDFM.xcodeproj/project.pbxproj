@@ -70,6 +70,8 @@
 		030000000000000000000119 /* CATPOwnershipCostBenchmarkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000119 /* CATPOwnershipCostBenchmarkView.swift */; };
 		030000000000000000000120 /* PublishedServiceDiscrepancy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000120 /* PublishedServiceDiscrepancy.swift */; };
 		030000000000000000000121 /* PublishedServiceDiscrepancyCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000121 /* PublishedServiceDiscrepancyCard.swift */; };
+		030000000000000000000124 /* DepotChargingInfrastructureObservation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000124 /* DepotChargingInfrastructureObservation.swift */; };
+		030000000000000000000125 /* DepotChargingInfrastructureObservationCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000125 /* DepotChargingInfrastructureObservationCard.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -136,6 +138,8 @@
 		020000000000000000000119 /* CATPOwnershipCostBenchmarkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CATPOwnershipCostBenchmarkView.swift; sourceTree = "<group>"; };
 		020000000000000000000120 /* PublishedServiceDiscrepancy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublishedServiceDiscrepancy.swift; sourceTree = "<group>"; };
 		020000000000000000000121 /* PublishedServiceDiscrepancyCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublishedServiceDiscrepancyCard.swift; sourceTree = "<group>"; };
+		020000000000000000000124 /* DepotChargingInfrastructureObservation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DepotChargingInfrastructureObservation.swift; sourceTree = "<group>"; };
+		020000000000000000000125 /* DepotChargingInfrastructureObservationCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DepotChargingInfrastructureObservationCard.swift; sourceTree = "<group>"; };
 		020000000000000000000006 /* TransportManagerIDFM.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TransportManagerIDFM.entitlements; sourceTree = "<group>"; };
 		040000000000000000000001 /* TransportManagerIDFM.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TransportManagerIDFM.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -202,6 +206,7 @@
 				020000000000000000000116 /* DepotFacilityObservation.swift */,
 				020000000000000000000118 /* CATPOwnershipCostReference.swift */,
 				020000000000000000000120 /* PublishedServiceDiscrepancy.swift */,
+				020000000000000000000124 /* DepotChargingInfrastructureObservation.swift */,
 				020000000000000000000041 /* DepotLineRosterManifest.swift */,
 			);
 		};
@@ -217,6 +222,7 @@
 				020000000000000000000117 /* DepotFacilityObservationCard.swift */,
 				020000000000000000000119 /* CATPOwnershipCostBenchmarkView.swift */,
 				020000000000000000000121 /* PublishedServiceDiscrepancyCard.swift */,
+				020000000000000000000125 /* DepotChargingInfrastructureObservationCard.swift */,
 				020000000000000000000032 /* RouteDetourEditorView.swift */,
 				020000000000000000000035 /* StopClosureEditorView.swift */,
 				020000000000000000000039 /* BusIllustrationView.swift */,
@@ -366,10 +372,12 @@
 				030000000000000000000116 /* DepotFacilityObservation.swift in Sources */,
 				030000000000000000000118 /* CATPOwnershipCostReference.swift in Sources */,
 				030000000000000000000120 /* PublishedServiceDiscrepancy.swift in Sources */,
+				030000000000000000000124 /* DepotChargingInfrastructureObservation.swift in Sources */,
 				030000000000000000000041 /* DepotLineRosterManifest.swift in Sources */,
 				030000000000000000000117 /* DepotFacilityObservationCard.swift in Sources */,
 				030000000000000000000119 /* CATPOwnershipCostBenchmarkView.swift in Sources */,
 				030000000000000000000121 /* PublishedServiceDiscrepancyCard.swift in Sources */,
+				030000000000000000000125 /* DepotChargingInfrastructureObservationCard.swift in Sources */,
 				030000000000000000000023 /* DepotLineCatalogView.swift in Sources */,
 				030000000000000000000024 /* GTFSRouteTimetableGridView.swift in Sources */,
 				030000000000000000000029 /* RouteDetourRouter.swift in Sources */,

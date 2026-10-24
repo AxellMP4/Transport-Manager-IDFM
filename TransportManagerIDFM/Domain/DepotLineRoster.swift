@@ -72,6 +72,7 @@ struct DepotLineRosterSite: Identifiable, Hashable, Sendable {
     let supportingEvidence: [DepotSiteEvidenceLink]
     let fleetObservation: DepotFleetObservation?
     let facilityObservations: [DepotFacilityObservation]
+    let chargingInfrastructureObservation: DepotChargingInfrastructureObservation?
 
     var evidenceLinks: [DepotSiteEvidenceLink] {
         var links: [DepotSiteEvidenceLink] = []
@@ -109,7 +110,8 @@ struct DepotLineRosterSite: Identifiable, Hashable, Sendable {
         additionalEvidenceURL: URL? = nil,
         supportingEvidence: [DepotSiteEvidenceLink] = [],
         fleetObservation: DepotFleetObservation? = nil,
-        facilityObservations: [DepotFacilityObservation] = []
+        facilityObservations: [DepotFacilityObservation] = [],
+        chargingInfrastructureObservation: DepotChargingInfrastructureObservation? = nil
     ) {
         self.id = id
         self.name = name
@@ -126,6 +128,7 @@ struct DepotLineRosterSite: Identifiable, Hashable, Sendable {
         self.supportingEvidence = supportingEvidence
         self.fleetObservation = fleetObservation
         self.facilityObservations = facilityObservations
+        self.chargingInfrastructureObservation = chargingInfrastructureObservation
     }
 }
 
@@ -487,7 +490,8 @@ enum DepotLineRoster {
                 comparisonSourceTitle: "TC Infos · récapitulatif de l’exploitant (201 véhicules)",
                 comparisonSourceURL: URL(string: "https://tc-infos.fr/exploitant/2975")!
             ),
-            facilityObservations: [DepotFacilityEvidenceCatalog.neuillyPlaisanceHistorical]
+            facilityObservations: [DepotFacilityEvidenceCatalog.neuillyPlaisanceHistorical],
+            chargingInfrastructureObservation: DepotChargingInfrastructureEvidenceCatalog.neuillyPlaisance
         ),
         DepotLineRosterSite(
             id: "freres-lumiere",
@@ -909,7 +913,8 @@ enum DepotLineRoster {
             additionalEvidenceURL: additionalEvidenceURL,
             supportingEvidence: supportingEvidence,
             fleetObservation: preferred.fleetObservation ?? supplemental.fleetObservation,
-            facilityObservations: facilityObservations
+            facilityObservations: facilityObservations,
+            chargingInfrastructureObservation: preferred.chargingInfrastructureObservation ?? supplemental.chargingInfrastructureObservation
         )
     }
 
