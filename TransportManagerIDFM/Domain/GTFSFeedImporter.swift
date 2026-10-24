@@ -176,6 +176,7 @@ enum GTFSFeedInspector {
         let tripIDs = Set(tripCollector.tripByID.keys)
         let schedulesByTripID = stopRouteCollector.collectedStopTimesByTripID
         let geolocatedStopIDs = Set(stopCollector.stops.map(\.stopID))
+        let stopIDsInFeed = stopCollector.stopIDsInFeed
         let availableShapeIDs = Set(busTripShapes.shapes.map(\.shapeID))
         let dateRange = GTFSServiceDateRange()
         let serviceCalendarIndex = GTFSServiceCalendarIndex()
@@ -224,6 +225,7 @@ enum GTFSFeedInspector {
             tripByID: tripCollector.tripByID,
             schedulesByTripID: schedulesByTripID,
             geolocatedStopIDs: geolocatedStopIDs,
+            stopIDsInFeed: stopIDsInFeed,
             availableShapeIDs: availableShapeIDs,
             shapesByID: Dictionary(uniqueKeysWithValues: busTripShapes.shapes.map { ($0.shapeID, $0) }),
             stopsByID: Dictionary(uniqueKeysWithValues: stopCollector.stops.map { ($0.stopID, $0) }),
@@ -244,7 +246,12 @@ enum GTFSFeedInspector {
                 return Self.hasInvalidChronology(stops)
             }.count,
             tripsWithMissingStopCoordinates: tripIDs.filter { tripID in
-                schedulesByTripID[tripID, default: []].contains { !geolocatedStopIDs.contains($0.stopID) }
+                schedulesByTripID[tripID, default: []].contains {
+                    stopIDsInFeed.contains($0.stopID) && !geolocatedStopIDs.contains($0.stopID)
+                }
+            }.count,
+            tripsWithMissingStopRecords: tripIDs.filter { tripID in
+                schedulesByTripID[tripID, default: []].contains { !stopIDsInFeed.contains($0.stopID) }
             }.count,
             tripsWithTooFewStops: tripIDs.filter { tripID in
                 schedulesByTripID[tripID, default: []].count < 2
@@ -321,6 +328,7 @@ enum GTFSFeedInspector {
         tripByID: [String: BusTripReference],
         schedulesByTripID: [String: [GTFSServiceTripStopTime]],
         geolocatedStopIDs: Set<String>,
+        stopIDsInFeed: Set<String>,
         availableShapeIDs: Set<String>,
         shapesByID: [String: GTFSRouteShape],
         stopsByID: [String: GTFSStopSummary],
@@ -337,11 +345,17 @@ enum GTFSFeedInspector {
             }
             let invalidRowCount = invalidStopTimeRowsByTripID[tripID, default: 0]
             let missingStopIDRowCount = missingStopIDRowsByTripID[tripID, default: 0]
+            let stopIDsMissingFromFeed = stops.compactMap { stopTime in
+                stopIDsInFeed.contains(stopTime.stopID) ? nil : stopTime.stopID
+            }
             let stopIDsWithoutCoordinates = stops.compactMap { stopTime in
-                stopsByID[stopTime.stopID] == nil ? stopTime.stopID : nil
+                stopIDsInFeed.contains(stopTime.stopID) && !geolocatedStopIDs.contains(stopTime.stopID)
+                    ? stopTime.stopID
+                    : nil
             }
             let shapeAlignment: GTFSShapeStopAlignment? = {
                 guard stopIDsWithoutCoordinates.isEmpty,
+                      stopIDsMissingFromFeed.isEmpty,
                       stops.count >= 2,
                       let shapeID = trip.shapeID,
                       let shape = shapesByID[shapeID] else { return nil }
@@ -371,9 +385,10 @@ enum GTFSFeedInspector {
             if stops.isEmpty { issueKinds.insert(.missingStopTimes) }
             if !stops.isEmpty, hasIncompleteTimes(stops) { issueKinds.insert(.incompleteTimes) }
             if !stops.isEmpty, hasInvalidChronology(stops) { issueKinds.insert(.invalidChronology) }
-            if stops.contains(where: { !geolocatedStopIDs.contains($0.stopID) }) {
+            if !stopIDsWithoutCoordinates.isEmpty {
                 issueKinds.insert(.missingStopCoordinates)
             }
+            if !stopIDsMissingFromFeed.isEmpty { issueKinds.insert(.missingStopRecord) }
             if stops.count < 2 { issueKinds.insert(.tooFewStops) }
             if hasInvalidStopSequence(stops) { issueKinds.insert(.invalidStopSequence) }
             if let shapeID = trip.shapeID {
@@ -382,6 +397,7 @@ enum GTFSFeedInspector {
                 issueKinds.insert(.missingShapeReference)
             }
             if stopIDsWithoutCoordinates.isEmpty,
+               stopIDsMissingFromFeed.isEmpty,
                let shapeAlignment,
                !shapeAlignment.unmatchedStopIDs.isEmpty {
                 issueKinds.insert(.stopsNotMatchedToShape)
@@ -406,6 +422,7 @@ enum GTFSFeedInspector {
                 invalidStopTimeRowCount: invalidRowCount,
                 missingStopIDRowCount: missingStopIDRowCount > 0 ? missingStopIDRowCount : nil,
                 stopIDsWithoutCoordinates: stopIDsWithoutCoordinates.isEmpty ? nil : stopIDsWithoutCoordinates,
+                stopIDsMissingFromFeed: stopIDsMissingFromFeed.isEmpty ? nil : stopIDsMissingFromFeed,
                 stopIDsNotMatchedToShape: stopIDsNotMatchedToShape,
                 stopProjectionDiagnostics: stopProjectionDiagnostics,
                 orderedStopSequence: stops.isEmpty ? nil : stops.map {
@@ -796,6 +813,7 @@ private final class BusStopCollector {
     private let routeIDsByStopID: [String: Set<String>]
     private let routeDirectionsByStopID: [String: [GTFSStopRouteDirection]]
     private var stopsByID: [String: GTFSStopSummary] = [:]
+    private(set) var stopIDsInFeed = Set<String>()
 
     var stops: [GTFSStopSummary] {
         stopsByID.values.sorted {
@@ -813,7 +831,9 @@ private final class BusStopCollector {
     }
 
     func consume(_ row: [String: String]) {
-        guard let stopID = row["stop_id"],
+        guard let stopID = row["stop_id"], !stopID.isEmpty else { return }
+        stopIDsInFeed.insert(stopID)
+        guard
               let routeIDs = routeIDsByStopID[stopID],
               let latitude = Double(row["stop_lat"] ?? ""), latitude.isFinite,
               (-90...90).contains(latitude),
