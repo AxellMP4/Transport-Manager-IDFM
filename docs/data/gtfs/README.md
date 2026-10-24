@@ -1,5 +1,13 @@
 # Archive GTFS IDFM
 
+## Contrôle de la fiche publique — 25 octobre 2026, 00:10 CEST
+
+La fiche PAN 80921 affiche une couverture globale du 21 octobre au 22 novembre 2026. Son rapport de validation reste toutefois associé au GTFS en vigueur le 24 octobre à 08:27. Le navigateur de consultation ne peut pas récupérer le contenu `application/zip`, et le terminal ne résout pas `eu.ftp.opendatasoft.com`; aucun nouvel archive n’a donc été téléchargé ou inspecté durant ce contrôle. La fiche ne permet pas à elle seule d’affirmer que les horaires post-réorganisation de la 214 et de la 314 sont dans le ZIP.
+
+Le snapshot intégré, daté du 24 octobre et décrit ci-dessous, demeure inchangé jusqu’à ce qu’un nouveau ZIP puisse être vérifié. Pour ce fichier, `routes.txt`, `trips.txt` et les calendriers confirment encore 143 courses de la 214 sans activité après le 31 octobre, et aucune route 314. Un export PRIM authentifié reste inaccessible faute de compte; ne pas fabriquer de courses à partir de la période globale affichée.
+
+Source : [fiche GTFS officielle PAN 80921](https://transport.data.gouv.fr/resources/80921).
+
 ## Contrôle d’un nouvel instantané public — 24 octobre 2026, 23:53 CEST
 
 - Un nouvel archive publique a été téléchargée le 24 octobre : 151 338 107 octets, SHA-256 `4fb00c0d28b13636bc786b1deb6ea780386ef99bab8fdcfe8667f570c83c3e70`; `unzip -tq` réussit. Le comptage ciblé retrouve 143 courses sur 214, mais aucune course active les 1er, 2 ou 3 novembre, et aucune route 314. Elle ne corrige donc pas l’absence de l’offre post-réorganisation.
