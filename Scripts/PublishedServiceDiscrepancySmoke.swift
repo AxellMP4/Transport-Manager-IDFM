@@ -18,12 +18,24 @@ struct PublishedServiceDiscrepancySmoke {
         precondition(notice.detail.contains("314"), "The notice should identify the replacement route.")
         precondition(notice.detail.contains("1er novembre"), "The notice should name the effective date.")
         precondition(
+            notice.detail.contains("plan schématique officiel 214/314"),
+            "The notice should make the official route plan available for stop and path review."
+        )
+        precondition(
             notice.timetableTitle == "Horaires officiels de la ligne 314 · 1er novembre 2026–11 juillet 2027",
             "The notice should link the verified official timetable for the replacement line."
         )
         precondition(
             notice.timetableURL.absoluteString == "https://ilico.iledefrance-mobilites.fr/uploads/fiches/20261021T153740Z-878f05ec-b765-486b-bb83-7d8a6d99c48b.pdf",
             "The replacement timetable URL should resolve to the current official IDFM PDF."
+        )
+        precondition(
+            notice.routePlanTitle == "Plan schématique officiel 214/314 · août 2026",
+            "The notice should label the combined route plan as a schematic reference."
+        )
+        precondition(
+            notice.routePlanURL.absoluteString == "https://www.iledefrance-mobilites.fr/medias/portail-idfm-operateurs/ORL14VYfG2K1HYNw_THERMO_BOUCLES-DE-MARNE-214-314_08.26.pdf",
+            "The plan link should point to the official 214/314 diagram included by IDFM."
         )
         precondition(
             notice.gtfsSourceTitle == "Ressource GTFS publique IDFM",

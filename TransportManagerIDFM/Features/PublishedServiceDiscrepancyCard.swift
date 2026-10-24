@@ -24,6 +24,11 @@ struct PublishedServiceDiscrepancyCard: View {
                         .font(.caption)
                 }
 
+                Link(destination: notice.routePlanURL) {
+                    Label(notice.routePlanTitle, systemImage: "map")
+                        .font(.caption)
+                }
+
                 Link(destination: notice.gtfsSourceURL) {
                     Label(notice.gtfsSourceTitle, systemImage: "tablecells")
                         .font(.caption)
