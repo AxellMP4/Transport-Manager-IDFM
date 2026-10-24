@@ -725,7 +725,14 @@ struct GTFSImportMetadata: Sendable {
 }
 
 enum GTFSImportProvenance: String, CaseIterable, Identifiable, Sendable {
-    static let bundledArchiveSHA256 = "3c3fe0eb7e165dde283ff87489339b48b4c3dcf69be011cc7ae2bc78d1764500"
+    static let bundledArchiveSHA256 = "6eb741b6eedb6b72d53bb3b76160ad3751aa33939357713759e0ca3ba96f8eb3"
+    static let legacyBundledArchiveSHA256s: Set<String> = [
+        "3c3fe0eb7e165dde283ff87489339b48b4c3dcf69be011cc7ae2bc78d1764500"
+    ]
+
+    static func recognizesBundledArchive(sha256: String) -> Bool {
+        sha256 == bundledArchiveSHA256 || legacyBundledArchiveSHA256s.contains(sha256)
+    }
 
     case prim
     case publicMirror
@@ -1000,7 +1007,7 @@ extension NetworkVersion {
         sourceProvenanceIsDeclared = try values.decodeIfPresent(Bool.self, forKey: .sourceProvenanceIsDeclared)
             ?? (
                 decodedDatasetID == "offre-horaires-tc-gtfs-idfm"
-                    && decodedSHA256 == GTFSImportProvenance.bundledArchiveSHA256
+                    && GTFSImportProvenance.recognizesBundledArchive(sha256: decodedSHA256)
             )
         originalFilename = try values.decode(String.self, forKey: .originalFilename)
         archiveRelativePath = try values.decode(String.self, forKey: .archiveRelativePath)

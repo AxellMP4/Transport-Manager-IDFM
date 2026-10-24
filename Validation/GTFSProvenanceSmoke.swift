@@ -22,6 +22,14 @@ struct GTFSProvenanceSmoke {
         precondition(bundledLegacy.sourceProvenanceIsDeclared)
         precondition(bundledLegacy.displaySourceTitle == bundledLegacy.sourceTitle)
 
+        let previousBundledSHA256 = "3c3fe0eb7e165dde283ff87489339b48b4c3dcf69be011cc7ae2bc78d1764500"
+        let previousBundledLegacy = try decodeVersion(
+            datasetID: "offre-horaires-tc-gtfs-idfm",
+            sha256: previousBundledSHA256
+        )
+        precondition(previousBundledLegacy.sourceProvenanceIsDeclared)
+        precondition(previousBundledLegacy.displaySourceTitle == previousBundledLegacy.sourceTitle)
+
         let explicitFalse = try decodeVersion(
             datasetID: "offre-horaires-tc-gtfs-idfm",
             sha256: bundledSHA256,

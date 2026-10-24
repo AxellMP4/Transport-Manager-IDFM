@@ -1,5 +1,13 @@
 # Archive GTFS IDFM
 
+## Snapshot GTFS actuellement embarqué — 24 octobre 2026, 03:49 CEST
+
+- Le jeu embarque maintenant l’archive complète du miroir public IDFM contrôlée le 24 octobre à 02:17 : HTTP 200, `Last-Modified` 23 octobre 12:24:06 CEST, 150 257 397 octets, ETag `6adb35c6-8f4bef5`, SHA-256 `6eb741b6eedb6b72d53bb3b76160ad3751aa33939357713759e0ca3ba96f8eb3`. Le ZIP passe `unzip -tq`; les 18 fragments `idfm-gtfs-2026-10-23-part-00.bin` à `-17.bin` sont assemblés au premier lancement s’il n’existe pas déjà de GTFS actif; leur taille/empreinte sont revérifiées avant import. La provenance enregistrée est « miroir public »; l’ancienne archive du 20 octobre reste reconnue lors de la migration des versions locales déjà importées.
+- L’inspecteur de production a traité 436 751 courses bus, 1 970 routes bus, 33 598 arrêts bus et 53 474 arrêts du flux. La période effective s’étend du 20 octobre au 21 novembre 2026; 436 739 courses ont un départ. Il ne relève aucun passage invalide, aucune course sans date active, aucune course sans forme référencée et aucun arrêt structurellement rejeté. Il signale 71 courses avec forme référencée indisponible et huit formes invalides, à garder dans le diagnostic géométrique.
+- Cette archive contient toujours 143 courses de la 214, dont 109 actives le 30 octobre et 34 le 31 octobre, aucune le 1er ou le 2 novembre; aucune route 314 n’y figure. Le critère #280 reste ouvert : la couverture agrégée publiée ne remplace pas les horaires par course et l’export PRIM authentifié demeure inaccessible sans connexion.
+- Le ZIP public du 23 octobre ajoute 3 554 courses bus à l’ancien snapshot embarqué et étend sa validité jusqu’au 21 novembre. Il remplace les 18 fragments du 20 octobre dans le projet; leur hash historique `3c3fe0eb7e165dde283ff87489339b48b4c3dcf69be011cc7ae2bc78d1764500` est conservé dans les journaux ci-dessous et dans la migration de provenance.
+
+
 ## Nouvelle relecture de la ressource publique — 24 octobre 2026, 03:14 CEST
 
 - La [fiche 80921](https://transport.data.gouv.fr/resources/80921) affiche toujours une période générale du 20 octobre au 21 novembre 2026 et « Bord de Marne » du 23 octobre au 8 novembre. Son rapport valide le fichier courant au 23 octobre à 14:31 et liste des agrégats de lignes, arrêts et formes, sans fournir les départs 214/314. Ces métadonnées ne suffisent pas à intégrer de nouveaux horaires.
@@ -12,7 +20,7 @@
 - Lecture ciblée de `routes.txt`, `trips.txt`, `calendar.txt` et `calendar_dates.txt` : une seule route 214, `IDFM:C01228`, avec 143 courses (109 actives le vendredi 30 octobre, 34 le samedi 31 octobre); aucune course 214 active le dimanche 1er novembre ou le lundi 2 novembre, et aucune route 314 dans `routes.txt`.
 - Cette copie publique ne fournit donc toujours pas les horaires GTFS post-réorganisation annoncés. Elle n’est pas intégrée au jeu; la version locale embarquée du 20 octobre reste inchangée. #280 reste ouvert jusqu’à l’inspection d’un fichier contenant réellement les courses requises. La fiche [PRIM GTFS](https://prim.iledefrance-mobilites.fr/fr/jeux-de-donnees/offre-horaires-tc-gtfs-idfm) relue le 24 octobre indique un dernier traitement au 23 octobre à 13:00; l’export demeure soumis à connexion authentifiée.
 
-## Dernier réaudit global — 23 octobre 2026
+## Réaudit global historique de l’archive du 20 octobre — 23 octobre 2026
 
 Le réaudit post-correction sur l’archive livrée du 20 octobre trouve **0 course, 0 visite et 0 motif d’arrêt non projetable** sur 433 197 courses bus, 1 971 routes et 33 599 arrêts. Les anciens chiffres de 17 318, puis 7 591 courses / 267 motifs sont historiques et supersédés pour ce snapshot. Voir le relevé complet à la fin de cette page. La géométrie reste à corroborer avec une source de terrain ou un export PRIM authentifié.
 
@@ -47,7 +55,7 @@ Le réaudit post-correction sur l’archive livrée du 20 octobre trouve **0 cou
 - Le miroir public conserve son identifiant de jeu, sa page de référence et la Licence Mobilité affichée par le Point d’Accès National. La source déclarée est une indication de l’utilisateur; l’application ne peut pas authentifier l’origine des octets du fichier sélectionné.
 - Les catalogues sauvegardés avant cette correction conservent leurs métadonnées, mais leur provenance s’affiche maintenant « à vérifier » sauf pour l’identifiant PRIM et le SHA-256 exacts de l’archive GTFS intégrée. Une ancienne source ne peut pas être rétablie sans ZIP original ou preuve d’export; l’utilisateur peut réimporter le fichier en déclarant explicitement sa source.
 
-## Version du 20 octobre 2026
+## Snapshot historique du 20 octobre 2026 (remplacé le 24 octobre)
 
 - Archive source : `idfm-gtfs-2026-10-20.zip` (149 753 099 octets, 143 Mio), présente localement.
 - Les octets de cette archive sont suivis dans le dépôt en 18 fragments contigus de 8 Mio maximum (`idfm-gtfs-2026-10-20-part-00.bin` à `idfm-gtfs-2026-10-20-part-17.bin`). L’application les reconstitue en flux dans son dossier temporaire au premier démarrage avant l’import GTFS ; elle importe l’archive originale byte pour byte.

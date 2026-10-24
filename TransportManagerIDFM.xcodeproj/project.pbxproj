@@ -38,24 +38,24 @@
 		030000000000000000000028 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000030 /* README.md */; };
 		030000000000000000000029 /* RouteDetourRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000031 /* RouteDetourRouter.swift */; };
 		030000000000000000000030 /* RouteDetourEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000032 /* RouteDetourEditorView.swift */; };
-		030000000000000000000043 /* idfm-gtfs-2026-10-20-part-00.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000043 /* idfm-gtfs-2026-10-20-part-00.bin */; };
-		030000000000000000000044 /* idfm-gtfs-2026-10-20-part-01.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000044 /* idfm-gtfs-2026-10-20-part-01.bin */; };
-		030000000000000000000100 /* idfm-gtfs-2026-10-20-part-02.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000100 /* idfm-gtfs-2026-10-20-part-02.bin */; };
-		030000000000000000000101 /* idfm-gtfs-2026-10-20-part-03.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000101 /* idfm-gtfs-2026-10-20-part-03.bin */; };
-		030000000000000000000102 /* idfm-gtfs-2026-10-20-part-04.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000102 /* idfm-gtfs-2026-10-20-part-04.bin */; };
-		030000000000000000000103 /* idfm-gtfs-2026-10-20-part-05.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000103 /* idfm-gtfs-2026-10-20-part-05.bin */; };
-		030000000000000000000104 /* idfm-gtfs-2026-10-20-part-06.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000104 /* idfm-gtfs-2026-10-20-part-06.bin */; };
-		030000000000000000000105 /* idfm-gtfs-2026-10-20-part-07.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000105 /* idfm-gtfs-2026-10-20-part-07.bin */; };
-		030000000000000000000106 /* idfm-gtfs-2026-10-20-part-08.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000106 /* idfm-gtfs-2026-10-20-part-08.bin */; };
-		030000000000000000000107 /* idfm-gtfs-2026-10-20-part-09.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000107 /* idfm-gtfs-2026-10-20-part-09.bin */; };
-		030000000000000000000108 /* idfm-gtfs-2026-10-20-part-10.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000108 /* idfm-gtfs-2026-10-20-part-10.bin */; };
-		030000000000000000000109 /* idfm-gtfs-2026-10-20-part-11.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000109 /* idfm-gtfs-2026-10-20-part-11.bin */; };
-		030000000000000000000110 /* idfm-gtfs-2026-10-20-part-12.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000110 /* idfm-gtfs-2026-10-20-part-12.bin */; };
-		030000000000000000000111 /* idfm-gtfs-2026-10-20-part-13.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000111 /* idfm-gtfs-2026-10-20-part-13.bin */; };
-		030000000000000000000112 /* idfm-gtfs-2026-10-20-part-14.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000112 /* idfm-gtfs-2026-10-20-part-14.bin */; };
-		030000000000000000000113 /* idfm-gtfs-2026-10-20-part-15.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000113 /* idfm-gtfs-2026-10-20-part-15.bin */; };
-		030000000000000000000114 /* idfm-gtfs-2026-10-20-part-16.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000114 /* idfm-gtfs-2026-10-20-part-16.bin */; };
-		030000000000000000000115 /* idfm-gtfs-2026-10-20-part-17.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000115 /* idfm-gtfs-2026-10-20-part-17.bin */; };
+		030000000000000000000043 /* idfm-gtfs-2026-10-23-part-00.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000043 /* idfm-gtfs-2026-10-23-part-00.bin */; };
+		030000000000000000000044 /* idfm-gtfs-2026-10-23-part-01.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000044 /* idfm-gtfs-2026-10-23-part-01.bin */; };
+		030000000000000000000100 /* idfm-gtfs-2026-10-23-part-02.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000100 /* idfm-gtfs-2026-10-23-part-02.bin */; };
+		030000000000000000000101 /* idfm-gtfs-2026-10-23-part-03.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000101 /* idfm-gtfs-2026-10-23-part-03.bin */; };
+		030000000000000000000102 /* idfm-gtfs-2026-10-23-part-04.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000102 /* idfm-gtfs-2026-10-23-part-04.bin */; };
+		030000000000000000000103 /* idfm-gtfs-2026-10-23-part-05.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000103 /* idfm-gtfs-2026-10-23-part-05.bin */; };
+		030000000000000000000104 /* idfm-gtfs-2026-10-23-part-06.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000104 /* idfm-gtfs-2026-10-23-part-06.bin */; };
+		030000000000000000000105 /* idfm-gtfs-2026-10-23-part-07.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000105 /* idfm-gtfs-2026-10-23-part-07.bin */; };
+		030000000000000000000106 /* idfm-gtfs-2026-10-23-part-08.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000106 /* idfm-gtfs-2026-10-23-part-08.bin */; };
+		030000000000000000000107 /* idfm-gtfs-2026-10-23-part-09.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000107 /* idfm-gtfs-2026-10-23-part-09.bin */; };
+		030000000000000000000108 /* idfm-gtfs-2026-10-23-part-10.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000108 /* idfm-gtfs-2026-10-23-part-10.bin */; };
+		030000000000000000000109 /* idfm-gtfs-2026-10-23-part-11.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000109 /* idfm-gtfs-2026-10-23-part-11.bin */; };
+		030000000000000000000110 /* idfm-gtfs-2026-10-23-part-12.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000110 /* idfm-gtfs-2026-10-23-part-12.bin */; };
+		030000000000000000000111 /* idfm-gtfs-2026-10-23-part-13.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000111 /* idfm-gtfs-2026-10-23-part-13.bin */; };
+		030000000000000000000112 /* idfm-gtfs-2026-10-23-part-14.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000112 /* idfm-gtfs-2026-10-23-part-14.bin */; };
+		030000000000000000000113 /* idfm-gtfs-2026-10-23-part-15.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000113 /* idfm-gtfs-2026-10-23-part-15.bin */; };
+		030000000000000000000114 /* idfm-gtfs-2026-10-23-part-16.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000114 /* idfm-gtfs-2026-10-23-part-16.bin */; };
+		030000000000000000000115 /* idfm-gtfs-2026-10-23-part-17.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000115 /* idfm-gtfs-2026-10-23-part-17.bin */; };
 		030000000000000000000032 /* StopReplacementRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000034 /* StopReplacementRouter.swift */; };
 		030000000000000000000033 /* StopClosureEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000035 /* StopClosureEditorView.swift */; };
 		030000000000000000000034 /* CareerProgression.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000037 /* CareerProgression.swift */; };
@@ -104,24 +104,24 @@
 		020000000000000000000030 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		020000000000000000000031 /* RouteDetourRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RouteDetourRouter.swift; sourceTree = "<group>"; };
 		020000000000000000000032 /* RouteDetourEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RouteDetourEditorView.swift; sourceTree = "<group>"; };
-		020000000000000000000043 /* idfm-gtfs-2026-10-20-part-00.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-20-part-00.bin; sourceTree = SOURCE_ROOT; };
-		020000000000000000000044 /* idfm-gtfs-2026-10-20-part-01.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-20-part-01.bin; sourceTree = SOURCE_ROOT; };
-		020000000000000000000100 /* idfm-gtfs-2026-10-20-part-02.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-20-part-02.bin; sourceTree = SOURCE_ROOT; };
-		020000000000000000000101 /* idfm-gtfs-2026-10-20-part-03.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-20-part-03.bin; sourceTree = SOURCE_ROOT; };
-		020000000000000000000102 /* idfm-gtfs-2026-10-20-part-04.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-20-part-04.bin; sourceTree = SOURCE_ROOT; };
-		020000000000000000000103 /* idfm-gtfs-2026-10-20-part-05.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-20-part-05.bin; sourceTree = SOURCE_ROOT; };
-		020000000000000000000104 /* idfm-gtfs-2026-10-20-part-06.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-20-part-06.bin; sourceTree = SOURCE_ROOT; };
-		020000000000000000000105 /* idfm-gtfs-2026-10-20-part-07.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-20-part-07.bin; sourceTree = SOURCE_ROOT; };
-		020000000000000000000106 /* idfm-gtfs-2026-10-20-part-08.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-20-part-08.bin; sourceTree = SOURCE_ROOT; };
-		020000000000000000000107 /* idfm-gtfs-2026-10-20-part-09.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-20-part-09.bin; sourceTree = SOURCE_ROOT; };
-		020000000000000000000108 /* idfm-gtfs-2026-10-20-part-10.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-20-part-10.bin; sourceTree = SOURCE_ROOT; };
-		020000000000000000000109 /* idfm-gtfs-2026-10-20-part-11.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-20-part-11.bin; sourceTree = SOURCE_ROOT; };
-		020000000000000000000110 /* idfm-gtfs-2026-10-20-part-12.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-20-part-12.bin; sourceTree = SOURCE_ROOT; };
-		020000000000000000000111 /* idfm-gtfs-2026-10-20-part-13.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-20-part-13.bin; sourceTree = SOURCE_ROOT; };
-		020000000000000000000112 /* idfm-gtfs-2026-10-20-part-14.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-20-part-14.bin; sourceTree = SOURCE_ROOT; };
-		020000000000000000000113 /* idfm-gtfs-2026-10-20-part-15.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-20-part-15.bin; sourceTree = SOURCE_ROOT; };
-		020000000000000000000114 /* idfm-gtfs-2026-10-20-part-16.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-20-part-16.bin; sourceTree = SOURCE_ROOT; };
-		020000000000000000000115 /* idfm-gtfs-2026-10-20-part-17.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-20-part-17.bin; sourceTree = SOURCE_ROOT; };
+		020000000000000000000043 /* idfm-gtfs-2026-10-23-part-00.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-23-part-00.bin; sourceTree = SOURCE_ROOT; };
+		020000000000000000000044 /* idfm-gtfs-2026-10-23-part-01.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-23-part-01.bin; sourceTree = SOURCE_ROOT; };
+		020000000000000000000100 /* idfm-gtfs-2026-10-23-part-02.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-23-part-02.bin; sourceTree = SOURCE_ROOT; };
+		020000000000000000000101 /* idfm-gtfs-2026-10-23-part-03.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-23-part-03.bin; sourceTree = SOURCE_ROOT; };
+		020000000000000000000102 /* idfm-gtfs-2026-10-23-part-04.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-23-part-04.bin; sourceTree = SOURCE_ROOT; };
+		020000000000000000000103 /* idfm-gtfs-2026-10-23-part-05.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-23-part-05.bin; sourceTree = SOURCE_ROOT; };
+		020000000000000000000104 /* idfm-gtfs-2026-10-23-part-06.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-23-part-06.bin; sourceTree = SOURCE_ROOT; };
+		020000000000000000000105 /* idfm-gtfs-2026-10-23-part-07.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-23-part-07.bin; sourceTree = SOURCE_ROOT; };
+		020000000000000000000106 /* idfm-gtfs-2026-10-23-part-08.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-23-part-08.bin; sourceTree = SOURCE_ROOT; };
+		020000000000000000000107 /* idfm-gtfs-2026-10-23-part-09.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-23-part-09.bin; sourceTree = SOURCE_ROOT; };
+		020000000000000000000108 /* idfm-gtfs-2026-10-23-part-10.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-23-part-10.bin; sourceTree = SOURCE_ROOT; };
+		020000000000000000000109 /* idfm-gtfs-2026-10-23-part-11.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-23-part-11.bin; sourceTree = SOURCE_ROOT; };
+		020000000000000000000110 /* idfm-gtfs-2026-10-23-part-12.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-23-part-12.bin; sourceTree = SOURCE_ROOT; };
+		020000000000000000000111 /* idfm-gtfs-2026-10-23-part-13.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-23-part-13.bin; sourceTree = SOURCE_ROOT; };
+		020000000000000000000112 /* idfm-gtfs-2026-10-23-part-14.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-23-part-14.bin; sourceTree = SOURCE_ROOT; };
+		020000000000000000000113 /* idfm-gtfs-2026-10-23-part-15.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-23-part-15.bin; sourceTree = SOURCE_ROOT; };
+		020000000000000000000114 /* idfm-gtfs-2026-10-23-part-16.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-23-part-16.bin; sourceTree = SOURCE_ROOT; };
+		020000000000000000000115 /* idfm-gtfs-2026-10-23-part-17.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-23-part-17.bin; sourceTree = SOURCE_ROOT; };
 		020000000000000000000034 /* StopReplacementRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StopReplacementRouter.swift; sourceTree = "<group>"; };
 		020000000000000000000035 /* StopClosureEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StopClosureEditorView.swift; sourceTree = "<group>"; };
 		020000000000000000000036 /* idfm-route-geometries-2026-10-20.zip */ = {isa = PBXFileReference; lastKnownFileType = archive.zip; path = docs/data/geometries/idfm-route-geometries-2026-10-20.zip; sourceTree = SOURCE_ROOT; };
@@ -231,24 +231,24 @@
 			children = (
 				020000000000000000000006 /* TransportManagerIDFM.entitlements */,
 				010000000000000000000007 /* IDFMSnapshots */,
-				020000000000000000000043 /* idfm-gtfs-2026-10-20-part-00.bin */,
-				020000000000000000000044 /* idfm-gtfs-2026-10-20-part-01.bin */,
-				020000000000000000000100 /* idfm-gtfs-2026-10-20-part-02.bin */,
-				020000000000000000000101 /* idfm-gtfs-2026-10-20-part-03.bin */,
-				020000000000000000000102 /* idfm-gtfs-2026-10-20-part-04.bin */,
-				020000000000000000000103 /* idfm-gtfs-2026-10-20-part-05.bin */,
-				020000000000000000000104 /* idfm-gtfs-2026-10-20-part-06.bin */,
-				020000000000000000000105 /* idfm-gtfs-2026-10-20-part-07.bin */,
-				020000000000000000000106 /* idfm-gtfs-2026-10-20-part-08.bin */,
-				020000000000000000000107 /* idfm-gtfs-2026-10-20-part-09.bin */,
-				020000000000000000000108 /* idfm-gtfs-2026-10-20-part-10.bin */,
-				020000000000000000000109 /* idfm-gtfs-2026-10-20-part-11.bin */,
-				020000000000000000000110 /* idfm-gtfs-2026-10-20-part-12.bin */,
-				020000000000000000000111 /* idfm-gtfs-2026-10-20-part-13.bin */,
-				020000000000000000000112 /* idfm-gtfs-2026-10-20-part-14.bin */,
-				020000000000000000000113 /* idfm-gtfs-2026-10-20-part-15.bin */,
-				020000000000000000000114 /* idfm-gtfs-2026-10-20-part-16.bin */,
-				020000000000000000000115 /* idfm-gtfs-2026-10-20-part-17.bin */,
+				020000000000000000000043 /* idfm-gtfs-2026-10-23-part-00.bin */,
+				020000000000000000000044 /* idfm-gtfs-2026-10-23-part-01.bin */,
+				020000000000000000000100 /* idfm-gtfs-2026-10-23-part-02.bin */,
+				020000000000000000000101 /* idfm-gtfs-2026-10-23-part-03.bin */,
+				020000000000000000000102 /* idfm-gtfs-2026-10-23-part-04.bin */,
+				020000000000000000000103 /* idfm-gtfs-2026-10-23-part-05.bin */,
+				020000000000000000000104 /* idfm-gtfs-2026-10-23-part-06.bin */,
+				020000000000000000000105 /* idfm-gtfs-2026-10-23-part-07.bin */,
+				020000000000000000000106 /* idfm-gtfs-2026-10-23-part-08.bin */,
+				020000000000000000000107 /* idfm-gtfs-2026-10-23-part-09.bin */,
+				020000000000000000000108 /* idfm-gtfs-2026-10-23-part-10.bin */,
+				020000000000000000000109 /* idfm-gtfs-2026-10-23-part-11.bin */,
+				020000000000000000000110 /* idfm-gtfs-2026-10-23-part-12.bin */,
+				020000000000000000000111 /* idfm-gtfs-2026-10-23-part-13.bin */,
+				020000000000000000000112 /* idfm-gtfs-2026-10-23-part-14.bin */,
+				020000000000000000000113 /* idfm-gtfs-2026-10-23-part-15.bin */,
+				020000000000000000000114 /* idfm-gtfs-2026-10-23-part-16.bin */,
+				020000000000000000000115 /* idfm-gtfs-2026-10-23-part-17.bin */,
 				020000000000000000000036 /* idfm-route-geometries-2026-10-20.zip */,
 			);
 		};
@@ -312,24 +312,24 @@
 				030000000000000000000026 /* idfm-line-documents-2026-10-20.csv in Resources */,
 				030000000000000000000027 /* idfm-contract-contours-2026-10-20.geojson in Resources */,
 				030000000000000000000028 /* README.md in Resources */,
-				030000000000000000000043 /* idfm-gtfs-2026-10-20-part-00.bin in Resources */,
-				030000000000000000000044 /* idfm-gtfs-2026-10-20-part-01.bin in Resources */,
-				030000000000000000000100 /* idfm-gtfs-2026-10-20-part-02.bin in Resources */,
-				030000000000000000000101 /* idfm-gtfs-2026-10-20-part-03.bin in Resources */,
-				030000000000000000000102 /* idfm-gtfs-2026-10-20-part-04.bin in Resources */,
-				030000000000000000000103 /* idfm-gtfs-2026-10-20-part-05.bin in Resources */,
-				030000000000000000000104 /* idfm-gtfs-2026-10-20-part-06.bin in Resources */,
-				030000000000000000000105 /* idfm-gtfs-2026-10-20-part-07.bin in Resources */,
-				030000000000000000000106 /* idfm-gtfs-2026-10-20-part-08.bin in Resources */,
-				030000000000000000000107 /* idfm-gtfs-2026-10-20-part-09.bin in Resources */,
-				030000000000000000000108 /* idfm-gtfs-2026-10-20-part-10.bin in Resources */,
-				030000000000000000000109 /* idfm-gtfs-2026-10-20-part-11.bin in Resources */,
-				030000000000000000000110 /* idfm-gtfs-2026-10-20-part-12.bin in Resources */,
-				030000000000000000000111 /* idfm-gtfs-2026-10-20-part-13.bin in Resources */,
-				030000000000000000000112 /* idfm-gtfs-2026-10-20-part-14.bin in Resources */,
-				030000000000000000000113 /* idfm-gtfs-2026-10-20-part-15.bin in Resources */,
-				030000000000000000000114 /* idfm-gtfs-2026-10-20-part-16.bin in Resources */,
-				030000000000000000000115 /* idfm-gtfs-2026-10-20-part-17.bin in Resources */,
+				030000000000000000000043 /* idfm-gtfs-2026-10-23-part-00.bin in Resources */,
+				030000000000000000000044 /* idfm-gtfs-2026-10-23-part-01.bin in Resources */,
+				030000000000000000000100 /* idfm-gtfs-2026-10-23-part-02.bin in Resources */,
+				030000000000000000000101 /* idfm-gtfs-2026-10-23-part-03.bin in Resources */,
+				030000000000000000000102 /* idfm-gtfs-2026-10-23-part-04.bin in Resources */,
+				030000000000000000000103 /* idfm-gtfs-2026-10-23-part-05.bin in Resources */,
+				030000000000000000000104 /* idfm-gtfs-2026-10-23-part-06.bin in Resources */,
+				030000000000000000000105 /* idfm-gtfs-2026-10-23-part-07.bin in Resources */,
+				030000000000000000000106 /* idfm-gtfs-2026-10-23-part-08.bin in Resources */,
+				030000000000000000000107 /* idfm-gtfs-2026-10-23-part-09.bin in Resources */,
+				030000000000000000000108 /* idfm-gtfs-2026-10-23-part-10.bin in Resources */,
+				030000000000000000000109 /* idfm-gtfs-2026-10-23-part-11.bin in Resources */,
+				030000000000000000000110 /* idfm-gtfs-2026-10-23-part-12.bin in Resources */,
+				030000000000000000000111 /* idfm-gtfs-2026-10-23-part-13.bin in Resources */,
+				030000000000000000000112 /* idfm-gtfs-2026-10-23-part-14.bin in Resources */,
+				030000000000000000000113 /* idfm-gtfs-2026-10-23-part-15.bin in Resources */,
+				030000000000000000000114 /* idfm-gtfs-2026-10-23-part-16.bin in Resources */,
+				030000000000000000000115 /* idfm-gtfs-2026-10-23-part-17.bin in Resources */,
 				030000000000000000000039 /* idfm-route-geometries-2026-10-20.zip in Resources */,
 				030000000000000000000042 /* bords-de-marne-depot-roster.csv in Resources */,
 			); runOnlyForDeploymentPostprocessing = 0; };

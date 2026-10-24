@@ -136,15 +136,15 @@ private enum BundledGTFSArchiveAssemblyError: LocalizedError {
 }
 
 private enum BundledGTFSArchiveAssembler {
-    private static let expectedByteCount: UInt64 = 149_753_099
+    private static let expectedByteCount: UInt64 = 150_257_397
     private static let expectedSHA256 = GTFSImportProvenance.bundledArchiveSHA256
     private static let partNames = (0..<18).map {
-        String(format: "idfm-gtfs-2026-10-20-part-%02d", $0)
+        String(format: "idfm-gtfs-2026-10-23-part-%02d", $0)
     }
 
     static func assemble() throws -> URL {
         let destination = FileManager.default.temporaryDirectory
-            .appending(path: "idfm-gtfs-2026-10-20-bundled.zip")
+            .appending(path: "idfm-gtfs-2026-10-23-bundled.zip")
         try? FileManager.default.removeItem(at: destination)
         guard FileManager.default.createFile(atPath: destination.path, contents: nil) else {
             throw CocoaError(.fileWriteUnknown)
@@ -266,7 +266,7 @@ final class NetworkLibrary: ObservableObject {
                     let source = BundledSnapshotBootstrapError.Source.gtfs
                     do {
                         let url = try BundledGTFSArchiveAssembler.assemble()
-                        catalog = try NetworkVersionStore.importGTFS(from: url, provenance: .prim)
+                        catalog = try NetworkVersionStore.importGTFS(from: url, provenance: .publicMirror)
                     } catch {
                         throw BundledSnapshotBootstrapError.importFailed(source, error.localizedDescription)
                     }
