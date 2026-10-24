@@ -1,5 +1,12 @@
 # État de réalisation
 
+## Première journée de service annoncée pour la 314 — 25 octobre 2026, 01:00 CEST
+
+- L’avertissement de route manquante distingue maintenant la date d’effet annoncée par IDFM, dimanche 1er novembre, de la première journée de service en semaine, lundi 2 novembre 2026. La fréquence reste présentée comme une fréquence publiée; aucune course ni séquence d’arrêts n’est inventée. Source : [communiqué IDFM du 21 octobre 2026](https://presse.iledefrance-mobilites.fr/ile-de-france-mobilites-restructure-et-reorganise-loffre-de-bus-sur-les-territoires-des-bords-de-marne-et-de-boucle-nord-de-seine/?lang=fr).
+- Le smoke `Scripts/validate-published-service-discrepancy.sh` échouait avant l’ajout de cette précision et passe maintenant. Les six validateurs du projet passent également : provenance GTFS, écart de service publié, preuves de roster et de recharge, téléchargement GTFS public, indexation des tarifs de véhicules.
+- La cible Debug macOS universelle compile avec `xcodebuild -quiet -project TransportManagerIDFM.xcodeproj -scheme TransportManagerIDFM -configuration Debug -sdk macosx -destination 'generic/platform=macOS' -derivedDataPath /private/tmp/TransitCityPlayableDebugBuild CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=NO -jobs 2 build` (code 0). Le paquet local `build/Debug/TransportManagerIDFM-Playable.zip` est reconstruit depuis cette sortie. `unzip -tq`, `codesign --verify --deep --strict`, `plutil -lint` d’Info.plist et `lipo -info` passent; l’application extraite contient les 18 fragments GTFS `.bin` et les deux architectures `x86_64`/`arm64`. Taille : 177 571 033 octets; SHA-256 : `354be7582d020a81304f6ef199ae6a8038b8b968a5d680f09bbba8459364b9f8`. Signature ad hoc, non notariée.
+- Cette précision de calendrier ne ferme aucun des six critères liés aux exports GTFS/PRIM, aux preuves de rattachement, au catalogue complet des véhicules ou aux données financières. Avancement fonctionnel maintenu à 133/139 (95,7 %).
+
 ## Repères de taille du réseau dans la fiche de dépôt — 25 octobre 2026, 00:35 CEST
 
 - La fiche de dépôt expose maintenant les chiffres agrégés du communiqué IDFM du 21 octobre : 28 communes, environ 310 bus et plus de 1 400 arrêts, en plus des 23 lignes de jour et 7 de nuit annoncées à partir du 1er novembre. Le texte précise qu’il s’agit de l’échelle du réseau Bords de Marne, pas de la capacité du dépôt consulté; IDFM ne répartit pas ces chiffres par COB.
