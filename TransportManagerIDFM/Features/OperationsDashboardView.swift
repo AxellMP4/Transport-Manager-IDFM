@@ -158,6 +158,7 @@ private struct DepotMapLine: Identifiable {
 
 private enum OperationsWorkspaceTab: String, CaseIterable, Identifiable {
     case network
+    case coursesMotifs
     case depots
     case lines
     case assignments
@@ -172,6 +173,7 @@ private enum OperationsWorkspaceTab: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .network: "Carte"
+        case .coursesMotifs: "Courses / Motifs"
         case .lines: "Lignes"
         case .assignments: "Affectations"
         case .fleet: "Parc"
@@ -186,6 +188,7 @@ private enum OperationsWorkspaceTab: String, CaseIterable, Identifiable {
     var symbol: String {
         switch self {
         case .network: "map"
+        case .coursesMotifs: "point.topleft.down.curvedto.point.bottomright.curvepath"
         case .lines: "list.bullet.rectangle"
         case .assignments: "arrow.triangle.branch"
         case .fleet: "bus"
@@ -1174,6 +1177,8 @@ struct OperationsDashboardView: View {
                 Divider()
                 mapPanel
             }
+        case .coursesMotifs:
+            GTFSCourseMotifReviewWorkspace(library: library)
         case .lines:
             DepotLinesWorkspaceView(
                 library: library,

@@ -1207,12 +1207,45 @@ private struct GTFSGeometryReviewSelection: Identifiable {
     var id: String { tripID }
 }
 
-private struct GTFSTripQualityAuditSection: View {
+struct GTFSCourseMotifReviewWorkspace: View {
+    @ObservedObject var library: NetworkLibrary
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Courses / Motifs GTFS")
+                        .font(.title2.weight(.semibold))
+                    Text("Parcours direct vers l’inventaire des motifs exacts; ouvre une course témoin sur la carte pour comparer sa forme et ses arrêts.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                if let version = library.catalog.activeVersion {
+                    GTFSTripQualityAuditSection(library: library, version: version, routes: library.busRoutes)
+                } else {
+                    ContentUnavailableView(
+                        "Aucune version GTFS active",
+                        systemImage: "bus",
+                        description: Text("Importez une archive GTFS pour examiner ses courses et ses motifs.")
+                    )
+                }
+            }
+            .padding(20)
+        }
+        .task {
+            await library.loadBusRoutes()
+        }
+    }
+}
+
+struct GTFSTripQualityAuditSection: View {
     @ObservedObject var library: NetworkLibrary
     let version: NetworkVersion?
     let routes: [GTFSRouteSummary]
 
-    @State private var isExpanded = false
+    @State private var isExpanded = true
     @State private var selectedIssueKind: GTFSImportTripIssueKind?
     @State private var selectedTripReview: GTFSGeometryReviewSelection?
     @State private var displayMode: GTFSTripQualityDisplayMode = .motifs
