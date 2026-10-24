@@ -2152,6 +2152,16 @@ struct OperationsDashboardView: View {
         }
     }
 
+    @ViewBuilder
+    private func missingAnnounced314Notice(for checklist: ScenarioLineChecklist) -> some View {
+        if checklist.lineNames.contains("314"),
+           let notice = PublishedServiceDiscrepancy.forMissingAnnouncedLine314(
+               gtfsRouteShortNames: library.busRoutes.map(\.shortName)
+           ) {
+            PublishedServiceDiscrepancyCard(notice: notice)
+        }
+    }
+
     private var scenarioPanel: some View {
         VStack(alignment: .leading, spacing: 20) {
             VStack(alignment: .leading, spacing: 7) {
@@ -2372,6 +2382,7 @@ struct OperationsDashboardView: View {
                                 .foregroundStyle(.orange)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
+                        missingAnnounced314Notice(for: checklist)
                         if !scenarioLineCoverage.missingReferenceNames.isEmpty {
                             Text("Sans référence IDFM active : \(scenarioLineCoverage.missingReferenceNames.joined(separator: ", ")).")
                                 .font(.caption2)
