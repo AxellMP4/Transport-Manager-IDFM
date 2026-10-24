@@ -1,5 +1,13 @@
 # État de réalisation
 
+## Rebuild Debug et livraison jouable — 24 octobre 2026, 17:22 CEST
+
+- Les quatre fichiers différents du clone étaient les seules différences du commit local à la révision publiée; après application de ces quatre patches, `git write-tree` retourne exactement l’arbre public `8ce0793b0c5b73809c8f5811b6cb855ae3a15920`. Le build porte donc sur le code de `main`.
+- `xcodebuild` termine avec le code 0 pour la cible `TransportManagerIDFM`, configuration Debug, SDK macOS, destination générique, `ONLY_ACTIVE_ARCH=NO`, `CODE_SIGNING_ALLOWED=NO`, `-jobs 2`. L’application est ensuite signée ad hoc; la vérification de signature, le lint de l’Info.plist et `lipo -info` confirment un binaire `x86_64` et `arm64`.
+- L’archive `TransportManagerIDFM-Playable.zip` est créée dans le workspace, vérifiée par `unzip -tq), fait 177 550 184 octets et porte le SHA-256 `55e2c269d8444cf84da6d27575880d7471c3580f88805693246b48d257ddb334`. Les 18 fragments GTFS sont présents. La recomposition de ces fragments passe le contrôle CRC et donne le SHA-256 attendu `7c5a06711fbe7cafaafd7ef02781ba1548a178e80326250131a63bbb829670bc`.
+- Les trois sources de l’alerte 314 passent `swiftc -frontend -parse`, le projet passe `plutil -lint) et le clone passe `git diff --check`. L’audit détaillé du ZIP avec `GTFSFeedInspector` de production est encore en cours; aucun résultat de séquence ou de géométrie n’est déclaré ici.
+- Avancement inchangé : 133/139 (95,7 %). Les six critères qui restent dépendent de données ou preuves externes, notamment accès PRIM authentifié, GTFS détaillé après la réorganisation, rattachements actuels ligne–COB et finances DSP45. Le compte PRIM n’est pas disponible.
+
 ## Objectif actif
 
 Construire le jeu macOS natif de gestion des bus IDFM défini dans [le cahier des charges](Plan_recreation_Transport_Manager_IDFM.md).
