@@ -1,5 +1,13 @@
 # État de réalisation
 
+## Référence Mercedes-Benz eCitaro CATP — 25 octobre 2026, 00:04 CEST
+
+- Le catalogue des véhicules comprend maintenant l’eCitaro électrique 12 m comme référence d’achat CATP, sans le présenter comme un autobus exploité par IDFM ni comme une offre à acheter. La fiche CATP de l’accord-cadre 2023–2027 décrit la configuration NMC3 jusqu’à 588 kWh, 2 × 120 kW, 24 places assises et 90 voyageurs maximum; le comparateur de prix reste le coût moyen CATP de catégorie, 554 500 € HT en base 2024, pas un prix Mercedes-Benz.
+- Une variante constructeur actuelle est affichée séparément : Mercedes-Benz annonce jusqu’à 666 kWh NMC4 et 600 km pour l’eCitaro non articulé, avec une capacité publiée de 88 voyageurs. Ces données actuelles ne sont pas appliquées à la configuration CATP antérieure. Les deux sources restent liées dans les fiches.
+- Le smoke `Scripts/validate-vehicle-market-pricing.sh` a d’abord échoué sur l’absence attendue de l’entrée, puis passe avec les spécifications distinctes et l’absence d’offre d’achat. Avancement inchangé : 133/139 (95,7 %); cette référence ne ferme aucun des critères externes du catalogue ou des dépôts.
+- Sources : [fiche CATP eCitaro 12 m (2024)](https://www.catp.fr/wp-content/uploads/2024/06/FP-MERCEDES-autobus-electrique-12m.pdf) et [gamme Mercedes-Benz eCitaro](https://www.mercedes-benz-bus.com/fr/fr/models/ecitaro.html).
+- La cible Debug macOS universelle termine avec le code 0 via `xcodebuild`; l’app passe signature ad hoc, `plutil -lint` et `lipo -info` (`arm64` + `x86_64`). Le paquet jouable régénéré passe `unzip -tq`, fait 177 555 739 octets et a le SHA-256 `9c4d917151e32c2fd277a62cc39e2d1d4358c9500ede5e94ab6a8b68b3789da0`. Il n’est pas notarié.
+
 ## Assemblage tolérant des fragments GTFS — 24 octobre 2026, 23:57 CEST
 
 - Le chargeur ne suppose plus qu’un snapshot comprend exactement 18 fragments. Il ordonne les ressources par indice numérique et signale explicitement un fragment manquant avant de vérifier la taille et le SHA-256 final.

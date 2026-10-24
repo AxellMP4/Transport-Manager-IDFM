@@ -54,6 +54,34 @@ struct VehicleMarketPricingSmoke {
             "L’ajout de la fiche technique ne doit pas créer une offre d’achat non attestée."
         )
 
+        guard let eCitaro = VehicleMarketCatalog.model(id: "mercedes-ecitaro-12m-catp-2024"),
+              let catpVariant = eCitaro.technicalVariants?.first(where: {
+                  $0.id == "mercedes-ecitaro-12m-catp-2023-27"
+              }),
+              let currentVariant = eCitaro.technicalVariants?.first(where: {
+                  $0.id == "mercedes-ecitaro-12m-nmc4-current"
+              }) else {
+            fatalError("L’eCitaro doit distinguer la variante CATP 2023–2027 de la gamme constructeur actuelle.")
+        }
+        precondition(
+            catpVariant.maximumCapacity == 90
+                && catpVariant.seatedCapacity == 24
+                && catpVariant.batteryCapacityKWh == 588
+                && catpVariant.maximumPowerKilowatts == 240,
+            "La variante de l’accord-cadre CATP doit conserver ses caractéristiques propres."
+        )
+        precondition(
+            currentVariant.maximumCapacity == 88
+                && currentVariant.batteryCapacityKWh == 666
+                && currentVariant.rangeKilometers == 600,
+            "Les capacités de la gamme actuelle ne doivent pas être attribuées à l’eCitaro CATP antérieur."
+        )
+        precondition(
+            eCitaro.marketAvailabilityNote?.contains("aucune présence IDFM") == true
+                && VehicleMarketCatalog.offers(for: 2026).allSatisfy { $0.modelID != eCitaro.id },
+            "La référence CATP seule ne prouve pas une flotte régionale ni une offre à acheter."
+        )
+
         guard let manParis = VehicleMarketCatalog.model(id: "man-lions-city-standard-gnv-paris"),
               let manCurrentVariant = manParis.technicalVariants?.first(where: {
                   $0.id == "man-lions-city-12g-gnv-current-range"
