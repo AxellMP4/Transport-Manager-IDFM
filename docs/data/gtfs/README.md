@@ -1,5 +1,12 @@
 # Archive GTFS IDFM
 
+## Téléchargement du 24 octobre et identité du snapshot embarqué — 06:55 CEST
+
+- Le téléchargement du bouton officiel sur la [fiche 80921](https://transport.data.gouv.fr/resources/80921) a réussi dans Chrome le 24 octobre à 06:55 CEST. Le fichier fait 150 257 397 octets, SHA-256 `6eb741b6eedb6b72d53bb3b76160ad3751aa33939357713759e0ca3ba96f8eb3`; `unzip -tq` ne signale aucune erreur.
+- La concaténation des 18 fragments du snapshot que l’application embarque reproduit exactement cette archive (`cmp` sans différence). La copie téléchargée n’a donc pas été recopiée dans le dépôt et aucun bundle n’a été changé.
+- Inspection du ZIP avec prise en compte des calendriers et exceptions : la ligne 214 (`IDFM:C01228`) comprend 143 courses, dont aucune n’est active le 1er novembre 2026; il n’y a pas de route de nom court 314. La fenêtre agrégée publiée ne remplace pas ces calendriers par ligne.
+- Lors de la relecture par navigateur, la page PRIM affiche un traitement du GTFS au 23 octobre à 17:00 mais désactive l’export et indique qu’une connexion est requise. Elle dirige vers un formulaire email/mot de passe. L’export authentifié n’a pas été récupéré; aucun identifiant n’est conservé dans le projet.
+
 ## Dernier contrôle du miroir et divergences des fiches PRIM — 24 octobre 2026, 06:19 CEST
 
 - Requête `HEAD` au ZIP indiqué par la [fiche publique du Point d’Accès National](https://transport.data.gouv.fr/resources/80921) à 06:19 CEST : HTTP 200, 150 257 397 octets, `Last-Modified: 23 octobre 2026 12:24:06 CEST`, ETag `6adb35c6-8f4bef5`. Ces en-têtes correspondent à l’archive intégralement vérifiée à 05:20 et à son SHA-256 `6eb741b6eedb6b72d53bb3b76160ad3751aa33939357713759e0ca3ba96f8eb3`; aucun nouveau téléchargement ni calcul de hash n’a été effectué à 06:19.
