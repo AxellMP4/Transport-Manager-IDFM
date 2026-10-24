@@ -8,6 +8,10 @@ struct GTFSProvenanceSmoke {
         }
 
         let bundledSHA256 = GTFSImportProvenance.bundledArchiveSHA256
+        let publicDataHub = GTFSImportProvenance.publicDataHub.metadata
+        precondition(publicDataHub.datasetID == "offre-horaires-tc-gtfs-idfm")
+        precondition(publicDataHub.url == "https://data.iledefrance.fr/explore/dataset/offre-horaires-tc-gtfs-idfm/")
+        precondition(publicDataHub.license == "Licence Mobilité")
 
         let unverified = try decodeVersion(
             datasetID: "offre-horaires-tc-gtfs-idfm",

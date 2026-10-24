@@ -1,5 +1,11 @@
 # Archive GTFS IDFM
 
+## URL Datahub résolue à la demande — 25 octobre 2026, 00:26 CEST
+
+Le téléchargeur consulte maintenant l’API du [GTFS Datahub officiel IDFM](https://data.iledefrance.fr/explore/dataset/offre-horaires-tc-gtfs-idfm/) pour trouver le fichier courant; l’identifiant du fichier reste dynamique. L’app vérifie que la fiche annonce `IDFM-gtfs.zip` au format ZIP et que l’URL vient du domaine et du chemin officiels, puis valide l’archive téléchargée avant import. Si la requête Datahub ou la validation échoue, l’app essaie le miroir PAN et identifie la source effectivement utilisée dans les métadonnées d’import.
+
+L’API a renvoyé le 25 octobre un enregistrement horodaté `2026-10-24T15:00:03.637Z`, contenant l’identifiant de fichier `a925e164271e4bca93433756d6a340d1`. Le téléchargement du ZIP n’a pas pu être réalisé dans cet environnement (DNS indisponible au terminal; Chrome bloque le téléchargement direct). Aucune course n’est déduite de cette métadonnée; le snapshot du 24 octobre reste le seul importé et vérifié. Cette mise à jour corrige la découverte de la version future sans fermer #280.
+
 ## Contrôle de la fiche publique — 25 octobre 2026, 00:10 CEST
 
 La fiche PAN 80921 affiche une couverture globale du 21 octobre au 22 novembre 2026. Son rapport de validation reste toutefois associé au GTFS en vigueur le 24 octobre à 08:27. Le navigateur de consultation ne peut pas récupérer le contenu `application/zip`, et le terminal ne résout pas `eu.ftp.opendatasoft.com`; aucun nouvel archive n’a donc été téléchargé ou inspecté durant ce contrôle. La fiche ne permet pas à elle seule d’affirmer que les horaires post-réorganisation de la 214 et de la 314 sont dans le ZIP.

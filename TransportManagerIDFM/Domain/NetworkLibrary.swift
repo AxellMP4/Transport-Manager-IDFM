@@ -423,17 +423,56 @@ final class NetworkLibrary: ObservableObject {
             }
 
             do {
-                let (downloadedURL, response) = try await URLSession.shared.download(from: PublicGTFSFeed.downloadURL)
-                downloadedTemporaryURL = downloadedURL
-                try PublicGTFSFeed.validateDownloadedArchive(at: downloadedURL, response: response)
+                let publicArchiveURL: URL
+                let sourceProvenance: GTFSImportProvenance
+                do {
+                    let (recordData, recordResponse) = try await URLSession.shared.data(
+                        from: PublicGTFSFeed.latestFileRecordURL
+                    )
+                    guard let recordHTTPResponse = recordResponse as? HTTPURLResponse else {
+                        throw PublicGTFSFeedError.nonHTTPResponse
+                    }
+                    guard (200..<300).contains(recordHTTPResponse.statusCode) else {
+                        throw PublicGTFSFeedError.httpStatus(recordHTTPResponse.statusCode)
+                    }
+
+                    let currentFileURL = try PublicGTFSFeed.resolveLatestDownloadURL(from: recordData)
+                    let (downloadedURL, response) = try await URLSession.shared.download(from: currentFileURL)
+                    downloadedTemporaryURL = downloadedURL
+                    try PublicGTFSFeed.validateDownloadedArchive(at: downloadedURL, response: response)
+                    publicArchiveURL = downloadedURL
+                    sourceProvenance = .publicDataHub
+                } catch {
+                    let dataHubError = error
+                    if let previousDownload = downloadedTemporaryURL {
+                        try? FileManager.default.removeItem(at: previousDownload)
+                        downloadedTemporaryURL = nil
+                    }
+
+                    do {
+                        let (downloadedURL, response) = try await URLSession.shared.download(
+                            from: PublicGTFSFeed.downloadURL
+                        )
+                        downloadedTemporaryURL = downloadedURL
+                        try PublicGTFSFeed.validateDownloadedArchive(at: downloadedURL, response: response)
+                        publicArchiveURL = downloadedURL
+                        sourceProvenance = .publicMirror
+                    } catch {
+                        importState = .failed(
+                            "IDFM Datahub : \(dataHubError.localizedDescription)\n" +
+                            "Miroir PAN : \(error.localizedDescription)"
+                        )
+                        return
+                    }
+                }
 
                 let stagedURL = FileManager.default.temporaryDirectory
                     .appending(path: "idfm-public-gtfs-\(UUID().uuidString).zip")
-                try FileManager.default.moveItem(at: downloadedURL, to: stagedURL)
+                try FileManager.default.moveItem(at: publicArchiveURL, to: stagedURL)
                 downloadedTemporaryURL = nil
                 stagedArchiveURL = stagedURL
 
-                await importGTFSArchive(from: stagedURL, provenance: .publicMirror)
+                await importGTFSArchive(from: stagedURL, provenance: sourceProvenance)
             } catch {
                 importState = .failed(error.localizedDescription)
             }

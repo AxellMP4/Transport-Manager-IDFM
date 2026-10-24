@@ -786,6 +786,7 @@ enum GTFSImportProvenance: String, CaseIterable, Identifiable, Sendable {
     }
 
     case prim
+    case publicDataHub
     case publicMirror
     case unverifiedManual
 
@@ -794,6 +795,7 @@ enum GTFSImportProvenance: String, CaseIterable, Identifiable, Sendable {
     var menuTitle: String {
         switch self {
         case .prim: "Export PRIM (compte authentifié)"
+        case .publicDataHub: "GTFS public IDFM Datahub"
         case .publicMirror: "Miroir public transport.data.gouv.fr"
         case .unverifiedManual: "Autre ZIP · source inconnue"
         }
@@ -806,6 +808,14 @@ enum GTFSImportProvenance: String, CaseIterable, Identifiable, Sendable {
                 datasetID: "offre-horaires-tc-gtfs-idfm",
                 title: "Horaires prévus sur les lignes de transport en commun d’Île-de-France (GTFS Datahub)",
                 url: "https://prim.iledefrance-mobilites.fr/fr/jeux-de-donnees/offre-horaires-tc-gtfs-idfm",
+                license: "Licence Mobilité",
+                licenseURL: "https://prim.iledefrance-mobilites.fr/fr/licences"
+            )
+        case .publicDataHub:
+            GTFSImportMetadata(
+                datasetID: "offre-horaires-tc-gtfs-idfm",
+                title: "Horaires prévus sur les lignes de transport en commun d’Île-de-France (GTFS Datahub)",
+                url: "https://data.iledefrance.fr/explore/dataset/offre-horaires-tc-gtfs-idfm/",
                 license: "Licence Mobilité",
                 licenseURL: "https://prim.iledefrance-mobilites.fr/fr/licences"
             )

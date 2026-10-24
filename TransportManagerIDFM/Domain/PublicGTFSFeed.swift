@@ -8,6 +8,7 @@ enum PublicGTFSFeedError: LocalizedError, Equatable {
     case missingRequiredFile(String)
     case noFragments(String)
     case missingFragment(String)
+    case invalidCatalogResponse
 
     var errorDescription: String? {
         switch self {
@@ -25,13 +26,37 @@ enum PublicGTFSFeedError: LocalizedError, Equatable {
             "Aucun fragment GTFS ne porte le préfixe \(prefix)."
         case let .missingFragment(name):
             "Le fragment GTFS \(name) est manquant."
+        case .invalidCatalogResponse:
+            "Le catalogue GTFS public IDFM a renvoyé une fiche fichier invalide."
         }
     }
 }
 
 enum PublicGTFSFeed {
     static let downloadURL = URL(string: "https://eu.ftp.opendatasoft.com/stif/GTFS/IDFM-gtfs.zip")!
+    static let latestFileRecordURL = URL(string: "https://data.iledefrance.fr/api/v2/catalog/datasets/offre-horaires-tc-gtfs-idfm/records?limit=1")!
     private static let requiredTableFiles = ["routes.txt", "trips.txt", "stops.txt", "stop_times.txt"]
+
+    static func resolveLatestDownloadURL(from data: Data) throws -> URL {
+        guard
+            let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let records = root["records"] as? [[String: Any]],
+            let record = records.first?["record"] as? [String: Any],
+            let fields = record["fields"] as? [String: Any],
+            let file = fields["url"] as? [String: Any],
+            file["filename"] as? String == "IDFM-gtfs.zip",
+            file["format"] as? String == "zip",
+            let rawURL = file["url"] as? String,
+            let url = URL(string: rawURL),
+            url.scheme == "https",
+            url.host == "data.iledefrance.fr",
+            url.path.hasPrefix("/api/v2/catalog/datasets/offre-horaires-tc-gtfs-idfm/files/"),
+            url.lastPathComponent.count > 8
+        else {
+            throw PublicGTFSFeedError.invalidCatalogResponse
+        }
+        return url
+    }
 
     static func orderedFragments(_ urls: [URL], named prefix: String) throws -> [URL] {
         let prefixWithSeparator = "\(prefix)-"

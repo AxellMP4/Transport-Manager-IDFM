@@ -6,6 +6,29 @@ struct PublishedGTFSFeedSmoke {
         let expectedURL = URL(string: "https://eu.ftp.opendatasoft.com/stif/GTFS/IDFM-gtfs.zip")!
         precondition(PublicGTFSFeed.downloadURL == expectedURL, "Le miroir GTFS public doit viser le ZIP officiel.")
 
+        let dynamicFileURL = URL(string: "https://data.iledefrance.fr/api/v2/catalog/datasets/offre-horaires-tc-gtfs-idfm/files/a925e164271e4bca93433756d6a340d1")!
+        let record = try JSONSerialization.data(withJSONObject: [
+            "records": [["record": ["fields": ["url": [
+                "filename": "IDFM-gtfs.zip",
+                "format": "zip",
+                "url": dynamicFileURL.absoluteString
+            ]]]]]
+        ])
+        let resolvedFileURL = try PublicGTFSFeed.resolveLatestDownloadURL(from: record)
+        precondition(resolvedFileURL == dynamicFileURL, "Le téléchargeur doit extraire l’URL du fichier courant depuis le catalogue IDFM.")
+
+        let untrustedRecord = try JSONSerialization.data(withJSONObject: [
+            "records": [["record": ["fields": ["url": [
+                "filename": "IDFM-gtfs.zip",
+                "format": "zip",
+                "url": "https://example.com/fake.zip"
+            ]]]]]
+        ])
+        do {
+            _ = try PublicGTFSFeed.resolveLatestDownloadURL(from: untrustedRecord)
+            fatalError("Une URL de ZIP hors du domaine IDFM doit être rejetée.")
+        } catch PublicGTFSFeedError.invalidCatalogResponse { }
+
         let temporaryDirectory = FileManager.default.temporaryDirectory
             .appending(path: "published-gtfs-smoke-\(UUID().uuidString)", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: temporaryDirectory, withIntermediateDirectories: true)
