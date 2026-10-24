@@ -24,6 +24,13 @@ Le schéma de principe IDFM du Bus Bords de Marne décrit l’ancien Centre bus 
 
 Ces références historiques précèdent le transfert DSP45 au 1er novembre 2025. Elles documentent le site et un état d’exploitation antérieur, pas la capacité maximale ou les équipements présents aujourd’hui, ni les lignes désormais rattachées au COB. Le registre affiche ces chiffres comme observation historique distincte des comptages de parc TC Infos et des projets de futur COB.
 
+## Site Saint-Maur : biométhane et station de compression
+
+- L’[arrêté patrimonial du 13 décembre 2011](https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000024998705) identifie le Centre bus de Saint-Maur Créteil au 4 boulevard Maurice-Berteaux et publie une surface de 9 566 m². Cette donnée de propriété ne chiffre pas les places de remisage.
+- Le [dossier préfectoral de sécurité incendie de 2023](https://www.seine-saint-denis.gouv.fr/index.php/contenu/telechargement/23562/190970/file/4_PJ_C_Memoire_de_r%C3%A9ponse_vdef2_18-10-2023_complet.pdf) décrit une station de compression GNV installée en hauteur et six autobus remisés sous sa structure. Ce nombre correspond à la configuration étudiée dans le scénario de sécurité incendie, pas à une capacité certifiée du site.
+- L’arrêté ICPE n° 2023/01781 du 12 mai 2023, publié dans le [recueil officiel du Val-de-Marne](https://www.val-de-marne.gouv.fr/contenu/telechargement/23283/180658/file/RAA%20sp%C3%A9cial%20N%C2%B067%20du%2015%20mai%20et%2016%20mai%202023.pdf), fixe des prescriptions particulières pour les installations du centre. En février 2025, la [publication IDFM sur la conversion énergétique des centres bus](https://presse.iledefrance-mobilites.fr/le-centre-operationnel-bus-point-du-jour-passe-a-lelectrique/?lang=fr) compte Saint-Maur parmi dix centres convertis au biométhane.
+- Une offre RATP Cap consultée le 24 octobre 2026 évoque ensuite une transition de Saint-Maur vers une flotte entièrement électrique, sans date de publication visible ni état d’avancement précisé. Ces sources décrivent des étapes distinctes; elles ne permettent pas de déduire le mix d’énergie, la capacité de ravitaillement ou le nombre de places opérationnels aujourd’hui. Les données figurent comme repères datés dans l’inspecteur, et le critère #337 reste ouvert.
+
 ## Transition électrique du COB Neuilly-Plaisance
 
 - Le rapport des comptes administratifs IDFM 2024 mentionne une convention de financement de 12,1 M€ pour l’adaptation du dépôt de Neuilly-Plaisance aux bus à batteries électriques. Il s’agit du montant associé à la convention dans le rapport, pas d’un coût final certifié ni d’une preuve d’exécution achevée.

@@ -426,12 +426,34 @@ enum DepotLineRoster {
             locality: "Saint-Maur-des-Fossés",
             status: "COB DSP45 · affectations par ligne à établir",
             availability: .operational,
-            evidenceNote: "Le site figure parmi les deux COB de la DSP45. Le tableau ligne–centre de l’ancien contrat IDFM–RATP documente Saint-Maur avant le transfert du 1er novembre 2025 ; les lignes du nouvel exploitant ne sont pas ventilées par COB dans les sources consultées. RATP Group chiffre rétrospectivement neuf lignes pour Saint-Maur dans la préparation du lot 45 en 2022, sans en publier les numéros dans cet article.",
+            evidenceNote: "Le site figure parmi les deux COB de la DSP45. Le tableau ligne–centre de l’ancien contrat IDFM–RATP documente Saint-Maur avant le transfert du 1er novembre 2025 ; les lignes du nouvel exploitant ne sont pas ventilées par COB dans les sources consultées. RATP Group chiffre rétrospectivement neuf lignes pour Saint-Maur en 2022, sans publier leurs numéros dans cet article. Légifrance recense le site et sa surface de 9 566 m² en 2011. Un dossier préfectoral de sécurité de 2023 décrit une station de compression GNV et six autobus remisés dessous. En février 2025, IDFM cite Saint-Maur parmi dix centres convertis au biométhane. Une offre RATP Cap consultée le 24 octobre 2026 évoque une transition vers une flotte 100 % électrique, mais sa date de publication et l’avancement sur place ne sont pas indiqués; ces étapes successives ne prouvent pas le mix d’énergie ni la capacité de ravitaillement actuelle.",
             sourceURL: contractEvidenceURL,
             evidenceTitle: "IDFM–RATP · tableau ligne–centre 2025–2026",
             idfmBusContractID: "45",
             additionalEvidenceTitle: "RATP Group · répartition des lignes du lot 45 par centre-bus · 29 mars 2022",
             additionalEvidenceURL: ratpDSP45DepotSplitURL,
+            supportingEvidence: [
+                DepotSiteEvidenceLink(
+                    title: "Légifrance · surface patrimoniale du centre bus Saint-Maur Créteil · 2011",
+                    url: URL(string: "https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000024998705")!
+                ),
+                DepotSiteEvidenceLink(
+                    title: "Préfecture du Val-de-Marne · arrêté ICPE n° 2023/01781 · 12 mai 2023",
+                    url: URL(string: "https://www.val-de-marne.gouv.fr/contenu/telechargement/23283/180658/file/RAA%20sp%C3%A9cial%20N%C2%B067%20du%2015%20mai%20et%2016%20mai%202023.pdf")!
+                ),
+                DepotSiteEvidenceLink(
+                    title: "Préfecture · étude de sécurité incendie du centre de Saint-Maur · 2023",
+                    url: URL(string: "https://www.seine-saint-denis.gouv.fr/index.php/contenu/telechargement/23562/190970/file/4_PJ_C_Memoire_de_r%C3%A9ponse_vdef2_18-10-2023_complet.pdf")!
+                ),
+                DepotSiteEvidenceLink(
+                    title: "IDFM · centres bus convertis au biométhane · février 2025",
+                    url: URL(string: "https://presse.iledefrance-mobilites.fr/le-centre-operationnel-bus-point-du-jour-passe-a-lelectrique/?lang=fr")!
+                ),
+                DepotSiteEvidenceLink(
+                    title: "RATP Cap · offre maintenance · transition électrique annoncée à Saint-Maur",
+                    url: URL(string: "https://carrieres.ratpcap.com/job/SAINT-MAUR-Agent-d%26apos%3Binterface-maintenance-exploitation-bus-FH-93-94100/1355315155/")!
+                )
+            ],
             fleetObservation: DepotFleetObservation(
                 totalVehicleCount: 98,
                 energyCounts: [
@@ -445,7 +467,8 @@ enum DepotLineRoster {
                 limitationNote: "Comptage de véhicules observés; il ne donne ni la capacité maximale du site, ni ses postes d’atelier ou de ravitaillement, ni les lignes auxquelles chaque véhicule est affecté.",
                 sourceTitle: "TC Infos · parc actuel du dépôt Saint-Maur",
                 sourceURL: URL(string: "https://tc-infos.fr/exploitant/2975/depot/4665")!
-            )
+            ),
+            facilityObservations: [DepotFacilityEvidenceCatalog.saintMaurHistoric]
         ),
         DepotLineRosterSite(
             id: "neuilly-plaisance",

@@ -13,6 +13,7 @@ swiftc \
   -Xcc "-fmodules-cache-path=$temporary_directory/clang-modules" \
   -emit-executable \
   -module-name DepotChargingInfrastructureSmoke \
+  "$project_root/TransportManagerIDFM/Domain/DepotFacilityObservation.swift" \
   "$project_root/TransportManagerIDFM/Domain/DepotChargingInfrastructureObservation.swift" \
   "$project_root/Validation/DepotChargingInfrastructureSmoke.swift" \
   -o "$temporary_directory/DepotChargingInfrastructureSmoke"

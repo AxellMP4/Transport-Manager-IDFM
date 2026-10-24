@@ -1,6 +1,7 @@
 import Foundation
 
 let observation = DepotChargingInfrastructureEvidenceCatalog.neuillyPlaisance
+let saintMaurObservation = DepotFacilityEvidenceCatalog.saintMaurHistoric
 
 func require(_ condition: @autoclosure () -> Bool, _ message: String) {
     guard condition() else {
@@ -21,7 +22,12 @@ struct DepotChargingInfrastructureSmoke {
         require(observation.metricLabels.contains(where: { $0.contains("202") }), "La carte doit exposer les 202 points prévus.")
         require(observation.metricLabels.contains(where: { $0.contains("205") }), "La carte doit exposer les 205 points déclarés.")
         require(observation.metricLabels.contains(where: { $0.contains("100 kW") }), "La carte doit exposer la puissance unitaire.")
+        require(saintMaurObservation.siteAreaSquareMeters == 9_566, "La fiche Saint-Maur doit conserver la surface patrimoniale publiée.")
+        require(saintMaurObservation.periodLabel.contains("2011") && saintMaurObservation.periodLabel.contains("2025"), "La fiche Saint-Maur doit dater séparément son contexte documentaire.")
+        require(saintMaurObservation.operationalNote.contains("six bus") && saintMaurObservation.operationalNote.localizedCaseInsensitiveContains("biométhane"), "La fiche Saint-Maur doit afficher les faits documentés sur le GNV et le biométhane.")
+        require(saintMaurObservation.limitationNote.localizedCaseInsensitiveContains("capacité actuelle du site"), "La fiche Saint-Maur doit distinguer la preuve historique de sa capacité actuelle.")
+        require(saintMaurObservation.sourceURL.host == "www.legifrance.gouv.fr", "La surface doit être liée à la source patrimoniale officielle.")
 
-        print("Validation de l'observation des bornes de Neuilly-Plaisance réussie.")
+        print("Validation des observations documentaires des dépôts réussie.")
     }
 }

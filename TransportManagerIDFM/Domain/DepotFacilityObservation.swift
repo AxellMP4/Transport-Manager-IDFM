@@ -74,6 +74,17 @@ struct DepotFacilityObservation: Hashable, Sendable, Identifiable {
 }
 
 enum DepotFacilityEvidenceCatalog {
+    static let saintMaurHistoric = DepotFacilityObservation(
+        id: "saint-maur-site-area-and-gnv-context",
+        periodLabel: "Références datées · patrimoine 2011 · dossier préfectoral 2023 · état IDFM février 2025",
+        siteAreaSquareMeters: 9_566,
+        siteAreaQualifier: "de surface du site publiée",
+        operationalNote: "L’arrêté patrimonial identifie le Centre bus Saint-Maur Créteil au 4 boulevard Maurice-Berteaux et publie une surface de 9 566 m². Un rapport de sécurité préfectoral de 2023 décrit une station de compression GNV en hauteur et six bus remisés dessous. En février 2025, Île-de-France Mobilités classe Saint-Maur parmi ses centres convertis au biométhane.",
+        limitationNote: "La surface patrimoniale n’indique pas le nombre de places ni la capacité actuelle du site. Les six bus décrivent une configuration observée dans une étude de sécurité en 2023, pas une capacité certifiée. La capacité opérationnelle de ravitaillement et les équipements actifs aujourd’hui restent à vérifier. L’offre RATP Cap consultée le 24 octobre 2026 évoque une transition électrique, sans date de publication ni état d’avancement.",
+        sourceTitle: "Légifrance · arrêté patrimonial du 13 décembre 2011 · centre bus Saint-Maur Créteil",
+        sourceURL: URL(string: "https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000024998705")!
+    )
+
     static let villiersLeBelCurrent = DepotFacilityObservation(
         id: "villiers-le-bel-capacite-stationnement-2026",
         periodLabel: "Site construit · page RATP modifiée le 26 juin 2026",
