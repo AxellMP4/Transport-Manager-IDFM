@@ -54,6 +54,34 @@ struct VehicleMarketPricingSmoke {
             "L’ajout de la fiche technique ne doit pas créer une offre d’achat non attestée."
         )
 
+        guard let manParis = VehicleMarketCatalog.model(id: "man-lions-city-standard-gnv-paris"),
+              let manCurrentVariant = manParis.technicalVariants?.first(where: {
+                  $0.id == "man-lions-city-12g-gnv-current-range"
+              }) else {
+            fatalError("La variante technique MAN actuelle doit être visible séparément de la série parisienne de 2020.")
+        }
+        precondition(
+            manParis.lengthMeters == nil
+                && manParis.maximumCapacity == nil
+                && manParis.seatedCapacity == nil,
+            "Les caractéristiques précises de la série RATP 2020 ne sont pas publiées par MAN."
+        )
+        precondition(
+            manCurrentVariant.lengthMeters == 12.185
+                && manCurrentVariant.widthMeters == 2.55
+                && manCurrentVariant.heightMeters == 3.295
+                && manCurrentVariant.seatedCapacity == 37
+                && manCurrentVariant.maximumPowerKilowatts == nil
+                && manCurrentVariant.applicabilityNote.contains("206 ou 235 kW")
+                && manCurrentVariant.applicabilityNote.contains("ne sont pas attribués aux 100 véhicules RATP"),
+            "La fiche de gamme doit garder ses options moteur et ne pas les attribuer aux autobus parisiens."
+        )
+        precondition(
+            manCurrentVariant.evidenceURL == "https://www.man.eu/content/dam/man/countries/doc/bw-master/bus/datenblaetter/man-lions-city/en/man_lions_city_datenblatt_12-g_EN.pdf"
+                && VehicleMarketCatalog.offers(for: 2026).allSatisfy { $0.modelID != manParis.id },
+            "La variante MAN doit citer le constructeur sans créer d’offre individuelle."
+        )
+
         print("Validation de l’indexation tarifaire du marché réussie.")
     }
 }
