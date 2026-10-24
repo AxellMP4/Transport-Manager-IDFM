@@ -117,7 +117,18 @@ struct GTFSRouteTimetableGridView: View {
                     } else if let loadError {
                         ContentUnavailableView("Grille indisponible", systemImage: "exclamationmark.triangle", description: Text(loadError))
                     } else if let timetable, timetable.trips.isEmpty {
-                        ContentUnavailableView("Aucune course active", systemImage: "bus", description: Text("Le calendrier GTFS de cette route ne prévoit aucune course à la date choisie."))
+                        VStack(alignment: .leading, spacing: 12) {
+                            ContentUnavailableView("Aucune course active", systemImage: "bus", description: Text("Le calendrier GTFS de cette route ne prévoit aucune course à la date choisie."))
+
+                            if let notice = PublishedServiceDiscrepancy.forRoute(
+                                shortName: route.shortName,
+                                routeID: route.routeID,
+                                serviceDateKey: serviceDateKey,
+                                scheduledTripCount: timetable.trips.count
+                            ) {
+                                PublishedServiceDiscrepancyCard(notice: notice)
+                            }
+                        }
                     } else if let timetable {
                         if timetable.unusableTripCount > 0 {
                             Label("\(timetable.unusableTripCount) courses ignorées : horaire incomplet, arrêt absent ou heures dans un ordre invalide.", systemImage: "exclamationmark.triangle")
