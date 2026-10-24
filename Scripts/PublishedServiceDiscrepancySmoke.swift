@@ -110,6 +110,10 @@ struct PublishedServiceDiscrepancySmoke {
             "The notice should include published service frequencies without inventing trips."
         )
         precondition(
+            missing314Notice.detail.contains("premières courses le lundi 2 novembre 2026"),
+            "The 314 notice should distinguish the 1 November effective date from its first weekday service."
+        )
+        precondition(
             missing314Notice.timetableURL.absoluteString == notice.timetableURL.absoluteString
                 && missing314Notice.routePlanURL.absoluteString == notice.routePlanURL.absoluteString
                 && missing314Notice.gtfsSourceURL.absoluteString == notice.gtfsSourceURL.absoluteString,
