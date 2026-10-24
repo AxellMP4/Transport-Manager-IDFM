@@ -13,9 +13,16 @@ struct PublishedServiceDiscrepancyCard: View {
                 .font(.callout)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Link(destination: notice.sourceURL) {
-                Label(notice.sourceTitle, systemImage: "arrow.up.right.square")
-                    .font(.caption)
+            VStack(alignment: .leading, spacing: 6) {
+                Link(destination: notice.sourceURL) {
+                    Label(notice.sourceTitle, systemImage: "arrow.up.right.square")
+                        .font(.caption)
+                }
+
+                Link(destination: notice.timetableURL) {
+                    Label(notice.timetableTitle, systemImage: "clock.arrow.circlepath")
+                        .font(.caption)
+                }
             }
         }
         .padding(13)

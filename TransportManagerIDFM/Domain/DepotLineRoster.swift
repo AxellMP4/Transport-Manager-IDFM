@@ -1311,7 +1311,8 @@ enum DepotLineRoster {
             DepotLineDocumentLink(title: "Fiche horaires IDFM de la ligne N71", type: "Fiche horaire", url: URL(string: "https://ilico.iledefrance-mobilites.fr/uploads/fiches/20260818T074533Z-aa4a429c-46fd-47fe-b12f-45e8469b54b9.pdf")!, validity: "Période exacte à consulter dans le PDF", note: "Le nom du lien dans le catalogue IDFM ne donne pas la période de validité ; lire le PDF avant usage.")
         ],
         "314": [
-            DepotLineDocumentLink(title: "Plan IDFM combiné 214/314", type: "Plan", url: URL(string: "https://www.iledefrance-mobilites.fr/medias/portail-idfm-operateurs/ORL14VYfG2K1HYNw_THERMO_BOUCLES-DE-MARNE-214-314_08.26.pdf")!, validity: "Édition août 2026 · ligne active à partir du 1er novembre 2026", note: "Le plan montre le tracé, pas le COB d’affectation. Le catalogue IDFM exporté le 20 octobre ne publie pas de fiche horaire PDF directe pour 314.")
+            DepotLineDocumentLink(title: "Fiche horaires IDFM de la ligne 314", type: "Fiche horaire", url: URL(string: "https://ilico.iledefrance-mobilites.fr/uploads/fiches/20261021T153740Z-878f05ec-b765-486b-bb83-7d8a6d99c48b.pdf")!, validity: "1er novembre 2026–11 juillet 2027", note: "PDF officiel avec horaires détaillés du lundi au vendredi. Il ne remplace pas les courses et horaires par arrêt du GTFS ni ne prouve le COB d’affectation."),
+            DepotLineDocumentLink(title: "Plan IDFM combiné 214/314", type: "Plan", url: URL(string: "https://www.iledefrance-mobilites.fr/medias/portail-idfm-operateurs/ORL14VYfG2K1HYNw_THERMO_BOUCLES-DE-MARNE-214-314_08.26.pdf")!, validity: "Édition août 2026 · ligne active à partir du 1er novembre 2026", note: "Le plan montre le tracé, pas le COB d’affectation.")
         ]
     ]
 
@@ -1659,7 +1660,7 @@ enum DepotLineRoster {
         row("314", category: "Ligne DSP 45 annoncée · COB à confirmer", sites: ["saint-maur", "neuilly-plaisance"], status: .candidate,
             source: "IDFM · réorganisation au 1er novembre 2026",
             url: reorganizationURL,
-            note: "Liaison Neuilly-Plaisance RER ↔ ZI des Chanoux, annoncée du lundi au vendredi (15 min en pointe, 60 min en creuse) à partir du 1er novembre 2026. Le plan IDFM 214/314 d’août 2026 est disponible, mais aucun PDF de grille horaire ni document d’affectation au COB n’a été retrouvé.",
+            note: "Liaison Neuilly-Plaisance RER ↔ ZI des Chanoux, en service à partir du 1er novembre 2026. IDFM a publié une fiche horaire pour le lundi au vendredi, valable jusqu’au 11 juillet 2027. Le GTFS chargé n’a toujours pas de route 314; aucune source n’établit son COB d’affectation.",
             documents: documentsByLine["314"] ?? [],
             sourceDate: sourceDate(year: 2026, month: 10, day: 21),
             sourceDateLabel: "Communiqué IDFM du 21 octobre 2026",
