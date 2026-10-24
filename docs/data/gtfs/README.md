@@ -8,6 +8,12 @@
 - Le ZIP public du 23 octobre ajoute 3 554 courses bus à l’ancien snapshot embarqué et étend sa validité jusqu’au 21 novembre. Il remplace les 18 fragments du 20 octobre dans le projet; leur hash historique `3c3fe0eb7e165dde283ff87489339b48b4c3dcf69be011cc7ae2bc78d1764500` est conservé dans les journaux ci-dessous et dans la migration de provenance.
 
 
+## Recontrôle binaire du miroir GTFS — 24 octobre 2026, 05:20 CEST
+
+- À 05:20 CEST, le miroir répond HTTP 200 avec 150 257 397 octets, `Last-Modified: 23 octobre 2026 12:24:06 CEST` et ETag `6adb35c6-8f4bef5`.
+- Le ZIP complet téléchargé à cette heure a le SHA-256 `6eb741b6eedb6b72d53bb3b76160ad3751aa33939357713759e0ca3ba96f8eb3`, identique au snapshot embarqué; `cmp` confirme l’identité octet par octet et `unzip -tq` réussit.
+- La page plus récente du jeu de données ne correspond donc pas à une nouvelle archive. Le flux testé ne change pas la constatation issue de ce snapshot : la 214 n’a pas de courses après le 31 octobre et la route 314 est absente. Le critère GTFS post-réorganisation reste ouvert jusqu’à la publication d’un binaire contenant ces courses ou à l’obtention d’un export PRIM authentifié.
+
 ## Nouvelle relecture de la ressource publique — 24 octobre 2026, 03:14 CEST
 
 - La [fiche 80921](https://transport.data.gouv.fr/resources/80921) affiche toujours une période générale du 20 octobre au 21 novembre 2026 et « Bord de Marne » du 23 octobre au 8 novembre. Son rapport valide le fichier courant au 23 octobre à 14:31 et liste des agrégats de lignes, arrêts et formes, sans fournir les départs 214/314. Ces métadonnées ne suffisent pas à intégrer de nouveaux horaires.
