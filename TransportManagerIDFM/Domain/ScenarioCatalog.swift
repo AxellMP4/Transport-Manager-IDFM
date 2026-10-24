@@ -436,7 +436,7 @@ struct ScenarioDefinition: Identifiable, Hashable {
 
     var lineCountReconciliationNote: String? {
         guard contractReportedLineCount != operatorReportLineCount else { return nil }
-        return "Les sources agrégées donnent \(contractReportedLineCount) lignes dans l’annonce IDFM à l’attribution et \(operatorReportLineCount) dans le rapport RATP 2025. Le communiqué IDFM du 21 octobre 2026 indique séparément 23 lignes de jour et 7 de nuit, pour environ 310 bus. Il ne nomme pas les identifiants qui réconcilieraient ces décomptes; ils ne permettent donc pas de modifier la liste datée du scénario."
+        return "Les sources agrégées donnent \(contractReportedLineCount) lignes dans l’annonce IDFM à l’attribution et \(operatorReportLineCount) dans le rapport RATP 2025. Le communiqué IDFM du 21 octobre 2026 décrit séparément 23 lignes de jour et 7 de nuit, environ 310 bus, 28 communes et plus de 1 400 points d’arrêt. Il ne nomme pas les identifiants qui réconcilieraient ces décomptes; ces chiffres ne modifient donc pas la liste datée des lignes du scénario."
     }
 
     var cobCountReconciliationNote: String? {
