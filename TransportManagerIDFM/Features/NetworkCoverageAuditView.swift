@@ -1223,7 +1223,12 @@ struct GTFSCourseMotifReviewWorkspace: View {
                 }
 
                 if let version = library.catalog.activeVersion {
-                    GTFSTripQualityAuditSection(library: library, version: version, routes: library.busRoutes)
+                    GTFSTripQualityAuditSection(
+                        library: library,
+                        version: version,
+                        routes: library.busRoutes,
+                        startsExpanded: true
+                    )
                 } else {
                     ContentUnavailableView(
                         "Aucune version GTFS active",
@@ -1245,7 +1250,7 @@ struct GTFSTripQualityAuditSection: View {
     let version: NetworkVersion?
     let routes: [GTFSRouteSummary]
 
-    @State private var isExpanded = true
+    @State private var isExpanded: Bool
     @State private var selectedIssueKind: GTFSImportTripIssueKind?
     @State private var selectedTripReview: GTFSGeometryReviewSelection?
     @State private var displayMode: GTFSTripQualityDisplayMode = .motifs
@@ -1255,6 +1260,18 @@ struct GTFSTripQualityAuditSection: View {
     @State private var motifsVersionID: String?
     @State private var isLoadingMotifs = false
     @State private var motifsError: String?
+
+    init(
+        library: NetworkLibrary,
+        version: NetworkVersion?,
+        routes: [GTFSRouteSummary],
+        startsExpanded: Bool = false
+    ) {
+        self.library = library
+        self.version = version
+        self.routes = routes
+        _isExpanded = State(initialValue: startsExpanded)
+    }
 
     private var quality: GTFSImportQuality? { version?.gtfsQuality }
 
