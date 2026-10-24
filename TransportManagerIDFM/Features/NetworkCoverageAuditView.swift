@@ -1282,6 +1282,7 @@ struct GTFSTripQualityAuditSection: View {
             if let selectedIssueKind, !issue.issueKinds.contains(selectedIssueKind) { return false }
             guard !search.isEmpty else { return true }
             let stopIDs = (issue.stopIDsWithoutCoordinates ?? [])
+                + (issue.stopIDsMissingFromFeed ?? [])
                 + (issue.stopIDsNotMatchedToShape ?? [])
             return issue.routeID.localizedCaseInsensitiveContains(search)
                 || (routeNames[issue.routeID] ?? "").localizedCaseInsensitiveContains(search)
@@ -1332,6 +1333,7 @@ struct GTFSTripQualityAuditSection: View {
                         GTFSQualityMetricRow(title: "Formes invalides rejetées à l’import", value: quality.invalidShapeCount)
                         GTFSQualityMetricRow(title: "Courses avec arrêts non projetables", value: quality.tripsWithUnmatchedShapeStops ?? 0)
                         GTFSQualityMetricRow(title: "Courses avec arrêts sans coordonnées", value: quality.tripsWithMissingStopCoordinates)
+                        GTFSQualityMetricRow(title: "Courses avec stop_id absent de stops.txt", value: quality.tripsWithMissingStopRecords)
                         GTFSQualityMetricRow(title: "Lignes stop_times sans stop_id", value: quality.missingStopIDRowCount ?? 0)
                     }
 
@@ -1661,7 +1663,7 @@ private struct GTFSTripQualityMotifRow: View {
 
 private struct GTFSQualityMetricRow: View {
     let title: String
-    let value: Int
+    let value: Int?
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -1669,7 +1671,7 @@ private struct GTFSQualityMetricRow: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Spacer(minLength: 8)
-            Text(value.formatted())
+            Text(value?.formatted() ?? "—")
                 .font(.caption.monospacedDigit().weight(.semibold))
         }
     }
@@ -1727,6 +1729,12 @@ private struct GTFSTripQualityAuditRow: View {
                     .foregroundStyle(.secondary)
                     .textSelection(.enabled)
             }
+            if let stopIDs = issue.stopIDsMissingFromFeed, !stopIDs.isEmpty {
+                Text("stop_id absents de stops.txt · \(stopIDs.prefix(8).joined(separator: ", "))\(stopIDs.count > 8 ? " · +\(stopIDs.count - 8)" : "")")
+                    .font(.caption2.monospaced())
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+            }
         }
         .padding(8)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -1751,6 +1759,7 @@ private struct GTFSTripGeometryReviewSheet: View {
         if let missingStopIDs = issue?.stopIDsWithoutCoordinates, !missingStopIDs.isEmpty { return missingStopIDs }
         return review?.stops.filter { $0.latitude == nil || $0.longitude == nil }.map(\.stopID) ?? []
     }
+    private var missingStopFeedIDs: [String] { issue?.stopIDsMissingFromFeed ?? [] }
 
     var body: some View {
         NavigationStack {
@@ -1786,14 +1795,24 @@ private struct GTFSTripGeometryReviewSheet: View {
                             }
                         }
                         Spacer()
-                        if !missingCoordinateStopIDs.isEmpty {
+                        if !missingCoordinateStopIDs.isEmpty || !missingStopFeedIDs.isEmpty {
                             VStack(alignment: .trailing, spacing: 4) {
-                                Text("Arrêts sans coordonnées · \(missingCoordinateStopIDs.count)")
-                                    .font(.caption.weight(.semibold))
-                                Text(missingCoordinateStopIDs.joined(separator: ", "))
-                                    .font(.caption2.monospaced())
-                                    .foregroundStyle(.secondary)
-                                    .textSelection(.enabled)
+                                if !missingCoordinateStopIDs.isEmpty {
+                                    Text("Arrêts sans coordonnées · \(missingCoordinateStopIDs.count)")
+                                        .font(.caption.weight(.semibold))
+                                    Text(missingCoordinateStopIDs.joined(separator: ", "))
+                                        .font(.caption2.monospaced())
+                                        .foregroundStyle(.secondary)
+                                        .textSelection(.enabled)
+                                }
+                                if !missingStopFeedIDs.isEmpty {
+                                    Text("stop_id absents de stops.txt · \(missingStopFeedIDs.count)")
+                                        .font(.caption.weight(.semibold))
+                                    Text(missingStopFeedIDs.joined(separator: ", "))
+                                        .font(.caption2.monospaced())
+                                        .foregroundStyle(.secondary)
+                                        .textSelection(.enabled)
+                                }
                             }
                             .frame(maxWidth: 300, alignment: .trailing)
                         }
