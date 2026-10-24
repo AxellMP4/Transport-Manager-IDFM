@@ -1820,6 +1820,26 @@ enum VehicleMarketCatalog {
             referencePrice: 310_300,
             priceReferenceYear: 2024,
             priceEstimateNote: "Repère de jeu à faible confiance : faute de longueur ou de génération précisée pour le parc RATP, la base retenue est le coût moyen CATP 2024 d’un autobus GNV standard 12 m, 310 300 € HT. Ce n’est ni un prix MAN individuel ni une identification de la version livrée.",
+            technicalTitle: "MAN · fiche technique Lion’s City 12 G",
+            technicalURL: "https://www.man.eu/content/dam/man/countries/doc/bw-master/bus/datenblaetter/man-lions-city/en/man_lions_city_datenblatt_12-g_EN.pdf",
+            technicalDataNote: "La fiche constructeur actuelle du Lion’s City 12 G décrit une variante de gamme. Elle ne précise pas la génération ni la configuration des 100 véhicules au gaz livrés à la RATP en 2020 ; ses dimensions et ses places assises ne leur sont donc pas attribuées.",
+            technicalVariants: [
+                VehicleTechnicalVariant(
+                    id: "man-lions-city-12g-gnv-current-range",
+                    title: "MAN · Lion’s City 12 G, fiche de gamme actuelle",
+                    lengthMeters: 12.185,
+                    widthMeters: 2.55,
+                    heightMeters: 3.295,
+                    batteryCapacityKWh: nil,
+                    maximumPowerKilowatts: nil,
+                    maximumCapacity: nil,
+                    seatedCapacity: 37,
+                    rangeKilometers: nil,
+                    applicabilityNote: "La fiche MAN indique un moteur de 206 ou 235 kW, EfficientHybrid disponible en option et jusqu’à 37 places assises. Ces éléments décrivent la fiche actuelle et ne sont pas attribués aux 100 véhicules RATP livrés en 2020.",
+                    evidenceTitle: "MAN · fiche technique Lion’s City 12 G",
+                    evidenceURL: "https://www.man.eu/content/dam/man/countries/doc/bw-master/bus/datenblaetter/man-lions-city/en/man_lions_city_datenblatt_12-g_EN.pdf"
+                )
+            ],
             fleetTitle: "MAN Truck & Bus · 100 Lion’s City standards au gaz pour la RATP",
             fleetURL: "https://press.mantruckandbus.com/france/en-route-vers-lavenir-avec-les-autobus-urbains-man-au-gaz/",
             marketAvailabilityNote: "MAN indique que 100 autobus standards Lion’s City au gaz ont été livrés pour les transports publics parisiens. Le communiqué ne précise ni génération, ni longueur, ni capacité voyageurs, ni hybridation, ni prix individuel ; il n’atteste pas de présence à Bords de Marne, de compatibilité avec ses dépôts ou de disponibilité actuelle à l’achat. Aucune offre n’est simulée."
