@@ -85,9 +85,17 @@ enum DepotEnergyEvidenceCatalog {
         case ("neuilly-plaisance", .electricCharging):
             DepotEnergyEvidence(
                 status: .intentDocumented,
-                note: "La page RATP mise à jour le 26 juin 2026 cite Neuilly Bords de Marne parmi les 13 centres adaptés pour accueillir 100 % de bus électriques. Son bilan indique aussi que 10 centres étaient convertis et que 4 sites restaient en travaux au début de 2026, sans nommer ces sites ni confirmer la mise en service de Neuilly Bords de Marne. IDFM relie ce site à l’ancien centre de la Maltournée à Neuilly-Plaisance. Le nombre de bornes, leur puissance et la capacité du dépôt restent inconnus.",
-                dateLabel: "adaptation électrique citée en 2026 · mise en service non confirmée",
+                note: "Le dossier réglementaire ICPE décrit un projet de 202 points de charge, 205 déclarés, d’une puissance nominale de 100 kW par point. L’arrêté préfectoral du 29 avril 2024 rend ses prescriptions applicables à la mise en service des installations; il ne confirme pas leur achèvement. RATP cite Neuilly Bords de Marne parmi les centres adaptés à l’électricité, mais son bilan de début 2026 ne nomme pas les 4 sites encore en travaux. Les quantités du dossier ne prouvent donc ni le nombre de bornes installées ou actives, ni la capacité opérationnelle actuelle. IDFM relie ce site à l’ancien centre de la Maltournée à Neuilly-Plaisance.",
+                dateLabel: "dossier ICPE du 16 octobre 2023 · arrêté du 29 avril 2024 · mise en service à confirmer",
                 sources: [
+                    DepotEnergyEvidenceLink(
+                        title: "Géorisques · rapport d’inspection ICPE du Centre bus Bords de Marne",
+                        url: URL(string: "https://www.georisques.gouv.fr/webappReport/ws/installations/inspection/Gd7NBjMbn9bTbdo61OSzKXseEmfvRe5L")!
+                    ),
+                    DepotEnergyEvidenceLink(
+                        title: "Préfecture de Seine-Saint-Denis · arrêté ICPE n° 2024-1312",
+                        url: URL(string: "https://www.seine-saint-denis.gouv.fr/Actions-de-l-Etat/Environnement-risques-et-nuisances/1-Installations-classees-pour-la-protection-de-l-environnement/Installations-a-declaration/Arretes-prefectoraux/AP-n-2024-1312-du-29-avril-2024-RATP-sise-32-boulevard-Gallieni-NEUILLY-PLAISANCE")!
+                    ),
                     DepotEnergyEvidenceLink(
                         title: "RATP · programme bus2025 et centres orientés par énergie",
                         url: URL(string: "https://www.ratp.fr/programme-bus2025")!
