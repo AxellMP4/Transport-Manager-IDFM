@@ -18,6 +18,11 @@ struct PublishedServiceDiscrepancySmoke {
         precondition(notice.detail.contains("314"), "The notice should identify the replacement route.")
         precondition(notice.detail.contains("1er novembre"), "The notice should name the effective date.")
         precondition(
+            notice.detail.contains("15 minutes en heures de pointe")
+                && notice.detail.contains("toutes les heures en heures creuses"),
+            "The notice should summarize the officially announced weekday headways for line 314."
+        )
+        precondition(
             notice.detail.contains("plan schématique officiel 214/314"),
             "The notice should make the official route plan available for stop and path review."
         )
