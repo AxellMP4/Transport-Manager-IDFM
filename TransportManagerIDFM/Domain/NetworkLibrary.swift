@@ -398,6 +398,54 @@ final class NetworkLibrary: ObservableObject {
     func importGTFS(from sourceURL: URL, provenance: GTFSImportProvenance = .unverifiedManual) {
         guard !importState.isImporting else { return }
         importState = .importing
+        prepareForGTFSImport()
+        let shouldStopAccessing = sourceURL.startAccessingSecurityScopedResource()
+
+        Task {
+            await importGTFSArchive(
+                from: sourceURL,
+                provenance: provenance,
+                shouldStopAccessing: shouldStopAccessing
+            )
+        }
+    }
+
+    func downloadLatestPublicGTFS() {
+        guard !importState.isImporting else { return }
+        importState = .importing
+
+        Task {
+            var downloadedTemporaryURL: URL?
+            var stagedArchiveURL: URL?
+            defer {
+                if let downloadedTemporaryURL {
+                    try? FileManager.default.removeItem(at: downloadedTemporaryURL)
+                }
+                if let stagedArchiveURL {
+                    try? FileManager.default.removeItem(at: stagedArchiveURL)
+                }
+            }
+
+            do {
+                let (downloadedURL, response) = try await URLSession.shared.download(from: PublicGTFSFeed.downloadURL)
+                downloadedTemporaryURL = downloadedURL
+                try PublicGTFSFeed.validateDownloadedArchive(at: downloadedURL, response: response)
+
+                let stagedURL = FileManager.default.temporaryDirectory
+                    .appending(path: "idfm-public-gtfs-\(UUID().uuidString).zip")
+                try FileManager.default.moveItem(at: downloadedURL, to: stagedURL)
+                downloadedTemporaryURL = nil
+                stagedArchiveURL = stagedURL
+
+                prepareForGTFSImport()
+                await importGTFSArchive(from: stagedURL, provenance: .publicMirror)
+            } catch {
+                importState = .failed(error.localizedDescription)
+            }
+        }
+    }
+
+    private func prepareForGTFSImport() {
         busRoutes = []
         busRoutesVersionID = nil
         busRoutesError = nil
@@ -405,27 +453,30 @@ final class NetworkLibrary: ObservableObject {
         busStopsError = nil
         serviceCalendarsByID = [:]
         serviceCalendarsError = nil
-        let shouldStopAccessing = sourceURL.startAccessingSecurityScopedResource()
+    }
 
-        Task {
-            defer {
-                if shouldStopAccessing {
-                    sourceURL.stopAccessingSecurityScopedResource()
-                }
+    private func importGTFSArchive(
+        from sourceURL: URL,
+        provenance: GTFSImportProvenance,
+        shouldStopAccessing: Bool = false
+    ) async {
+        defer {
+            if shouldStopAccessing {
+                sourceURL.stopAccessingSecurityScopedResource()
             }
+        }
 
-            do {
-                let updatedCatalog = try await Task.detached(priority: .userInitiated) {
-                    try NetworkVersionStore.importGTFS(from: sourceURL, provenance: provenance)
-                }.value
-                catalog = updatedCatalog
-                await loadBusRoutes()
-                await loadBusStops()
-                await loadServiceCalendars()
-                importState = .imported
-            } catch {
-                importState = .failed(error.localizedDescription)
-            }
+        do {
+            let updatedCatalog = try await Task.detached(priority: .userInitiated) {
+                try NetworkVersionStore.importGTFS(from: sourceURL, provenance: provenance)
+            }.value
+            catalog = updatedCatalog
+            await loadBusRoutes()
+            await loadBusStops()
+            await loadServiceCalendars()
+            importState = .imported
+        } catch {
+            importState = .failed(error.localizedDescription)
         }
     }
 

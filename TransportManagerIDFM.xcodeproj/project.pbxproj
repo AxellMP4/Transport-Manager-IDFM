@@ -14,6 +14,7 @@
 		030000000000000000000005 /* DepotInspectorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000005 /* DepotInspectorView.swift */; };
 		030000000000000000000006 /* GTFSFeedImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000008 /* GTFSFeedImporter.swift */; };
 		030000000000000000000007 /* NetworkLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000009 /* NetworkLibrary.swift */; };
+		030000000000000000000122 /* PublicGTFSFeed.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000122 /* PublicGTFSFeed.swift */; };
 		030000000000000000000008 /* RouteGeometryImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000011 /* RouteGeometryImporter.swift */; };
 		030000000000000000000009 /* ZIPArchiveReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000010 /* ZIPArchiveReader.swift */; };
 		030000000000000000000010 /* ContractGeometryImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000012 /* ContractGeometryImporter.swift */; };
@@ -79,6 +80,7 @@
 		020000000000000000000005 /* DepotInspectorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DepotInspectorView.swift; sourceTree = "<group>"; };
 		020000000000000000000008 /* GTFSFeedImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GTFSFeedImporter.swift; sourceTree = "<group>"; };
 		020000000000000000000009 /* NetworkLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkLibrary.swift; sourceTree = "<group>"; };
+		020000000000000000000122 /* PublicGTFSFeed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublicGTFSFeed.swift; sourceTree = "<group>"; };
 		020000000000000000000010 /* ZIPArchiveReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZIPArchiveReader.swift; sourceTree = "<group>"; };
 		020000000000000000000011 /* RouteGeometryImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RouteGeometryImporter.swift; sourceTree = "<group>"; };
 		020000000000000000000012 /* ContractGeometryImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContractGeometryImporter.swift; sourceTree = "<group>"; };
@@ -179,6 +181,7 @@
 				020000000000000000000003 /* ScenarioCatalog.swift */,
 				020000000000000000000008 /* GTFSFeedImporter.swift */,
 				020000000000000000000009 /* NetworkLibrary.swift */,
+				020000000000000000000122 /* PublicGTFSFeed.swift */,
 				020000000000000000000010 /* ZIPArchiveReader.swift */,
 				020000000000000000000011 /* RouteGeometryImporter.swift */,
 				020000000000000000000012 /* ContractGeometryImporter.swift */,
@@ -344,6 +347,7 @@
 				030000000000000000000005 /* DepotInspectorView.swift in Sources */,
 				030000000000000000000006 /* GTFSFeedImporter.swift in Sources */,
 				030000000000000000000007 /* NetworkLibrary.swift in Sources */,
+				030000000000000000000122 /* PublicGTFSFeed.swift in Sources */,
 				030000000000000000000008 /* RouteGeometryImporter.swift in Sources */,
 				030000000000000000000009 /* ZIPArchiveReader.swift in Sources */,
 				030000000000000000000010 /* ContractGeometryImporter.swift in Sources */,

@@ -451,6 +451,10 @@ struct DepotLineRosterView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
+                        Text("Le téléchargement public importe la dernière archive disponible. Si elle ne contient pas encore les courses annoncées, importez un export PRIM authentifié.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
 
                         HStack {
                             Button {
@@ -475,6 +479,15 @@ struct DepotLineRosterView: View {
                             }
                             .disabled(library.lineDocumentImportState.isImporting || library.isLoadingLineDocuments)
 
+                            Button(action: library.downloadLatestPublicGTFS) {
+                                if library.importState.isImporting {
+                                    ProgressView().controlSize(.small)
+                                } else {
+                                    Label("GTFS public", systemImage: "arrow.down.circle")
+                                }
+                            }
+                            .disabled(library.importState.isImporting)
+
                             Menu {
                                 ForEach(GTFSImportProvenance.allCases) { provenance in
                                     Button {
@@ -494,7 +507,10 @@ struct DepotLineRosterView: View {
                             .font(.caption.monospaced())
                             .foregroundStyle(.secondary)
 
-                        if let message = library.lineReferencesError ?? library.lineDocumentsError ?? library.busRoutesError {
+                        if let message = library.importState.errorMessage
+                            ?? library.lineReferencesError
+                            ?? library.lineDocumentsError
+                            ?? library.busRoutesError {
                             Label(message, systemImage: "exclamationmark.triangle.fill")
                                 .font(.caption)
                                 .foregroundStyle(.orange)
