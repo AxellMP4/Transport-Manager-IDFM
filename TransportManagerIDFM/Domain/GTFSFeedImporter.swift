@@ -1127,12 +1127,6 @@ private enum NetworkVersionStoreError: LocalizedError {
     }
 }
 
-private struct GTFSServiceTripMotifKey: Hashable {
-    let routeID: String
-    let shapeID: String?
-    let orderedStopSequence: [GTFSStopSequenceEntry]
-}
-
 enum NetworkVersionStore {
     private static let folderName = "TransportManagerIDFM"
     private static let catalogFilename = "NetworkCatalog.json"
@@ -1347,34 +1341,7 @@ enum NetworkVersionStore {
         }
 
         let schedules = try loadTripSchedules(for: version)
-        var tripsByMotif: [GTFSServiceTripMotifKey: [String]] = [:]
-        for schedule in schedules where !schedule.stops.isEmpty {
-            let orderedStopSequence = schedule.stops
-                .sorted { $0.stopSequence < $1.stopSequence }
-                .map { GTFSStopSequenceEntry(stopID: $0.stopID, stopSequence: $0.stopSequence) }
-            let key = GTFSServiceTripMotifKey(
-                routeID: schedule.routeID,
-                shapeID: schedule.shapeID,
-                orderedStopSequence: orderedStopSequence
-            )
-            tripsByMotif[key, default: []].append(schedule.tripID)
-        }
-
-        let motifs = tripsByMotif.map { key, tripIDs in
-            GTFSServiceTripMotif(
-                routeID: key.routeID,
-                shapeID: key.shapeID,
-                orderedStopSequence: key.orderedStopSequence,
-                tripIDs: tripIDs.sorted()
-            )
-        }.sorted { lhs, rhs in
-            let routeOrder = lhs.routeID.localizedStandardCompare(rhs.routeID)
-            if routeOrder != .orderedSame { return routeOrder == .orderedAscending }
-            let shapeOrder = (lhs.shapeID ?? "").localizedStandardCompare(rhs.shapeID ?? "")
-            if shapeOrder != .orderedSame { return shapeOrder == .orderedAscending }
-            return lhs.id < rhs.id
-        }
-
+        let motifs = GTFSServiceTripMotifCatalog.build(from: schedules)
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         try encoder.encode(motifs).write(to: motifsURL, options: .atomic)
