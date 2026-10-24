@@ -69,8 +69,22 @@ struct DepotLineRosterSite: Identifiable, Hashable, Sendable {
     let idfmBusContractID: String?
     let additionalEvidenceTitle: String?
     let additionalEvidenceURL: URL?
+    let supportingEvidence: [DepotSiteEvidenceLink]
     let fleetObservation: DepotFleetObservation?
     let facilityObservations: [DepotFacilityObservation]
+
+    var evidenceLinks: [DepotSiteEvidenceLink] {
+        var links: [DepotSiteEvidenceLink] = []
+        if let evidenceTitle, let sourceURL {
+            links.append(DepotSiteEvidenceLink(title: evidenceTitle, url: sourceURL))
+        }
+        if let additionalEvidenceTitle, let additionalEvidenceURL {
+            links.append(DepotSiteEvidenceLink(title: additionalEvidenceTitle, url: additionalEvidenceURL))
+        }
+        links.append(contentsOf: supportingEvidence)
+        var seenURLs = Set<String>()
+        return links.filter { seenURLs.insert($0.url.absoluteString).inserted }
+    }
 
     var isOperational: Bool { availability.isOperational }
 
@@ -93,6 +107,7 @@ struct DepotLineRosterSite: Identifiable, Hashable, Sendable {
         idfmBusContractID: String? = nil,
         additionalEvidenceTitle: String? = nil,
         additionalEvidenceURL: URL? = nil,
+        supportingEvidence: [DepotSiteEvidenceLink] = [],
         fleetObservation: DepotFleetObservation? = nil,
         facilityObservations: [DepotFacilityObservation] = []
     ) {
@@ -108,9 +123,17 @@ struct DepotLineRosterSite: Identifiable, Hashable, Sendable {
         self.idfmBusContractID = idfmBusContractID
         self.additionalEvidenceTitle = additionalEvidenceTitle
         self.additionalEvidenceURL = additionalEvidenceURL
+        self.supportingEvidence = supportingEvidence
         self.fleetObservation = fleetObservation
         self.facilityObservations = facilityObservations
     }
+}
+
+struct DepotSiteEvidenceLink: Hashable, Identifiable, Sendable {
+    let title: String
+    let url: URL
+
+    var id: String { url.absoluteString }
 }
 
 struct DepotFleetEnergyCount: Hashable, Identifiable, Sendable {
@@ -387,6 +410,8 @@ enum DepotLineRoster {
     private static let idfmDSP1And18And24URL = URL(string: "https://presse.iledefrance-mobilites.fr/ile-de-france-mobilites-confirme-lattribution-de-deux-lots-de-bus-et-le-marche-pam/?lang=fr")!
     private static let idfmDSP48And49URL = URL(string: "https://presse.iledefrance-mobilites.fr/ile-de-france-mobilites-designe-ratp-cap-ile-de-france-comme-operateur-des-deux-derniers-lots-de-bus-de-paris-et-petite-couronne/?lang=fr")!
     private static let idfmDepotSchedule2024URL = URL(string: "https://www.iledefrance-mobilites.fr/medias/portail-idfm/Zk4bEiol0Zci9XOy_CalendriersiteIDFMv22052024.pdf")!
+    private static let ratpCapNeuillyPlaisanceElectricTransitionURL = URL(string: "https://carrieres.ratpcap.com/job/Neuilly-Plaisance-M%C3%A9canicien-Bus-FH-93-93360/1169481455/")!
+    private static let ratpCapThreeCentersNoctilienURL = URL(string: "https://carrieres.ratpcap.com/job/Neuilly-Plaisance-Conducteur-de-bus-Noctilien-FH-93-93360/1345004155/")!
 
     static let sites: [DepotLineRosterSite] = [
         DepotLineRosterSite(
@@ -422,12 +447,18 @@ enum DepotLineRoster {
             locality: "Neuilly-Plaisance",
             status: "COB recensé · lignes DSP45 à ventiler",
             availability: .operational,
-            evidenceNote: "La brochure RATP d’avril 2026 identifie le COB Neuilly-Plaisance parmi ses sites opérationnels et indique séparément que la DSP 45 Boucles de Marne est exploitée par RATP Cap IDF depuis le 1er novembre 2025. Elle ne répartit pas les lignes du contrat entre les COB. En 2022, RATP Group comptait treize lignes du centre-bus de Bords-de-Marne pour le lot 45, sans donner leurs numéros dans cet article ni établir les affectations après le transfert. Le tableau ligne–centre de l’ancien contrat IDFM–RATP reste borné au 31 octobre 2025.",
+            evidenceNote: "La brochure RATP d’avril 2026 identifie le COB Neuilly-Plaisance parmi ses sites opérationnels et indique séparément que la DSP 45 Boucles de Marne est exploitée par RATP Cap IDF depuis le 1er novembre 2025. Une offre RATP Cap consultée le 24 octobre 2026 décrit le centre de Neuilly-Plaisance comme en transition énergétique vers une flotte 100 % électrique; la date de publication de l’offre n’est pas affichée et cette formulation ne confirme ni l’état actuel de la transition ni les bornes, leur puissance ou la capacité du site. Aucune de ces sources ne répartit les lignes du contrat entre les COB. En 2022, RATP Group comptait treize lignes du centre-bus de Bords-de-Marne pour le lot 45, sans donner leurs numéros dans cet article ni établir les affectations après le transfert. Le tableau ligne–centre de l’ancien contrat IDFM–RATP reste borné au 31 octobre 2025.",
             sourceURL: ratpSeineSaintDenisBrochure2026URL,
             evidenceTitle: "RATP · présence en Seine-Saint-Denis · avril 2026",
             idfmBusContractID: "45",
             additionalEvidenceTitle: "RATP Group · répartition des lignes du lot 45 par centre-bus · 29 mars 2022",
             additionalEvidenceURL: ratpDSP45DepotSplitURL,
+            supportingEvidence: [
+                DepotSiteEvidenceLink(
+                    title: "RATP Cap · offre mécanicien · transition électrique annoncée à Neuilly-Plaisance",
+                    url: ratpCapNeuillyPlaisanceElectricTransitionURL
+                )
+            ],
             fleetObservation: DepotFleetObservation(
                 totalVehicleCount: 201,
                 energyCounts: [
@@ -453,10 +484,16 @@ enum DepotLineRoster {
             locality: "Neuilly-sur-Marne · ZI des Chanoux",
             status: "Site d’appui de la ligne 113 · flotte observée",
             availability: .operational,
-            evidenceNote: "La décision IDFM de 2023 documente un remisage d’appui pour une partie des articulés de la 113. Le parc actuel TC Infos recense 12 Irisbus Citelis 18 diesel sur ce site au relevé du 23 octobre 2026, sans attribuer d’autres lignes. La date de mise à jour du parc n’est pas publiée et ce nombre ne représente pas la capacité maximale. La carte RATP Cap de mars 2026 identifie aussi un COB à Neuilly-sur-Marne sans préciser son nom ni son adresse : elle corrobore un COB dans la commune, mais ne permet pas de confirmer que son symbole désigne ce site Frères-Lumière. Celui-ci reste distinct du futur COB IDFM.",
+            evidenceNote: "La décision IDFM de 2023 documente un remisage d’appui pour une partie des articulés de la 113. Le parc actuel TC Infos recense 12 Irisbus Citelis 18 diesel sur ce site au relevé du 23 octobre 2026, sans attribuer d’autres lignes. La date de mise à jour du parc n’est pas publiée et ce nombre ne représente pas la capacité maximale. La carte RATP Cap de mars 2026 et une offre d’emploi consultée le 24 octobre 2026 identifient un COB à Neuilly-sur-Marne sans préciser son nom ni son adresse. L’offre parle encore de la filiale comme future et sa date de publication n’est pas affichée : ces sources situent un centre dans la commune, mais ne confirment pas que son symbole ou son adresse désignent le site Frères-Lumière. Celui-ci reste distinct du futur COB IDFM.",
             sourceURL: URL(string: "https://www.iledefrance-mobilites.fr/medias/portail-idfm/1c3d876c-ef6f-4f9f-ae60-8756ae273ba7_RAA_153-2.pdf"),
             additionalEvidenceTitle: "RATP Cap · carte des réseaux et COB · mars 2026 (adresse à confirmer)",
             additionalEvidenceURL: URL(string: "https://www.ratpcap.com/wp-content/uploads/2026/03/Carte_Reseaux_RATPCap_mars2026_compressed.pdf"),
+            supportingEvidence: [
+                DepotSiteEvidenceLink(
+                    title: "RATP Cap · offre conducteur Noctilien · trois communes de centres bus",
+                    url: ratpCapThreeCentersNoctilienURL
+                )
+            ],
             fleetObservation: DepotFleetObservation(
                 totalVehicleCount: 12,
                 energyCounts: [DepotFleetEnergyCount(energyTitle: "Diesel", vehicleCount: 12)],
@@ -827,6 +864,12 @@ enum DepotLineRoster {
         for observation in supplemental.facilityObservations where !facilityObservations.contains(where: { $0.id == observation.id }) {
             facilityObservations.append(observation)
         }
+        let primarySourceURL = preferred.sourceURL ?? supplemental.sourceURL
+        var supportingEvidence: [DepotSiteEvidenceLink] = []
+        var seenEvidenceURLs = Set([primarySourceURL?.absoluteString, additionalEvidenceURL?.absoluteString].compactMap { $0 })
+        for source in preferred.evidenceLinks + supplemental.evidenceLinks where seenEvidenceURLs.insert(source.url.absoluteString).inserted {
+            supportingEvidence.append(source)
+        }
 
         return DepotLineRosterSite(
             id: preferred.id,
@@ -835,12 +878,13 @@ enum DepotLineRoster {
             status: currentSite.status,
             availability: currentSite.availability,
             evidenceNote: evidenceNote,
-            sourceURL: preferred.sourceURL ?? supplemental.sourceURL,
+            sourceURL: primarySourceURL,
             documentedAddress: preferred.documentedAddress ?? supplemental.documentedAddress,
             evidenceTitle: preferred.evidenceTitle ?? supplemental.evidenceTitle,
             idfmBusContractID: preferred.idfmBusContractID ?? supplemental.idfmBusContractID,
             additionalEvidenceTitle: additionalEvidenceTitle,
             additionalEvidenceURL: additionalEvidenceURL,
+            supportingEvidence: supportingEvidence,
             fleetObservation: preferred.fleetObservation ?? supplemental.fleetObservation,
             facilityObservations: facilityObservations
         )

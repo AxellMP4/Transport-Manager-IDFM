@@ -329,13 +329,8 @@ struct DepotLineRosterView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
-                        if let title = selectedSite.evidenceTitle, let url = selectedSite.sourceURL {
-                            Link(title, destination: url)
-                                .font(.caption)
-                        }
-                        if let title = selectedSite.additionalEvidenceTitle,
-                           let url = selectedSite.additionalEvidenceURL {
-                            Link(title, destination: url)
+                        ForEach(selectedSite.evidenceLinks) { evidence in
+                            Link(evidence.title, destination: evidence.url)
                                 .font(.caption)
                         }
                     }
@@ -924,14 +919,8 @@ struct RegionalDepotRegistryView: View {
             if let observation = site.fleetObservation {
                 DepotFleetObservationCard(observation: observation, compact: true)
             }
-            if let evidenceTitle = site.evidenceTitle {
-                Text(evidenceTitle)
-                    .font(.caption2)
-                    .foregroundStyle(.tint)
-                    .lineLimit(1)
-            }
-            if let title = site.additionalEvidenceTitle, let url = site.additionalEvidenceURL {
-                Link(title, destination: url)
+            ForEach(site.evidenceLinks) { evidence in
+                Link(evidence.title, destination: evidence.url)
                     .font(.caption2)
                     .lineLimit(1)
             }
@@ -1228,8 +1217,8 @@ struct DepotDirectoryWorkspaceView: View {
                     ForEach(selectedSite.facilityObservations) { observation in
                         DepotFacilityObservationCard(observation: observation)
                     }
-                    if let evidenceTitle = selectedSite.evidenceTitle, let sourceURL = selectedSite.sourceURL {
-                        Link(evidenceTitle, destination: sourceURL)
+                    ForEach(selectedSite.evidenceLinks) { evidence in
+                        Link(evidence.title, destination: evidence.url)
                             .font(.callout)
                     }
 

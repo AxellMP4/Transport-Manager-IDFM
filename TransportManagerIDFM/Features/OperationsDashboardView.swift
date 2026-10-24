@@ -1381,12 +1381,8 @@ struct OperationsDashboardView: View {
             Text(site.evidenceNote)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
-            if let evidenceTitle = site.evidenceTitle, let sourceURL = site.sourceURL {
-                Link(evidenceTitle, destination: sourceURL)
-                    .font(.callout)
-            }
-            if let title = site.additionalEvidenceTitle, let url = site.additionalEvidenceURL {
-                Link(title, destination: url)
+            ForEach(site.evidenceLinks) { evidence in
+                Link(evidence.title, destination: evidence.url)
                     .font(.callout)
             }
             Divider()
