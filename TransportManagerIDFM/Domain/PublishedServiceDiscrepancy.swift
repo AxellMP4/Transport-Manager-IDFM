@@ -55,7 +55,7 @@ struct PublishedServiceDiscrepancy: Hashable, Sendable {
 
         return PublishedServiceDiscrepancy(
             title: "Ligne 314 annoncée, route absente du GTFS",
-            detail: "À partir du 1er novembre 2026, IDFM annonce la ligne 314 entre Neuilly-Plaisance RER et la zone industrielle des Chanoux. Le communiqué prévoit un service du lundi au vendredi, toutes les 15 minutes en heures de pointe et toutes les heures en heures creuses. Le GTFS chargé ne contient aucune route 314 : cette vue ne peut donc pas afficher ses courses détaillées ni sa séquence d’arrêts. Consultez la fiche horaire et le plan officiel ci-dessous; les fréquences publiées ne permettent pas de reconstruire un horaire complet.",
+            detail: "À partir du 1er novembre 2026, IDFM annonce la ligne 314 entre Neuilly-Plaisance RER et la zone industrielle des Chanoux. La date d’effet est le dimanche 1er novembre; le service est prévu du lundi au vendredi, avec premières courses le lundi 2 novembre 2026. Le communiqué prévoit un service du lundi au vendredi, toutes les 15 minutes en heures de pointe et toutes les heures en heures creuses. Le GTFS chargé ne contient aucune route 314 : cette vue ne peut donc pas afficher ses courses détaillées ni sa séquence d’arrêts. Consultez la fiche horaire et le plan officiel ci-dessous; les fréquences publiées ne permettent pas de reconstruire un horaire complet.",
             sourceTitle: "Communiqué IDFM du 21 octobre 2026",
             sourceURL: bordsDeMarneAnnouncementURL,
             timetableTitle: line314TimetableTitle,
