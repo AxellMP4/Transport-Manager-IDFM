@@ -439,9 +439,24 @@ struct ScenarioDefinition: Identifiable, Hashable {
         return "Les sources agrégées donnent \(contractReportedLineCount) lignes dans l’annonce IDFM à l’attribution et \(operatorReportLineCount) dans le rapport RATP 2025. Le communiqué IDFM du 21 octobre 2026 indique séparément 23 lignes de jour et 7 de nuit, pour environ 310 bus. Il ne nomme pas les identifiants qui réconcilieraient ces décomptes; ils ne permettent donc pas de modifier la liste datée du scénario."
     }
 
+    var cobCountReconciliationNote: String? {
+        guard id == "bords-de-marne" else { return nil }
+        return "Les sources datées divergent sur les centres de la DSP45. La présélection IDFM du 24 octobre 2024 cite trois COB, dont un nouveau site à Neuilly-sur-Marne; l’annonce d’attribution RATP Cap du 12 novembre n’en nomme que deux. Le rapport RATP 2025 décrit ensuite trois COB et 320 véhicules pour le lot mis en service en novembre 2025. La carte RATP Cap de mars 2026 situe un COB à Neuilly-sur-Marne, sans publier son nom ni son adresse. Le lien avec le site Frères-Lumière reste à confirmer. Le futur COB du projet Bus Bords de Marne IDFM est un autre site."
+    }
+
     var recentOfficialNetworkCountSourceURL: URL? {
         guard id == "bords-de-marne" else { return nil }
         return URL(string: "https://presse.iledefrance-mobilites.fr/ile-de-france-mobilites-restructure-et-reorganise-loffre-de-bus-sur-les-territoires-des-bords-de-marne-et-de-boucle-nord-de-seine/?lang=fr")
+    }
+
+    var cobPreselectionSourceURL: URL? {
+        guard id == "bords-de-marne" else { return nil }
+        return URL(string: "https://presse.iledefrance-mobilites.fr/trois-premiers-candidats-pressentis-pour-exploiter-les-lignes-de-bus-des-territoires-de-marne-et-brie-des-boucles-nord-de-seine-et-des-bords-de-marne/?lang=fr")
+    }
+
+    var cobAwardSourceURL: URL? {
+        guard id == "bords-de-marne" else { return nil }
+        return URL(string: "https://www.ratpcap.com/blog/ratp-cap-ile-de-france-remporte-lexploitation-des-lots-bus-petite-couronne-pour-les-territoires-boucles-nord-de-seine-et-bords-de-marne/")
     }
 
     static let bordsDeMarne = ScenarioDefinition(
@@ -561,10 +576,10 @@ struct ScenarioDefinition: Identifiable, Hashable {
         plannedDepots: [
             PlannedDepotReference(
                 id: "neuilly-sur-marne-projet",
-                name: "Neuilly-sur-Marne · projet de troisième COB",
+                name: "Neuilly-sur-Marne · futur COB du projet IDFM",
                 locality: "Seine-Saint-Denis",
                 locationDescription: "Site retenu dans le secteur des délaissés de l’A103, au nord de l’ex-RN34 ; l’adresse opérationnelle et les équipements restent à confirmer.",
-                statusDescription: "Projet IDFM. Les travaux sont envisagés à partir de 2027 ; ce centre n’est pas traité comme un dépôt jouable.",
+                statusDescription: "Projet IDFM distinct du COB d’exploitation que le rapport RATP 2025 situe dans la même commune. Les travaux sont envisagés à partir de 2027 ; ce site n’est pas traité comme un dépôt jouable.",
                 sourceTitle: "IDFM · avancement du projet Bus Bords de Marne",
                 sourceURL: URL(string: "https://www.iledefrance-mobilites.fr/le-reseau/projets/bus-bordsdemarne/mise-en-oeuvre-bbdm")!
             )

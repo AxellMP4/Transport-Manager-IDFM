@@ -405,13 +405,15 @@ enum DepotLineRoster {
     static let lineReferenceURL = URL(string: "https://data.iledefrance-mobilites.fr/explore/dataset/referentiel-des-lignes/")!
     private static let ratpBus2025URL = URL(string: "https://www.ratp.fr/programme-bus2025")!
     private static let ratpDSP45DepotSplitURL = URL(string: "https://askip.ratpgroup.com/question/ile-de-france-mobilites-vient-de-publier-4-appels-doffres-quels-sont-les-centres-bus-concernes/")!
+    private static let ratpBouclesDeMarne2025AnnualReportURL = URL(string: "https://ratpgroup.com/api/media/rapport-financier-et-de-durabilite-annuel-2025---groupe-ratp.pdf")!
+    private static let idfmBordsDeMarneCOBPreselectionURL = URL(string: "https://presse.iledefrance-mobilites.fr/trois-premiers-candidats-pressentis-pour-exploiter-les-lignes-de-bus-des-territoires-de-marne-et-brie-des-boucles-nord-de-seine-et-des-bords-de-marne/?lang=fr")!
+    private static let ratpCapDSP45AwardURL = URL(string: "https://www.ratpcap.com/blog/ratp-cap-ile-de-france-remporte-lexploitation-des-lots-bus-petite-couronne-pour-les-territoires-boucles-nord-de-seine-et-bords-de-marne/")!
     private static let idfmDSP41To47URL = URL(string: "https://presse.iledefrance-mobilites.fr/ile-de-france-mobilites-designe-les-operateurs-bus-de-quatre-lots-en-petite-couronne-et-dun-lot-en-grande-couronne/?lang=fr")!
     private static let idfmDSP36To40URL = URL(string: "https://presse.iledefrance-mobilites.fr/ile-de-france-mobilites-designe-les-operateurs-bus-de-trois-lots-en-petite-couronne-et-reattribue-un-lot-en-grande-couronne/?lang=fr")!
     private static let idfmDSP1And18And24URL = URL(string: "https://presse.iledefrance-mobilites.fr/ile-de-france-mobilites-confirme-lattribution-de-deux-lots-de-bus-et-le-marche-pam/?lang=fr")!
     private static let idfmDSP48And49URL = URL(string: "https://presse.iledefrance-mobilites.fr/ile-de-france-mobilites-designe-ratp-cap-ile-de-france-comme-operateur-des-deux-derniers-lots-de-bus-de-paris-et-petite-couronne/?lang=fr")!
     private static let idfmDepotSchedule2024URL = URL(string: "https://www.iledefrance-mobilites.fr/medias/portail-idfm/Zk4bEiol0Zci9XOy_CalendriersiteIDFMv22052024.pdf")!
     private static let ratpCapNeuillyPlaisanceElectricTransitionURL = URL(string: "https://carrieres.ratpcap.com/job/Neuilly-Plaisance-M%C3%A9canicien-Bus-FH-93-93360/1169481455/")!
-    private static let ratpCapThreeCentersNoctilienURL = URL(string: "https://carrieres.ratpcap.com/job/Neuilly-Plaisance-Conducteur-de-bus-Noctilien-FH-93-93360/1345004155/")!
 
     static let sites: [DepotLineRosterSite] = [
         DepotLineRosterSite(
@@ -484,14 +486,22 @@ enum DepotLineRoster {
             locality: "Neuilly-sur-Marne · ZI des Chanoux",
             status: "Site d’appui de la ligne 113 · flotte observée",
             availability: .operational,
-            evidenceNote: "La décision IDFM de 2023 documente un remisage d’appui pour une partie des articulés de la 113. Le parc actuel TC Infos recense 12 Irisbus Citelis 18 diesel sur ce site au relevé du 23 octobre 2026, sans attribuer d’autres lignes. La date de mise à jour du parc n’est pas publiée et ce nombre ne représente pas la capacité maximale. La carte RATP Cap de mars 2026 et une offre d’emploi consultée le 24 octobre 2026 identifient un COB à Neuilly-sur-Marne sans préciser son nom ni son adresse. L’offre parle encore de la filiale comme future et sa date de publication n’est pas affichée : ces sources situent un centre dans la commune, mais ne confirment pas que son symbole ou son adresse désignent le site Frères-Lumière. Celui-ci reste distinct du futur COB IDFM.",
+            evidenceNote: "La décision IDFM de 2023 documente un remisage d’appui pour une partie des articulés de la 113. Le parc TC Infos recense 12 Irisbus Citelis 18 diesel sur le site Frères-Lumière au relevé du 23 octobre 2026, sans attribuer d’autres lignes; l’inventaire n’est pas horodaté et ne donne pas sa capacité maximale. IDFM annonçait trois COB en octobre 2024, dont un nouveau site à Neuilly-sur-Marne; l’annonce RATP Cap de novembre en retenait deux; le rapport RATP 2025 décrit ensuite trois COB et 320 véhicules pour Boucles de Marne. La carte RATP Cap de mars 2026 situe un COB à Neuilly-sur-Marne, sans le nommer ni donner son adresse. Ces preuves établissent un COB d’exploitation dans la commune, mais pas que le symbole désigne le site Frères-Lumière : ce rapprochement reste candidat. Le futur COB prévu par le projet IDFM est distinct de ce centre d’exploitation.",
             sourceURL: URL(string: "https://www.iledefrance-mobilites.fr/medias/portail-idfm/1c3d876c-ef6f-4f9f-ae60-8756ae273ba7_RAA_153-2.pdf"),
             additionalEvidenceTitle: "RATP Cap · carte des réseaux et COB · mars 2026 (adresse à confirmer)",
             additionalEvidenceURL: URL(string: "https://www.ratpcap.com/wp-content/uploads/2026/03/Carte_Reseaux_RATPCap_mars2026_compressed.pdf"),
             supportingEvidence: [
                 DepotSiteEvidenceLink(
-                    title: "RATP Cap · offre conducteur Noctilien · trois communes de centres bus",
-                    url: ratpCapThreeCentersNoctilienURL
+                    title: "IDFM · présélection du lot 45 · trois COB dont un nouveau site à Neuilly-sur-Marne · 24 octobre 2024",
+                    url: idfmBordsDeMarneCOBPreselectionURL
+                ),
+                DepotSiteEvidenceLink(
+                    title: "RATP Cap · annonce d’attribution du lot 45 · deux centres à Saint-Maur et Neuilly-Plaisance · 12 novembre 2024",
+                    url: ratpCapDSP45AwardURL
+                ),
+                DepotSiteEvidenceLink(
+                    title: "RATP Group · rapport annuel 2025 · trois COB et 320 véhicules à Boucles de Marne",
+                    url: ratpBouclesDeMarne2025AnnualReportURL
                 )
             ],
             fleetObservation: DepotFleetObservation(

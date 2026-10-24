@@ -2189,10 +2189,30 @@ struct OperationsDashboardView: View {
                     .padding(9)
                     .background(Color.orange.opacity(0.07), in: RoundedRectangle(cornerRadius: 9))
                 }
+                if let cobCountReconciliationNote = scenario.cobCountReconciliationNote {
+                    Label {
+                        Text(cobCountReconciliationNote)
+                            .fixedSize(horizontal: false, vertical: true)
+                    } icon: {
+                        Image(systemName: "building.2.fill")
+                            .foregroundStyle(.orange)
+                    }
+                    .font(.caption)
+                    .padding(9)
+                    .background(Color.orange.opacity(0.07), in: RoundedRectangle(cornerRadius: 9))
+                }
                 Link(scenario.contractSourceTitle, destination: scenario.contractSourceURL)
                     .font(.caption)
                 Link(scenario.operatorReportSourceTitle, destination: scenario.operatorReportSourceURL)
                     .font(.caption)
+                if let cobPreselectionSourceURL = scenario.cobPreselectionSourceURL {
+                    Link("IDFM · centres opérationnels annoncés à la présélection du lot 45 · 24 octobre 2024", destination: cobPreselectionSourceURL)
+                        .font(.caption)
+                }
+                if let cobAwardSourceURL = scenario.cobAwardSourceURL {
+                    Link("RATP Cap · deux centres bus annoncés à l’attribution du lot 45 · 12 novembre 2024", destination: cobAwardSourceURL)
+                        .font(.caption)
+                }
                 if let recentOfficialNetworkCountSourceURL = scenario.recentOfficialNetworkCountSourceURL {
                     Link("IDFM · communiqué réseau du 21 octobre 2026", destination: recentOfficialNetworkCountSourceURL)
                         .font(.caption)
