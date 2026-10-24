@@ -1,5 +1,12 @@
 # État de réalisation
 
+## Repères de taille du réseau dans la fiche de dépôt — 25 octobre 2026, 00:35 CEST
+
+- La fiche de dépôt expose maintenant les chiffres agrégés du communiqué IDFM du 21 octobre : 28 communes, environ 310 bus et plus de 1 400 arrêts, en plus des 23 lignes de jour et 7 de nuit annoncées à partir du 1er novembre. Le texte précise qu’il s’agit de l’échelle du réseau Bords de Marne, pas de la capacité du dépôt consulté; IDFM ne répartit pas ces chiffres par COB.
+- `sh Scripts/validate-depot-line-roster-evidence.sh` passe. La compilation Debug macOS universelle termine avec le code 0 via Xcode. Après extraction propre, `codesign --verify --deep --strict`, `plutil -lint`, `lipo -info` (`x86_64` + `arm64`) et `unzip -tq` passent; les 18 fragments GTFS embarqués sont conservés. Le ZIP local `build/Debug/TransportManagerIDFM-Playable.zip` fait 177 571 033 octets, SHA-256 `bb4d7af9113c9d387e24d7391d706b6d017e15226e7f03e42590f4c2ba01bddc`. Signature ad hoc, non notariée.
+- Ce repère améliore l’information affichée, mais ne ferme aucun des six critères qui nécessitent des documents financiers, des rattachements post-transfert ou des données GTFS/PRIM vérifiables. Avancement fonctionnel : 133/139 (95,7 %).
+- Source : [communiqué IDFM du 21 octobre 2026](https://presse.iledefrance-mobilites.fr/ile-de-france-mobilites-restructure-et-reorganise-loffre-de-bus-sur-les-territoires-des-bords-de-marne-et-de-boucle-nord-de-seine/?lang=fr).
+
 ## Repli GTFS à délai borné et rebuild jouable — 25 octobre 2026, 00:31 CEST
 
 - Les requêtes du téléchargeur GTFS public ont maintenant un délai de réponse de 45 secondes et un délai total de 300 secondes pour l’API et le ZIP. Une connexion bloquée finit donc par déclencher le repli PAN au lieu de suspendre indéfiniment l’action de synchronisation.

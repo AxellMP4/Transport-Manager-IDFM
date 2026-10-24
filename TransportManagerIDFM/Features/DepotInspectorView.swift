@@ -621,7 +621,7 @@ private struct BordsDeMarneRosterReference {
         }
 
         return Self(
-            summary: "À partir du 1er novembre 2026, IDFM annonce 23 lignes de jour et 7 de nuit (30 au total). La 314 démarre alors, mais le GTFS embarqué du miroir public du 23 octobre ne vérifie pas encore le service 214/314 après la réorganisation. Le communiqué ne répartit pas les lignes par COB.",
+            summary: "À partir du 1er novembre 2026, IDFM annonce 23 lignes de jour et 7 de nuit (30 au total) sur 28 communes, environ 310 bus et plus de 1 400 arrêts. Ces chiffres décrivent le réseau Bords de Marne dans son ensemble, pas la capacité de ce dépôt. La 314 démarre alors, mais le GTFS embarqué du miroir public du 23 octobre ne vérifie pas encore le service 214/314 après la réorganisation. Le communiqué ne répartit pas les lignes par COB.",
             sourceTitle: "IDFM · réorganisation du réseau au 1er novembre 2026",
             sourceURL: URL(string: "https://presse.iledefrance-mobilites.fr/ile-de-france-mobilites-restructure-et-reorganise-loffre-de-bus-sur-les-territoires-des-bords-de-marne-et-de-boucle-nord-de-seine/?lang=fr")!
         )
