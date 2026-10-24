@@ -1431,7 +1431,7 @@ enum DepotLineRoster {
         ),
         neuillyPlaisanceLine(
             "214",
-            note: "Gare de Neuilly-Plaisance ↔ Gagny–Roger-Salengro ; seules les courses desservant la ZI des Chanoux sont transférées à la 314 au 1er novembre 2026. IDFM annonce que la 214 continue avec une fréquence renforcée et une amplitude élargie. Le GTFS du 20 octobre omet pourtant ses courses après cette date : traiter cet écart comme un conflit de version, pas comme une suppression. L’annonce ne confirme pas le COB de la 214 après la réorganisation.",
+            note: "Gare de Neuilly-Plaisance ↔ Gagny–Roger-Salengro ; seules les courses desservant la ZI des Chanoux sont transférées à la 314 au 1er novembre 2026. IDFM annonce que la 214 continue avec une fréquence renforcée et une amplitude élargie. Le snapshot GTFS du miroir public du 23 octobre omet pourtant ses courses après cette date : traiter cet écart comme un conflit de version, pas comme une suppression. L’annonce ne confirme pas le COB de la 214 après la réorganisation.",
             documents: documentsByLine["214"] ?? [],
             additionalClaims: [DepotLineRosterClaim(
                 kind: .announcedService,
@@ -1443,7 +1443,7 @@ enum DepotLineRoster {
                 sourceDateLabel: "Communiqué IDFM du 21 octobre 2026",
                 validFromKey: 20261101,
                 validThroughKey: nil,
-                note: "L’annonce indique que la 214 continue avec fréquences renforcées et amplitude élargie ; seuls les arrêts de la ZI des Chanoux sont transférés à la 314. Cette preuve porte sur le service, pas sur le COB. Le GTFS daté du 20 octobre ne fournit pas les courses 214 annoncées après la date de changement."
+                note: "L’annonce indique que la 214 continue avec fréquences renforcées et amplitude élargie ; seuls les arrêts de la ZI des Chanoux sont transférés à la 314. Cette preuve porte sur le service, pas sur le COB. Le snapshot GTFS du miroir public du 23 octobre ne fournit pas les courses 214 annoncées après la date de changement."
             ), DepotLineRosterClaim(
                 kind: .fleetObservation,
                 siteID: "neuilly-plaisance",
