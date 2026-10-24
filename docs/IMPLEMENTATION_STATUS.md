@@ -1,5 +1,12 @@
 # État de réalisation
 
+## Repli GTFS à délai borné et rebuild jouable — 25 octobre 2026, 00:31 CEST
+
+- Les requêtes du téléchargeur GTFS public ont maintenant un délai de réponse de 45 secondes et un délai total de 300 secondes pour l’API et le ZIP. Une connexion bloquée finit donc par déclencher le repli PAN au lieu de suspendre indéfiniment l’action de synchronisation.
+- Le smoke `Scripts/validate-public-gtfs-download.sh` a échoué avant le changement (session de téléchargement bornée absente), puis passe avec les délais attendus, l’URL Datahub dynamique, le rejet d’un hôte externe et les validations de structure ZIP.
+- La compilation Debug macOS universelle termine avec le code 0. Signature ad hoc, `codesign --verify --deep --strict`, `plutil -lint`, et `lipo -info` passent après extraction fraîche; les architectures `x86_64` et `arm64` ainsi que les 18 fragments GTFS embarqués sont présents. Le ZIP `build/Debug/TransportManagerIDFM-Playable.zip` fait 177 570 926 octets, passe `unzip -tq`, SHA-256 `6ad5432f23e11012f2965962bce03fbdac08862577d40791e92950a58499534e`. Non notarié.
+- Le recontrôle public ne permet toujours pas de récupérer le ZIP Datahub/PAN : la résolution DNS des deux hôtes échoue dans le terminal; Chrome bloque le téléchargement binaire. Le fichier IDFM annoncé n’est donc pas intégré et le snapshot validé reste celui du 24 octobre. Les six critères externes restent ouverts; progression à 133/139 (95,7 %).
+
 ## URL GTFS Datahub dynamique, source déclarée et rebuild jouable — 25 octobre 2026, 00:26 CEST
 
 - Le téléchargeur interroge d’abord l’API officielle du [GTFS Datahub IDFM](https://data.iledefrance.fr/explore/dataset/offre-horaires-tc-gtfs-idfm/) pour résoudre l’URL du fichier courant. Il n’intègre plus d’identifiant de fichier hebdomadaire en dur; il n’accepte que le ZIP IDFM annoncé par le domaine et le chemin officiels. Si l’API, le téléchargement ou la validation du ZIP échoue, il retombe sur le miroir PAN stable. L’erreur finale indique l’échec des deux sources.

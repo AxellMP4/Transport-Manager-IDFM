@@ -1,5 +1,11 @@
 # Archive GTFS IDFM
 
+## Délais réseau bornés — 25 octobre 2026, 00:31 CEST
+
+La session de synchronisation utilise désormais un délai de réponse de 45 secondes et un délai total de 300 secondes pour la fiche Datahub et le ZIP. Si une requête ne répond pas ou que le fichier ne passe pas la validation ZIP/GTFS, le miroir PAN est tenté dans le même cycle. Ces délais empêchent un téléchargement suspendu de laisser l’interface bloquée indéfiniment.
+
+Contrôle de l’environnement : les domaines Datahub et PAN ne se résolvent pas dans le terminal, et Chrome bloque le lien binaire. La fiche publique annonçant le fichier courant ne prouve donc toujours pas le contenu du ZIP; le snapshot embarqué reste celui du 24 octobre et #280 reste ouvert.
+
 ## URL Datahub résolue à la demande — 25 octobre 2026, 00:26 CEST
 
 Le téléchargeur consulte maintenant l’API du [GTFS Datahub officiel IDFM](https://data.iledefrance.fr/explore/dataset/offre-horaires-tc-gtfs-idfm/) pour trouver le fichier courant; l’identifiant du fichier reste dynamique. L’app vérifie que la fiche annonce `IDFM-gtfs.zip` au format ZIP et que l’URL vient du domaine et du chemin officiels, puis valide l’archive téléchargée avant import. Si la requête Datahub ou la validation échoue, l’app essaie le miroir PAN et identifie la source effectivement utilisée dans les métadonnées d’import.

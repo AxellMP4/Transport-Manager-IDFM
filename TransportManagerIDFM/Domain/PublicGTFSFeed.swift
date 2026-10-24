@@ -37,6 +37,13 @@ enum PublicGTFSFeed {
     static let latestFileRecordURL = URL(string: "https://data.iledefrance.fr/api/v2/catalog/datasets/offre-horaires-tc-gtfs-idfm/records?limit=1")!
     private static let requiredTableFiles = ["routes.txt", "trips.txt", "stops.txt", "stop_times.txt"]
 
+    static func makeDownloadSession() -> URLSession {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.timeoutIntervalForRequest = 45
+        configuration.timeoutIntervalForResource = 300
+        return URLSession(configuration: configuration)
+    }
+
     static func resolveLatestDownloadURL(from data: Data) throws -> URL {
         guard
             let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],

@@ -6,6 +6,13 @@ struct PublishedGTFSFeedSmoke {
         let expectedURL = URL(string: "https://eu.ftp.opendatasoft.com/stif/GTFS/IDFM-gtfs.zip")!
         precondition(PublicGTFSFeed.downloadURL == expectedURL, "Le miroir GTFS public doit viser le ZIP officiel.")
 
+        let downloadSession = PublicGTFSFeed.makeDownloadSession()
+        let requestTimeout = downloadSession.configuration.timeoutIntervalForRequest
+        let resourceTimeout = downloadSession.configuration.timeoutIntervalForResource
+        precondition(requestTimeout > 0 && requestTimeout <= 60, "La requête au catalogue doit pouvoir échouer rapidement.")
+        precondition(resourceTimeout >= requestTimeout && resourceTimeout <= 300, "Un ZIP bloqué doit laisser place au repli en cinq minutes maximum.")
+        downloadSession.invalidateAndCancel()
+
         let dynamicFileURL = URL(string: "https://data.iledefrance.fr/api/v2/catalog/datasets/offre-horaires-tc-gtfs-idfm/files/a925e164271e4bca93433756d6a340d1")!
         let record = try JSONSerialization.data(withJSONObject: [
             "records": [["record": ["fields": ["url": [

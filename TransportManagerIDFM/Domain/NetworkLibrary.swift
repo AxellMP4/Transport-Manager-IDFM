@@ -423,10 +423,11 @@ final class NetworkLibrary: ObservableObject {
             }
 
             do {
+                let downloadSession = PublicGTFSFeed.makeDownloadSession()
                 let publicArchiveURL: URL
                 let sourceProvenance: GTFSImportProvenance
                 do {
-                    let (recordData, recordResponse) = try await URLSession.shared.data(
+                    let (recordData, recordResponse) = try await downloadSession.data(
                         from: PublicGTFSFeed.latestFileRecordURL
                     )
                     guard let recordHTTPResponse = recordResponse as? HTTPURLResponse else {
@@ -437,7 +438,7 @@ final class NetworkLibrary: ObservableObject {
                     }
 
                     let currentFileURL = try PublicGTFSFeed.resolveLatestDownloadURL(from: recordData)
-                    let (downloadedURL, response) = try await URLSession.shared.download(from: currentFileURL)
+                    let (downloadedURL, response) = try await downloadSession.download(from: currentFileURL)
                     downloadedTemporaryURL = downloadedURL
                     try PublicGTFSFeed.validateDownloadedArchive(at: downloadedURL, response: response)
                     publicArchiveURL = downloadedURL
@@ -450,7 +451,7 @@ final class NetworkLibrary: ObservableObject {
                     }
 
                     do {
-                        let (downloadedURL, response) = try await URLSession.shared.download(
+                        let (downloadedURL, response) = try await downloadSession.download(
                             from: PublicGTFSFeed.downloadURL
                         )
                         downloadedTemporaryURL = downloadedURL
