@@ -1613,6 +1613,26 @@ enum VehicleMarketCatalog {
             referencePrice: 403_390,
             priceReferenceYear: 2024,
             priceEstimateNote: "Estimation de jeu à faible confiance : la CATP donne 310 300 € HT pour un autobus GNV standard 12 m ; le jeu applique sa majoration de gabarit articulé de 30 %, soit 403 390 € en base 2024. Ce calcul n’est ni un prix individuel Scania ni une offre commerciale.",
+            technicalTitle: "Scania · brochure Citywide LF en français",
+            technicalURL: "https://www.scania.com/content/dam/www/market/ch/products/buses-and-coaches/pdfs/citywide-lf/Scania-Citywide-LF-FR.pdf",
+            technicalDataNote: "La brochure constructeur documente les variantes de gamme GNV ; la variante ci-dessous en reprend les plages sans choisir un moteur ou un réservoir pour les bus RATP. L’annonce de livraison Scania précise que les 101 véhicules RATP sont identiques, articulés de 18 m et équipés de portes type métro, sans publier leur capacité voyageurs ni leur configuration mécanique détaillée.",
+            technicalVariants: [
+                VehicleTechnicalVariant(
+                    id: "scania-citywide-lf-gaz-articule-range-2021",
+                    title: "Gamme Citywide LF GNV · brochure constructeur française",
+                    lengthMeters: nil,
+                    widthMeters: 2.55,
+                    heightMeters: 3.17,
+                    batteryCapacityKWh: nil,
+                    maximumPowerKilowatts: nil,
+                    maximumCapacity: nil,
+                    seatedCapacity: nil,
+                    rangeKilometers: nil,
+                    applicabilityNote: "La brochure décrit des articulés de 18,0 à 18,7 m, des moteurs gaz de 9 litres de 206 ou 250 kW et 1 260 à 1 875 litres de gaz utilisables selon configuration. Ce sont des plages de la gamme, pas les spécifications attribuées aux 101 véhicules RATP ; leur capacité voyageurs et leur choix exact de moteur et de réservoir restent inconnus.",
+                    evidenceTitle: "Scania · brochure Citywide LF, version française",
+                    evidenceURL: "https://www.scania.com/content/dam/www/market/ch/products/buses-and-coaches/pdfs/citywide-lf/Scania-Citywide-LF-FR.pdf"
+                )
+            ],
             fleetTitle: "Scania France · 101 Citywide GNV de 18 m livrés à la RATP",
             fleetURL: "https://www.scania.com/fr/fr/home/about-scania/newsroom/news/2022/2/101-citywide-gaz-livres-scania-france-ratp.html",
             marketAvailabilityNote: "Scania documente 101 autobus articulés Citywide GNV de 18 m livrés à la RATP entre 2018 et 2021, tête de série comprise. La source ne donne ni capacité voyageurs ni prix individuel ; elle n’atteste pas de présence à Bords de Marne, de compatibilité avec ses dépôts ou de disponibilité actuelle à l’achat. Aucune offre n’est simulée."
