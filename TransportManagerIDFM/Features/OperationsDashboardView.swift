@@ -6094,7 +6094,7 @@ private struct VehicleMarketView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Estimation de référence pour \(gameYear) : \(currency(priceRange.lowerBound))–\(currency(priceRange.upperBound)) · confiance faible")
                         .font(.caption.weight(.medium))
-                    Text("\(priceEstimateNote) Indexation de jeu de \(Int((VehicleMarketCatalog.annualPriceIndexRate * 100).rounded())) %/an et fourchette de ±12 %. Cette estimation ne prouve ni un prix individuel observé ni une disponibilité à la vente.")
+                    Text("\(priceEstimateNote) Indexation de jeu de \(Int((VehicleMarketCatalog.annualPriceIndexRate * 100).rounded())) %/an à la hausse ou à la baisse depuis l’année de référence, avec une fourchette de ±12 %. Cette estimation ne prouve ni un prix individuel observé ni une disponibilité à la vente.")
                         .font(.caption2)
                 }
                 .foregroundStyle(.secondary)

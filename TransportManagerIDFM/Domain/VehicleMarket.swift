@@ -2201,7 +2201,7 @@ enum VehicleMarketCatalog {
 
     static func estimatedNewPrice(for model: VehicleMarketModel, gameYear: Int) -> Int? {
         guard let referencePrice = model.estimatedNewPriceReference else { return nil }
-        let yearsSinceReference = max(0, gameYear - (model.priceReferenceYear ?? referenceYear))
+        let yearsSinceReference = gameYear - (model.priceReferenceYear ?? referenceYear)
         let gamePriceIndex = pow(1 + annualPriceIndexRate, Double(yearsSinceReference))
         return roundedToNearestFiveThousand(Int((Double(referencePrice) * gamePriceIndex).rounded()))
     }
@@ -2318,7 +2318,7 @@ enum VehicleMarketCatalog {
                 let usedPriceRule = condition == .used
                     ? " Le prix d’occasion applique des coefficients de jeu pour l’âge et l’état, ainsi qu’un facteur kilométrique max(15 %, 1 − km/1 200 000 km), également utilisé pour estimer la revente."
                     : ""
-                return "\(basis) Indexation de jeu de \(annualIndexPercent) %/an jusqu’en \(gameYear) ; fourchette indicative de ±12 %.\(usedPriceRule)"
+                return "\(basis) Indexation de jeu de \(annualIndexPercent) %/an à la hausse ou à la baisse depuis l’année de référence jusqu’en \(gameYear) ; fourchette indicative de ±12 %.\(usedPriceRule)"
             }()
         )
     }
