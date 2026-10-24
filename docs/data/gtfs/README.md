@@ -1,5 +1,10 @@
 # Archive GTFS IDFM
 
+## Contrôle d’un nouvel instantané public — 24 octobre 2026, 23:53 CEST
+
+- Un nouvel archive publique a été téléchargée le 24 octobre : 151 338 107 octets, SHA-256 `4fb00c0d28b13636bc786b1deb6ea780386ef99bab8fdcfe8667f570c83c3e70`; `unzip -tq` réussit. Le comptage ciblé retrouve 143 courses sur 214, mais aucune course active les 1er, 2 ou 3 novembre, et aucune route 314. Elle ne corrige donc pas l’absence de l’offre post-réorganisation.
+- L’audit complet avec l’inspecteur de production n’a pas abouti durant cette reprise; cette archive reste hors du bundle et ne remplace pas le snapshot embarqué déjà validé. Le chargeur sait désormais ordonner un nombre variable de fragments contigus et refuse les indices manquants.
+
 ## Mise à jour du snapshot public embarqué — 24 octobre 2026, 09:53 CEST
 
 - La fiche publique 80921 référence maintenant `80921.20261024.061700.818392.zip`, contrôlé le 24 octobre à 08:27 CEST. Le téléchargement intégral fait 150 163 693 octets, SHA-256 `7c5a06711fbe7cafaafd7ef02781ba1548a178e80326250131a63bbb829670bc`; `unzip -tq` réussit. L’archive source est conservée temporairement dans `/private/tmp`, pas ajoutée une seconde fois au dépôt.

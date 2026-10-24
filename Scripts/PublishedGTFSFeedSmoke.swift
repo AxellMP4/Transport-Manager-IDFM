@@ -11,6 +11,24 @@ struct PublishedGTFSFeedSmoke {
         try FileManager.default.createDirectory(at: temporaryDirectory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: temporaryDirectory) }
 
+        let fragmentDirectory = temporaryDirectory.appending(path: "fragments", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: fragmentDirectory, withIntermediateDirectories: true)
+        let expectedFragmentBytes = [Data("zero".utf8), Data("one".utf8), Data("two".utf8)]
+        let fragmentURLs = try expectedFragmentBytes.enumerated().map { index, bytes in
+            let url = fragmentDirectory.appending(path: String(format: "feed-part-%02d.bin", index))
+            try bytes.write(to: url)
+            return url
+        }
+        let orderedFragments = try PublicGTFSFeed.orderedFragments(fragmentURLs.reversed(), named: "feed-part")
+        let assembledFragments = try orderedFragments.reduce(into: Data()) { data, url in
+            data.append(try Data(contentsOf: url))
+        }
+        precondition(assembledFragments == expectedFragmentBytes.reduce(into: Data(), { $0.append($1) }))
+        do {
+            _ = try PublicGTFSFeed.orderedFragments([fragmentURLs[0], fragmentURLs[2]], named: "feed-part")
+            fatalError("Un assemblage avec un indice manquant aurait dû échouer.")
+        } catch PublicGTFSFeedError.missingFragment("feed-part-01.bin") { }
+
         guard CommandLine.arguments.count == 3 else {
             fatalError("Le smoke attend un ZIP GTFS valide et un ZIP incomplet.")
         }

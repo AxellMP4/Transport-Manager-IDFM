@@ -138,10 +138,6 @@ private enum BundledGTFSArchiveAssemblyError: LocalizedError {
 private enum BundledGTFSArchiveAssembler {
     private static let expectedByteCount: UInt64 = 150_163_693
     private static let expectedSHA256 = GTFSImportProvenance.bundledArchiveSHA256
-    private static let partNames = (0..<18).map {
-        String(format: "idfm-gtfs-2026-10-24-part-%02d", $0)
-    }
-
     static func assemble() throws -> URL {
         let destination = FileManager.default.temporaryDirectory
             .appending(path: "idfm-gtfs-2026-10-24-bundled.zip")
@@ -154,11 +150,12 @@ private enum BundledGTFSArchiveAssembler {
         var assembledByteCount: UInt64 = 0
         var hasher = SHA256()
         do {
-            for partName in partNames {
-                guard let partURL = Bundle.main.url(forResource: partName, withExtension: "bin") else {
-                    throw BundledSnapshotBootstrapError.missingResource(.gtfs, "\(partName).bin")
-                }
-
+            let resources = Bundle.main.urls(forResourcesWithExtension: "bin", subdirectory: nil) ?? []
+            let partURLs = try PublicGTFSFeed.orderedFragments(
+                resources,
+                named: "idfm-gtfs-2026-10-24-part"
+            )
+            for partURL in partURLs {
                 let input = try FileHandle(forReadingFrom: partURL)
                 defer { try? input.close() }
                 while true {
