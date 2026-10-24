@@ -1,5 +1,10 @@
 # Archive GTFS IDFM
 
+## Nouvelle relecture de la ressource publique — 24 octobre 2026, 03:14 CEST
+
+- La [fiche 80921](https://transport.data.gouv.fr/resources/80921) affiche toujours une période générale du 20 octobre au 21 novembre 2026 et « Bord de Marne » du 23 octobre au 8 novembre. Son rapport valide le fichier courant au 23 octobre à 14:31 et liste des agrégats de lignes, arrêts et formes, sans fournir les départs 214/314. Ces métadonnées ne suffisent pas à intégrer de nouveaux horaires.
+- Aucun nouveau ZIP n’a été inspecté dans cette reprise. Depuis cet environnement, `curl` ne résout pas `eu.ftp.opendatasoft.com`; le lecteur web refuse le téléchargement `application/zip`. L’empreinte du binaire courant est donc inconnue et le hash historique ci-dessous n’est pas présenté comme preuve de l’état actuel. Le critère de courses post-réorganisation reste ouvert; l’export PRIM authentifié demeure inaccessible.
+
 ## Contrôle du miroir après mise à jour de la ressource — 24 octobre 2026
 
 - La [fiche publique du Point d’Accès National](https://transport.data.gouv.fr/resources/80921?locale=fr) présente une couverture générale du 20 octobre au 21 novembre 2026 et annonce, pour « Bord de Marne », la période du 23 octobre au 8 novembre. Cette fenêtre descriptive ne prouve pas la présence de chaque ligne ni de chaque course.

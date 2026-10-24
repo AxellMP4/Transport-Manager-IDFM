@@ -398,7 +398,6 @@ final class NetworkLibrary: ObservableObject {
     func importGTFS(from sourceURL: URL, provenance: GTFSImportProvenance = .unverifiedManual) {
         guard !importState.isImporting else { return }
         importState = .importing
-        prepareForGTFSImport()
         let shouldStopAccessing = sourceURL.startAccessingSecurityScopedResource()
 
         Task {
@@ -437,7 +436,6 @@ final class NetworkLibrary: ObservableObject {
                 downloadedTemporaryURL = nil
                 stagedArchiveURL = stagedURL
 
-                prepareForGTFSImport()
                 await importGTFSArchive(from: stagedURL, provenance: .publicMirror)
             } catch {
                 importState = .failed(error.localizedDescription)
@@ -471,6 +469,7 @@ final class NetworkLibrary: ObservableObject {
                 try NetworkVersionStore.importGTFS(from: sourceURL, provenance: provenance)
             }.value
             catalog = updatedCatalog
+            prepareForGTFSImport()
             await loadBusRoutes()
             await loadBusStops()
             await loadServiceCalendars()

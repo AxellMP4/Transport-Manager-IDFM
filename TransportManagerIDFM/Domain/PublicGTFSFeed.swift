@@ -5,6 +5,7 @@ enum PublicGTFSFeedError: LocalizedError, Equatable {
     case httpStatus(Int)
     case emptyArchive
     case invalidArchive
+    case missingRequiredFile(String)
 
     var errorDescription: String? {
         switch self {
@@ -16,12 +17,15 @@ enum PublicGTFSFeedError: LocalizedError, Equatable {
             "Le miroir IDFM a renvoyé une archive GTFS vide."
         case .invalidArchive:
             "Le miroir IDFM n’a pas renvoyé un ZIP GTFS valide."
+        case let .missingRequiredFile(filename):
+            "Le ZIP GTFS public ne contient pas le fichier requis \(filename)."
         }
     }
 }
 
 enum PublicGTFSFeed {
     static let downloadURL = URL(string: "https://eu.ftp.opendatasoft.com/stif/GTFS/IDFM-gtfs.zip")!
+    private static let requiredTableFiles = ["routes.txt", "trips.txt", "stops.txt", "stop_times.txt"]
 
     static func validateDownloadedArchive(at url: URL, response: URLResponse) throws {
         guard let httpResponse = response as? HTTPURLResponse else {
@@ -42,6 +46,17 @@ enum PublicGTFSFeed {
         let signature = try file.read(upToCount: 4) ?? Data()
         guard signature == Data([0x50, 0x4B, 0x03, 0x04]) else {
             throw PublicGTFSFeedError.invalidArchive
+        }
+
+        let archive: ZIPArchiveReader
+        do {
+            archive = try ZIPArchiveReader(url: url)
+        } catch {
+            throw PublicGTFSFeedError.invalidArchive
+        }
+
+        for filename in requiredTableFiles where archive.entry(named: filename) == nil {
+            throw PublicGTFSFeedError.missingRequiredFile(filename)
         }
     }
 }

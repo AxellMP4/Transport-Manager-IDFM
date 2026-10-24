@@ -11,15 +11,28 @@ struct PublishedGTFSFeedSmoke {
         try FileManager.default.createDirectory(at: temporaryDirectory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: temporaryDirectory) }
 
-        let validArchive = temporaryDirectory.appending(path: "feed.zip")
-        try Data([0x50, 0x4B, 0x03, 0x04, 0x01]).write(to: validArchive)
+        guard CommandLine.arguments.count == 3 else {
+            fatalError("Le smoke attend un ZIP GTFS valide et un ZIP incomplet.")
+        }
+        let validArchive = URL(fileURLWithPath: CommandLine.arguments[1])
+        let incompleteArchive = URL(fileURLWithPath: CommandLine.arguments[2])
         try PublicGTFSFeed.validateDownloadedArchive(at: validArchive, response: httpResponse(status: 200))
 
         try expectRejected(status: 404, archive: validArchive, expected: .httpStatus(404))
 
+        try expectRejected(
+            status: 200,
+            archive: incompleteArchive,
+            expected: .missingRequiredFile("trips.txt")
+        )
+
         let emptyArchive = temporaryDirectory.appending(path: "empty.zip")
         try Data().write(to: emptyArchive)
         try expectRejected(status: 200, archive: emptyArchive, expected: .emptyArchive)
+
+        let malformedArchive = temporaryDirectory.appending(path: "truncated.zip")
+        try Data([0x50, 0x4B, 0x03, 0x04, 0x01]).write(to: malformedArchive)
+        try expectRejected(status: 200, archive: malformedArchive, expected: .invalidArchive)
 
         let htmlResponse = URLResponse(
             url: PublicGTFSFeed.downloadURL,
@@ -33,7 +46,7 @@ struct PublishedGTFSFeedSmoke {
         try Data("<html>".utf8).write(to: htmlArchive)
         try expectRejected(status: 200, archive: htmlArchive, expected: .invalidArchive)
 
-        print("PASS: public GTFS HTTP status and ZIP validation")
+        print("PASS: public GTFS HTTP status, ZIP structure, and required tables")
     }
 
     private static func httpResponse(status: Int) -> URLResponse {
