@@ -92,6 +92,38 @@ struct PublishedServiceDiscrepancySmoke {
             "An unrelated line numbered 214 must not inherit this announcement."
         )
 
+        let missing314Notice = PublishedServiceDiscrepancy.forMissingAnnouncedLine314(
+            gtfsRouteShortNames: ["214", "N11"]
+        )
+        guard let missing314Notice else {
+            fatalError("The scenario should explain when the announced 314 is absent from loaded GTFS.")
+        }
+        precondition(missing314Notice.title.contains("314"), "The notice should identify line 314.")
+        precondition(
+            missing314Notice.detail.contains("Neuilly-Plaisance RER")
+                && missing314Notice.detail.contains("Chanoux"),
+            "The notice should preserve the officially published termini."
+        )
+        precondition(
+            missing314Notice.detail.contains("15 minutes en heures de pointe")
+                && missing314Notice.detail.contains("heures creuses"),
+            "The notice should include published service frequencies without inventing trips."
+        )
+        precondition(
+            missing314Notice.timetableURL.absoluteString == notice.timetableURL.absoluteString
+                && missing314Notice.routePlanURL.absoluteString == notice.routePlanURL.absoluteString
+                && missing314Notice.gtfsSourceURL.absoluteString == notice.gtfsSourceURL.absoluteString,
+            "The 314 notice should link to the official timetable, combined plan, and public GTFS source."
+        )
+        precondition(
+            PublishedServiceDiscrepancy.forMissingAnnouncedLine314(gtfsRouteShortNames: ["214", "314"]) == nil,
+            "Do not show a missing-route notice when GTFS contains the 314."
+        )
+        precondition(
+            PublishedServiceDiscrepancy.forMissingAnnouncedLine314(gtfsRouteShortNames: [" 314 "]) == nil,
+            "Whitespace around a GTFS route short name must not trigger a false missing-route notice."
+        )
+
         print("Published-service discrepancy checks passed.")
     }
 }
