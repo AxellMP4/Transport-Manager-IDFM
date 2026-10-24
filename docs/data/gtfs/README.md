@@ -1,5 +1,11 @@
 # Archive GTFS IDFM
 
+## Vérification des arrêts référencés — 24 octobre 2026
+
+- L’import conserve les `stop_id` non vides déclarés dans `stops.txt`, même si la ligne a des coordonnées vides ou invalides. Cela permet de distinguer un identifiant de passage absent de `stops.txt` d’un arrêt dont la fiche existe mais n’est pas géolocalisable.
+- Le tableau de qualité et la revue Courses / Motifs affichent ces deux anomalies séparément. Les anciens catalogues restent lisibles et indiquent que le compteur de fiches absentes n’a pas été archivé.
+- Le smoke d’intégration construit un petit ZIP GTFS avec une course par cas (fiche d’arrêt absente, coordonnées absentes, `stop_id` vide) pour vérifier que les diagnostics ne sont pas confondus.
+
 ## Téléchargement du 24 octobre et identité du snapshot embarqué — 06:55 CEST
 
 - Le téléchargement du bouton officiel sur la [fiche 80921](https://transport.data.gouv.fr/resources/80921) a réussi dans Chrome le 24 octobre à 06:55 CEST. Le fichier fait 150 257 397 octets, SHA-256 `6eb741b6eedb6b72d53bb3b76160ad3751aa33939357713759e0ca3ba96f8eb3`; `unzip -tq` ne signale aucune erreur.
