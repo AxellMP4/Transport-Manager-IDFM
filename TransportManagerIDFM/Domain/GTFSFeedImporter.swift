@@ -16,6 +16,60 @@ struct GTFSFeedInspection: Sendable {
     let validThrough: Date?
 }
 
+enum GTFSFeedInspectionStage: Equatable, Sendable {
+    case readingArchive
+    case readingRoutes
+    case readingTrips
+    case readingStopTimes
+    case readingStops
+    case readingShapes
+    case readingCalendars
+    case tripDiagnostics
+    case summarizing
+    case saving
+    case inspectionComplete
+    case complete
+
+    var title: String {
+        switch self {
+        case .readingArchive: "Ouverture de l’archive GTFS"
+        case .readingRoutes: "Lecture des lignes GTFS"
+        case .readingTrips: "Lecture des courses GTFS"
+        case .readingStopTimes: "Lecture des horaires et arrêts desservis"
+        case .readingStops: "Lecture des coordonnées des arrêts"
+        case .readingShapes: "Lecture des géométries de lignes"
+        case .readingCalendars: "Lecture des calendriers de service"
+        case .tripDiagnostics: "Analyse des courses, arrêts et géométries"
+        case .summarizing: "Calcul des indicateurs de qualité GTFS"
+        case .saving: "Enregistrement de la version du réseau"
+        case .inspectionComplete: "Analyse GTFS terminée"
+        case .complete: "Import GTFS terminé"
+        }
+    }
+}
+
+struct GTFSFeedInspectionProgress: Equatable, Sendable {
+    let stage: GTFSFeedInspectionStage
+    let completed: Int?
+    let total: Int?
+
+    init(stage: GTFSFeedInspectionStage, completed: Int? = nil, total: Int? = nil) {
+        self.stage = stage
+        self.completed = completed
+        self.total = total
+    }
+
+    var message: String {
+        guard stage == .tripDiagnostics, let completed, let total else { return stage.title }
+        return "\(stage.title) · \(completed.formatted()) / \(total.formatted()) courses"
+    }
+
+    var fraction: Double? {
+        guard stage == .tripDiagnostics, let completed, let total, total > 0 else { return nil }
+        return min(1, max(0, Double(completed) / Double(total)))
+    }
+}
+
 enum GTFSFeedImportError: LocalizedError {
     case invalidArchive
     case missingFiles([String])
@@ -64,7 +118,11 @@ enum GTFSFeedImportError: LocalizedError {
 }
 
 enum GTFSFeedInspector {
-    static func inspect(_ archiveURL: URL) throws -> GTFSFeedInspection {
+    static func inspect(
+        _ archiveURL: URL,
+        progress: ((GTFSFeedInspectionProgress) -> Void)? = nil
+    ) throws -> GTFSFeedInspection {
+        progress?(GTFSFeedInspectionProgress(stage: .readingArchive))
         let archive: ZIPArchiveReader
         do {
             archive = try ZIPArchiveReader(url: archiveURL)
@@ -98,6 +156,7 @@ enum GTFSFeedInspector {
             throw GTFSFeedImportError.invalidArchive
         }
 
+        progress?(GTFSFeedInspectionProgress(stage: .readingRoutes))
         let routeCollector = BusRouteCollector()
         let routesTable = CSVTableReader(columnsOfInterest: ["route_id", "route_type", "route_short_name", "route_long_name"]) {
             routeCollector.consume($0)
@@ -109,6 +168,7 @@ enum GTFSFeedInspector {
         }
         guard routeCollector.busRouteCount > 0 else { throw GTFSFeedImportError.noBusRoutes }
 
+        progress?(GTFSFeedInspectionProgress(stage: .readingTrips))
         let tripCollector = BusTripCollector(busRouteIDs: routeCollector.routeIDs)
         let tripsTable = CSVTableReader(columnsOfInterest: ["trip_id", "route_id", "service_id", "direction_id", "trip_headsign", "shape_id"]) {
             tripCollector.consume($0)
@@ -119,6 +179,7 @@ enum GTFSFeedInspector {
             throw GTFSFeedImportError.invalidTripsTable
         }
 
+        progress?(GTFSFeedInspectionProgress(stage: .readingStopTimes))
         let stopRouteCollector = BusStopRouteCollector(tripByID: tripCollector.tripByID)
         let stopTimesTable = CSVTableReader(columnsOfInterest: ["trip_id", "stop_id", "stop_sequence", "arrival_time", "departure_time", "shape_dist_traveled"]) {
             stopRouteCollector.consume($0)
@@ -132,6 +193,7 @@ enum GTFSFeedInspector {
             throw GTFSFeedImportError.invalidStopTimesTable
         }
 
+        progress?(GTFSFeedInspectionProgress(stage: .readingStops))
         let stopCollector = BusStopCollector(
             routeIDsByStopID: stopRouteCollector.routeIDsByStopID,
             routeDirectionsByStopID: stopRouteCollector.routeDirectionsByStopID
@@ -155,6 +217,7 @@ enum GTFSFeedInspector {
         let busTripShapes: GTFSShapeDataset
         var invalidShapeIDs = Set<String>()
         if let shapesEntry {
+            progress?(GTFSFeedInspectionProgress(stage: .readingShapes))
             let shapeCollector = BusRouteShapeCollector(referencedShapeIDs: Set(tripShapeReferences.map(\.shapeID)))
             let table = CSVTableReader(columnsOfInterest: [
                 "shape_id", "shape_pt_lat", "shape_pt_lon", "shape_pt_sequence", "shape_dist_traveled"
@@ -172,6 +235,7 @@ enum GTFSFeedInspector {
             busTripShapes = GTFSShapeDataset(references: tripShapeReferences, shapes: [])
         }
 
+        progress?(GTFSFeedInspectionProgress(stage: .readingCalendars))
         let busTripSchedules = stopRouteCollector.tripSchedules
         let tripIDs = Set(tripCollector.tripByID.keys)
         let schedulesByTripID = stopRouteCollector.collectedStopTimesByTripID
@@ -221,6 +285,7 @@ enum GTFSFeedInspector {
         let tripsWithoutActiveServiceDates = tripCollector.tripByID.values.filter { trip in
             trip.serviceID.isEmpty || !serviceIDsWithActiveDates.contains(trip.serviceID)
         }.count
+        progress?(GTFSFeedInspectionProgress(stage: .tripDiagnostics, completed: 0, total: tripIDs.count))
         let tripIssues = Self.tripIssues(
             tripByID: tripCollector.tripByID,
             schedulesByTripID: schedulesByTripID,
@@ -231,8 +296,10 @@ enum GTFSFeedInspector {
             stopsByID: Dictionary(uniqueKeysWithValues: stopCollector.stops.map { ($0.stopID, $0) }),
             serviceIDsWithActiveDates: serviceIDsWithActiveDates,
             invalidStopTimeRowsByTripID: stopRouteCollector.invalidStopTimeRowsByTripID,
-            missingStopIDRowsByTripID: stopRouteCollector.missingStopIDRowsByTripID
+            missingStopIDRowsByTripID: stopRouteCollector.missingStopIDRowsByTripID,
+            progress: progress
         )
+        progress?(GTFSFeedInspectionProgress(stage: .summarizing))
         let quality = GTFSImportQuality(
             busTripCount: tripIDs.count,
             tripScheduleCount: busTripSchedules.count,
@@ -277,7 +344,7 @@ enum GTFSFeedInspector {
             tripIssues: tripIssues
         )
 
-        return GTFSFeedInspection(
+        let inspection = GTFSFeedInspection(
             busRouteCount: routeCollector.busRouteCount,
             busRoutes: routeCollector.routes,
             busStops: stopCollector.stops,
@@ -291,6 +358,8 @@ enum GTFSFeedInspector {
             validFrom: validFrom,
             validThrough: validThrough
         )
+        progress?(GTFSFeedInspectionProgress(stage: .inspectionComplete))
+        return inspection
     }
 
     private static func hasIncompleteTimes(_ stops: [GTFSServiceTripStopTime]) -> Bool {
@@ -334,11 +403,14 @@ enum GTFSFeedInspector {
         stopsByID: [String: GTFSStopSummary],
         serviceIDsWithActiveDates: Set<String>,
         invalidStopTimeRowsByTripID: [String: Int],
-        missingStopIDRowsByTripID: [String: Int]
+        missingStopIDRowsByTripID: [String: Int],
+        progress: ((GTFSFeedInspectionProgress) -> Void)?
     ) -> [GTFSImportTripIssue] {
         var shapeAlignmentCache: [GTFSStopShapeProjectionKey: GTFSShapeStopAlignment] = [:]
-        return tripByID.keys.sorted().compactMap { tripID -> GTFSImportTripIssue? in
-            guard let trip = tripByID[tripID] else { return nil }
+        let tripIDs = tripByID.keys.sorted()
+        var issues: [GTFSImportTripIssue] = []
+        for (tripIndex, tripID) in tripIDs.enumerated() {
+            guard let trip = tripByID[tripID] else { continue }
             let stops = schedulesByTripID[tripID, default: []].sorted {
                 if $0.stopSequence != $1.stopSequence { return $0.stopSequence < $1.stopSequence }
                 return $0.stopID < $1.stopID
@@ -413,23 +485,32 @@ enum GTFSFeedInspector {
             if invalidRowCount > 0 { issueKinds.insert(.invalidStopTimeRows) }
             if missingStopIDRowCount > 0 { issueKinds.insert(.missingStopID) }
 
-            guard !issueKinds.isEmpty else { return nil }
-            return GTFSImportTripIssue(
-                routeID: trip.routeID,
-                tripID: tripID,
-                shapeID: trip.shapeID,
-                issueKinds: issueKinds,
-                invalidStopTimeRowCount: invalidRowCount,
-                missingStopIDRowCount: missingStopIDRowCount > 0 ? missingStopIDRowCount : nil,
-                stopIDsWithoutCoordinates: stopIDsWithoutCoordinates.isEmpty ? nil : stopIDsWithoutCoordinates,
-                stopIDsMissingFromFeed: stopIDsMissingFromFeed.isEmpty ? nil : stopIDsMissingFromFeed,
-                stopIDsNotMatchedToShape: stopIDsNotMatchedToShape,
-                stopProjectionDiagnostics: stopProjectionDiagnostics,
-                orderedStopSequence: stops.isEmpty ? nil : stops.map {
-                    GTFSStopSequenceEntry(stopID: $0.stopID, stopSequence: $0.stopSequence)
-                }
-            )
+            if !issueKinds.isEmpty {
+                issues.append(GTFSImportTripIssue(
+                    routeID: trip.routeID,
+                    tripID: tripID,
+                    shapeID: trip.shapeID,
+                    issueKinds: issueKinds,
+                    invalidStopTimeRowCount: invalidRowCount,
+                    missingStopIDRowCount: missingStopIDRowCount > 0 ? missingStopIDRowCount : nil,
+                    stopIDsWithoutCoordinates: stopIDsWithoutCoordinates.isEmpty ? nil : stopIDsWithoutCoordinates,
+                    stopIDsMissingFromFeed: stopIDsMissingFromFeed.isEmpty ? nil : stopIDsMissingFromFeed,
+                    stopIDsNotMatchedToShape: stopIDsNotMatchedToShape,
+                    stopProjectionDiagnostics: stopProjectionDiagnostics,
+                    orderedStopSequence: stops.isEmpty ? nil : stops.map {
+                        GTFSStopSequenceEntry(stopID: $0.stopID, stopSequence: $0.stopSequence)
+                    }
+                ))
+            }
+            if (tripIndex + 1).isMultiple(of: 5_000) || tripIndex + 1 == tripIDs.count {
+                progress?(GTFSFeedInspectionProgress(
+                    stage: .tripDiagnostics,
+                    completed: tripIndex + 1,
+                    total: tripIDs.count
+                ))
+            }
         }
+        return issues
     }
 }
 
@@ -1201,9 +1282,11 @@ enum NetworkVersionStore {
 
     static func importGTFS(
         from sourceURL: URL,
-        provenance: GTFSImportProvenance = .unverifiedManual
+        provenance: GTFSImportProvenance = .unverifiedManual,
+        progress: ((GTFSFeedInspectionProgress) -> Void)? = nil
     ) throws -> NetworkCatalog {
-        let inspection = try GTFSFeedInspector.inspect(sourceURL)
+        let inspection = try GTFSFeedInspector.inspect(sourceURL, progress: progress)
+        progress?(GTFSFeedInspectionProgress(stage: .saving))
         let sha256 = try digest(of: sourceURL)
         let versionFolderName = String(sha256.prefix(20))
         let relativeArchivePath = "versions/\(versionFolderName)/idfm-gtfs.zip"
@@ -1287,6 +1370,7 @@ enum NetworkVersionStore {
         try manifest.write(to: versionDirectory.appending(path: "manifest.json"), options: .atomic)
         let catalogData = try encoder.encode(catalog)
         try catalogData.write(to: root.appending(path: catalogFilename), options: .atomic)
+        progress?(GTFSFeedInspectionProgress(stage: .complete))
         return catalog
     }
 
