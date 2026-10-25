@@ -81,7 +81,11 @@ struct GTFSRouteTimetableGridView: View {
                     in: Self.serviceDateRange(for: version) ?? Date.distantPast...Date.distantFuture,
                     displayedComponents: .date
                 )
+                    #if os(macOS)
                     .datePickerStyle(.field)
+                    #else
+                    .datePickerStyle(.compact)
+                    #endif
                     .frame(maxWidth: 250)
                 Button("Fermer") { dismiss() }
                     .keyboardShortcut(.cancelAction)
