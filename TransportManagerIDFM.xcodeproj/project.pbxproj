@@ -53,4 +53,454 @@
 		030000000000000000000110 /* idfm-gtfs-2026-10-24-part-12.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000110 /* idfm-gtfs-2026-10-24-part-12.bin */; };
 		030000000000000000000111 /* idfm-gtfs-2026-10-24-part-13.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000111 /* idfm-gtfs-2026-10-24-part-13.bin */; };
 		030000000000000000000112 /* idfm-gtfs-2026-10-24-part-14.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000112 /* idfm-gtfs-2026-10-24-part-14.bin */; };
-		030000000000000000000113 /* idfm-gtfs-2026-10-24-part-15.bin in Resources */ = {isa = PB
+		030000000000000000000113 /* idfm-gtfs-2026-10-24-part-15.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000113 /* idfm-gtfs-2026-10-24-part-15.bin */; };
+		030000000000000000000114 /* idfm-gtfs-2026-10-24-part-16.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000114 /* idfm-gtfs-2026-10-24-part-16.bin */; };
+		030000000000000000000115 /* idfm-gtfs-2026-10-24-part-17.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000115 /* idfm-gtfs-2026-10-24-part-17.bin */; };
+		030000000000000000000032 /* StopReplacementRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000034 /* StopReplacementRouter.swift */; };
+		030000000000000000000033 /* StopClosureEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000035 /* StopClosureEditorView.swift */; };
+		030000000000000000000034 /* CareerProgression.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000037 /* CareerProgression.swift */; };
+		030000000000000000000035 /* CareerProgressionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000038 /* CareerProgressionView.swift */; };
+		030000000000000000000040 /* BusIllustrationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000039 /* BusIllustrationView.swift */; };
+		030000000000000000000039 /* idfm-route-geometries-2026-10-20.zip in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000036 /* idfm-route-geometries-2026-10-20.zip */; };
+		030000000000000000000041 /* DepotLineRosterManifest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000041 /* DepotLineRosterManifest.swift */; };
+		030000000000000000000042 /* bords-de-marne-depot-roster.csv in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000042 /* bords-de-marne-depot-roster.csv */; };
+		030000000000000000000116 /* DepotFacilityObservation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000116 /* DepotFacilityObservation.swift */; };
+		030000000000000000000117 /* DepotFacilityObservationCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000117 /* DepotFacilityObservationCard.swift */; };
+		030000000000000000000118 /* CATPOwnershipCostReference.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000118 /* CATPOwnershipCostReference.swift */; };
+		030000000000000000000119 /* CATPOwnershipCostBenchmarkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000119 /* CATPOwnershipCostBenchmarkView.swift */; };
+		030000000000000000000120 /* PublishedServiceDiscrepancy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000120 /* PublishedServiceDiscrepancy.swift */; };
+		030000000000000000000121 /* PublishedServiceDiscrepancyCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000121 /* PublishedServiceDiscrepancyCard.swift */; };
+		030000000000000000000124 /* DepotChargingInfrastructureObservation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000124 /* DepotChargingInfrastructureObservation.swift */; };
+		030000000000000000000125 /* DepotChargingInfrastructureObservationCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000125 /* DepotChargingInfrastructureObservationCard.swift */; };
+		030000000000000000000126 /* CloudCareerSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000126 /* CloudCareerSync.swift */; };
+		030000000000000000000128 /* MobileCareerPlanning.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000128 /* MobileCareerPlanning.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		020000000000000000000001 /* TransportManagerIDFMApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransportManagerIDFMApp.swift; sourceTree = "<group>"; };
+		020000000000000000000002 /* NetworkCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkCatalog.swift; sourceTree = "<group>"; };
+		020000000000000000000003 /* ScenarioCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScenarioCatalog.swift; sourceTree = "<group>"; };
+		020000000000000000000004 /* OperationsDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OperationsDashboardView.swift; sourceTree = "<group>"; };
+		020000000000000000000005 /* DepotInspectorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DepotInspectorView.swift; sourceTree = "<group>"; };
+		020000000000000000000008 /* GTFSFeedImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GTFSFeedImporter.swift; sourceTree = "<group>"; };
+		020000000000000000000009 /* NetworkLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkLibrary.swift; sourceTree = "<group>"; };
+		020000000000000000000122 /* PublicGTFSFeed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublicGTFSFeed.swift; sourceTree = "<group>"; };
+		020000000000000000000010 /* ZIPArchiveReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZIPArchiveReader.swift; sourceTree = "<group>"; };
+		020000000000000000000011 /* RouteGeometryImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RouteGeometryImporter.swift; sourceTree = "<group>"; };
+		020000000000000000000012 /* ContractGeometryImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContractGeometryImporter.swift; sourceTree = "<group>"; };
+		020000000000000000000013 /* LineReferenceImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LineReferenceImporter.swift; sourceTree = "<group>"; };
+		020000000000000000000014 /* SimulationEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimulationEngine.swift; sourceTree = "<group>"; };
+		020000000000000000000015 /* DepotAssignmentRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DepotAssignmentRegistry.swift; sourceTree = "<group>"; };
+		020000000000000000000016 /* VehicleMarket.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehicleMarket.swift; sourceTree = "<group>"; };
+		020000000000000000000017 /* LineDocumentStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LineDocumentStore.swift; sourceTree = "<group>"; };
+		020000000000000000000018 /* TrafficInformation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrafficInformation.swift; sourceTree = "<group>"; };
+		020000000000000000000019 /* VehicleTowRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehicleTowRouter.swift; sourceTree = "<group>"; };
+		020000000000000000000020 /* VehicleDeadheadRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehicleDeadheadRouter.swift; sourceTree = "<group>"; };
+		020000000000000000000021 /* CareerObjectives.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CareerObjectives.swift; sourceTree = "<group>"; };
+		020000000000000000000022 /* NetworkCoverageAudit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkCoverageAudit.swift; sourceTree = "<group>"; };
+		020000000000000000000023 /* NetworkCoverageAuditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkCoverageAuditView.swift; sourceTree = "<group>"; };
+		020000000000000000000024 /* DepotLineRoster.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DepotLineRoster.swift; sourceTree = "<group>"; };
+		020000000000000000000025 /* DepotLineCatalogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DepotLineCatalogView.swift; sourceTree = "<group>"; };
+		020000000000000000000026 /* GTFSRouteTimetableGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GTFSRouteTimetableGridView.swift; sourceTree = "<group>"; };
+		020000000000000000000027 /* idfm-lines-2026-10-20.csv */ = {isa = PBXFileReference; lastKnownFileType = text; path = idfm-lines-2026-10-20.csv; sourceTree = "<group>"; };
+		020000000000000000000028 /* idfm-line-documents-2026-10-20.csv */ = {isa = PBXFileReference; lastKnownFileType = text; path = idfm-line-documents-2026-10-20.csv; sourceTree = "<group>"; };
+		020000000000000000000029 /* idfm-contract-contours-2026-10-20.geojson */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = idfm-contract-contours-2026-10-20.geojson; sourceTree = "<group>"; };
+		020000000000000000000030 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		020000000000000000000031 /* RouteDetourRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RouteDetourRouter.swift; sourceTree = "<group>"; };
+		020000000000000000000032 /* RouteDetourEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RouteDetourEditorView.swift; sourceTree = "<group>"; };
+		020000000000000000000043 /* idfm-gtfs-2026-10-24-part-00.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-24-part-00.bin; sourceTree = SOURCE_ROOT; };
+		020000000000000000000044 /* idfm-gtfs-2026-10-24-part-01.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-24-part-01.bin; sourceTree = SOURCE_ROOT; };
+		020000000000000000000100 /* idfm-gtfs-2026-10-24-part-02.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-24-part-02.bin; sourceTree = SOURCE_ROOT; };
+		020000000000000000000101 /* idfm-gtfs-2026-10-24-part-03.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-24-part-03.bin; sourceTree = SOURCE_ROOT; };
+		020000000000000000000102 /* idfm-gtfs-2026-10-24-part-04.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-24-part-04.bin; sourceTree = SOURCE_ROOT; };
+		020000000000000000000103 /* idfm-gtfs-2026-10-24-part-05.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-24-part-05.bin; sourceTree = SOURCE_ROOT; };
+		020000000000000000000104 /* idfm-gtfs-2026-10-24-part-06.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-24-part-06.bin; sourceTree = SOURCE_ROOT; };
+		020000000000000000000105 /* idfm-gtfs-2026-10-24-part-07.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-24-part-07.bin; sourceTree = SOURCE_ROOT; };
+		020000000000000000000106 /* idfm-gtfs-2026-10-24-part-08.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-24-part-08.bin; sourceTree = SOURCE_ROOT; };
+		020000000000000000000107 /* idfm-gtfs-2026-10-24-part-09.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-24-part-09.bin; sourceTree = SOURCE_ROOT; };
+		020000000000000000000108 /* idfm-gtfs-2026-10-24-part-10.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-24-part-10.bin; sourceTree = SOURCE_ROOT; };
+		020000000000000000000109 /* idfm-gtfs-2026-10-24-part-11.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-24-part-11.bin; sourceTree = SOURCE_ROOT; };
+		020000000000000000000110 /* idfm-gtfs-2026-10-24-part-12.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-24-part-12.bin; sourceTree = SOURCE_ROOT; };
+		020000000000000000000111 /* idfm-gtfs-2026-10-24-part-13.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-24-part-13.bin; sourceTree = SOURCE_ROOT; };
+		020000000000000000000112 /* idfm-gtfs-2026-10-24-part-14.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-24-part-14.bin; sourceTree = SOURCE_ROOT; };
+		020000000000000000000113 /* idfm-gtfs-2026-10-24-part-15.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-24-part-15.bin; sourceTree = SOURCE_ROOT; };
+		020000000000000000000114 /* idfm-gtfs-2026-10-24-part-16.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-24-part-16.bin; sourceTree = SOURCE_ROOT; };
+		020000000000000000000115 /* idfm-gtfs-2026-10-24-part-17.bin */ = {isa = PBXFileReference; lastKnownFileType = file; path = docs/data/gtfs/idfm-gtfs-2026-10-24-part-17.bin; sourceTree = SOURCE_ROOT; };
+		020000000000000000000034 /* StopReplacementRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StopReplacementRouter.swift; sourceTree = "<group>"; };
+		020000000000000000000035 /* StopClosureEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StopClosureEditorView.swift; sourceTree = "<group>"; };
+		020000000000000000000036 /* idfm-route-geometries-2026-10-20.zip */ = {isa = PBXFileReference; lastKnownFileType = archive.zip; path = docs/data/geometries/idfm-route-geometries-2026-10-20.zip; sourceTree = SOURCE_ROOT; };
+		020000000000000000000037 /* CareerProgression.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CareerProgression.swift; sourceTree = "<group>"; };
+		020000000000000000000038 /* CareerProgressionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CareerProgressionView.swift; sourceTree = "<group>"; };
+		020000000000000000000039 /* BusIllustrationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BusIllustrationView.swift; sourceTree = "<group>"; };
+		020000000000000000000041 /* DepotLineRosterManifest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DepotLineRosterManifest.swift; sourceTree = "<group>"; };
+		020000000000000000000042 /* bords-de-marne-depot-roster.csv */ = {isa = PBXFileReference; lastKnownFileType = text; path = docs/data/bords-de-marne-depot-roster.csv; sourceTree = SOURCE_ROOT; };
+		020000000000000000000116 /* DepotFacilityObservation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DepotFacilityObservation.swift; sourceTree = "<group>"; };
+		020000000000000000000117 /* DepotFacilityObservationCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DepotFacilityObservationCard.swift; sourceTree = "<group>"; };
+		020000000000000000000118 /* CATPOwnershipCostReference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CATPOwnershipCostReference.swift; sourceTree = "<group>"; };
+		020000000000000000000119 /* CATPOwnershipCostBenchmarkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CATPOwnershipCostBenchmarkView.swift; sourceTree = "<group>"; };
+		020000000000000000000120 /* PublishedServiceDiscrepancy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublishedServiceDiscrepancy.swift; sourceTree = "<group>"; };
+		020000000000000000000121 /* PublishedServiceDiscrepancyCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublishedServiceDiscrepancyCard.swift; sourceTree = "<group>"; };
+		020000000000000000000124 /* DepotChargingInfrastructureObservation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DepotChargingInfrastructureObservation.swift; sourceTree = "<group>"; };
+		020000000000000000000125 /* DepotChargingInfrastructureObservationCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DepotChargingInfrastructureObservationCard.swift; sourceTree = "<group>"; };
+		020000000000000000000126 /* CloudCareerSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudCareerSync.swift; sourceTree = "<group>"; };
+		020000000000000000000128 /* MobileCareerPlanning.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileCareerPlanning.swift; sourceTree = "<group>"; };
+		020000000000000000000127 /* TransportManagerIDFM-iOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "TransportManagerIDFM-iOS.entitlements"; sourceTree = "<group>"; };
+		020000000000000000000006 /* TransportManagerIDFM.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TransportManagerIDFM.entitlements; sourceTree = "<group>"; };
+		040000000000000000000001 /* TransportManagerIDFM.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TransportManagerIDFM.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		050000000000000000000001 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = ( ); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		010000000000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				010000000000000000000002 /* TransportManagerIDFM */,
+				010000000000000000000003 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		010000000000000000000002 /* TransportManagerIDFM */ = {
+			isa = PBXGroup;
+			path = TransportManagerIDFM;
+			sourceTree = "<group>";
+			children = (
+				020000000000000000000001 /* TransportManagerIDFMApp.swift */,
+				010000000000000000000004 /* Domain */,
+				010000000000000000000005 /* Features */,
+				010000000000000000000006 /* Resources */,
+			);
+		};
+		010000000000000000000003 /* Products */ = {
+			isa = PBXGroup;
+			name = Products;
+			sourceTree = "<group>";
+			children = (
+				040000000000000000000001 /* TransportManagerIDFM.app */,
+			);
+		};
+		010000000000000000000004 /* Domain */ = {
+			isa = PBXGroup;
+			path = Domain;
+			sourceTree = "<group>";
+			children = (
+				020000000000000000000002 /* NetworkCatalog.swift */,
+				020000000000000000000003 /* ScenarioCatalog.swift */,
+				020000000000000000000008 /* GTFSFeedImporter.swift */,
+				020000000000000000000009 /* NetworkLibrary.swift */,
+				020000000000000000000122 /* PublicGTFSFeed.swift */,
+				020000000000000000000010 /* ZIPArchiveReader.swift */,
+				020000000000000000000011 /* RouteGeometryImporter.swift */,
+				020000000000000000000012 /* ContractGeometryImporter.swift */,
+				020000000000000000000013 /* LineReferenceImporter.swift */,
+				020000000000000000000014 /* SimulationEngine.swift */,
+				020000000000000000000126 /* CloudCareerSync.swift */,
+				020000000000000000000128 /* MobileCareerPlanning.swift */,
+				020000000000000000000015 /* DepotAssignmentRegistry.swift */,
+				020000000000000000000016 /* VehicleMarket.swift */,
+				020000000000000000000017 /* LineDocumentStore.swift */,
+				020000000000000000000018 /* TrafficInformation.swift */,
+				020000000000000000000019 /* VehicleTowRouter.swift */,
+				020000000000000000000020 /* VehicleDeadheadRouter.swift */,
+				020000000000000000000031 /* RouteDetourRouter.swift */,
+				020000000000000000000034 /* StopReplacementRouter.swift */,
+				020000000000000000000021 /* CareerObjectives.swift */,
+				020000000000000000000037 /* CareerProgression.swift */,
+				020000000000000000000022 /* NetworkCoverageAudit.swift */,
+				020000000000000000000024 /* DepotLineRoster.swift */,
+				020000000000000000000116 /* DepotFacilityObservation.swift */,
+				020000000000000000000118 /* CATPOwnershipCostReference.swift */,
+				020000000000000000000120 /* PublishedServiceDiscrepancy.swift */,
+				020000000000000000000124 /* DepotChargingInfrastructureObservation.swift */,
+				020000000000000000000041 /* DepotLineRosterManifest.swift */,
+			);
+		};
+		010000000000000000000005 /* Features */ = {
+			isa = PBXGroup;
+			path = Features;
+			sourceTree = "<group>";
+			children = (
+				020000000000000000000004 /* OperationsDashboardView.swift */,
+				020000000000000000000005 /* DepotInspectorView.swift */,
+				020000000000000000000023 /* NetworkCoverageAuditView.swift */,
+				020000000000000000000038 /* CareerProgressionView.swift */,
+				020000000000000000000117 /* DepotFacilityObservationCard.swift */,
+				020000000000000000000119 /* CATPOwnershipCostBenchmarkView.swift */,
+				020000000000000000000121 /* PublishedServiceDiscrepancyCard.swift */,
+				020000000000000000000125 /* DepotChargingInfrastructureObservationCard.swift */,
+				020000000000000000000032 /* RouteDetourEditorView.swift */,
+				020000000000000000000035 /* StopClosureEditorView.swift */,
+				020000000000000000000039 /* BusIllustrationView.swift */,
+				020000000000000000000025 /* DepotLineCatalogView.swift */,
+				020000000000000000000026 /* GTFSRouteTimetableGridView.swift */,
+			);
+		};
+		010000000000000000000006 /* Resources */ = {
+			isa = PBXGroup;
+			path = Resources;
+			sourceTree = "<group>";
+			children = (
+				020000000000000000000006 /* TransportManagerIDFM.entitlements */,
+				020000000000000000000127 /* TransportManagerIDFM-iOS.entitlements */,
+				010000000000000000000007 /* IDFMSnapshots */,
+				020000000000000000000043 /* idfm-gtfs-2026-10-24-part-00.bin */,
+				020000000000000000000044 /* idfm-gtfs-2026-10-24-part-01.bin */,
+				020000000000000000000100 /* idfm-gtfs-2026-10-24-part-02.bin */,
+				020000000000000000000101 /* idfm-gtfs-2026-10-24-part-03.bin */,
+				020000000000000000000102 /* idfm-gtfs-2026-10-24-part-04.bin */,
+				020000000000000000000103 /* idfm-gtfs-2026-10-24-part-05.bin */,
+				020000000000000000000104 /* idfm-gtfs-2026-10-24-part-06.bin */,
+				020000000000000000000105 /* idfm-gtfs-2026-10-24-part-07.bin */,
+				020000000000000000000106 /* idfm-gtfs-2026-10-24-part-08.bin */,
+				020000000000000000000107 /* idfm-gtfs-2026-10-24-part-09.bin */,
+				020000000000000000000108 /* idfm-gtfs-2026-10-24-part-10.bin */,
+				020000000000000000000109 /* idfm-gtfs-2026-10-24-part-11.bin */,
+				020000000000000000000110 /* idfm-gtfs-2026-10-24-part-12.bin */,
+				020000000000000000000111 /* idfm-gtfs-2026-10-24-part-13.bin */,
+				020000000000000000000112 /* idfm-gtfs-2026-10-24-part-14.bin */,
+				020000000000000000000113 /* idfm-gtfs-2026-10-24-part-15.bin */,
+				020000000000000000000114 /* idfm-gtfs-2026-10-24-part-16.bin */,
+				020000000000000000000115 /* idfm-gtfs-2026-10-24-part-17.bin */,
+				020000000000000000000036 /* idfm-route-geometries-2026-10-20.zip */,
+			);
+		};
+		010000000000000000000007 /* IDFMSnapshots */ = {
+			isa = PBXGroup;
+			path = IDFMSnapshots;
+			sourceTree = "<group>";
+			children = (
+				020000000000000000000027 /* idfm-lines-2026-10-20.csv */,
+				020000000000000000000028 /* idfm-line-documents-2026-10-20.csv */,
+				020000000000000000000029 /* idfm-contract-contours-2026-10-20.geojson */,
+				020000000000000000000030 /* README.md */,
+				020000000000000000000042 /* bords-de-marne-depot-roster.csv */,
+			);
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		060000000000000000000001 /* TransportManagerIDFM */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 110000000000000000000002 /* Build configuration list for PBXNativeTarget */;
+			buildPhases = (
+				050000000000000000000002 /* Sources */,
+				050000000000000000000001 /* Frameworks */,
+				050000000000000000000003 /* Resources */,
+			);
+			buildRules = ( );
+			dependencies = ( );
+			name = TransportManagerIDFM;
+			productName = TransportManagerIDFM;
+			productReference = 040000000000000000000001 /* TransportManagerIDFM.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		070000000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2630;
+				LastUpgradeCheck = 2630;
+				TargetAttributes = { 060000000000000000000001 = { CreatedOnToolsVersion = 26.3; }; };
+			};
+			buildConfigurationList = 110000000000000000000001 /* Build configuration list for PBXProject */;
+			compatibilityVersion = "Xcode 16.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (en, Base);
+			mainGroup = 010000000000000000000001;
+			productRefGroup = 010000000000000000000003 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (060000000000000000000001 /* TransportManagerIDFM */);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		050000000000000000000003 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (
+				030000000000000000000025 /* idfm-lines-2026-10-20.csv in Resources */,
+				030000000000000000000026 /* idfm-line-documents-2026-10-20.csv in Resources */,
+				030000000000000000000027 /* idfm-contract-contours-2026-10-20.geojson in Resources */,
+				030000000000000000000028 /* README.md in Resources */,
+				030000000000000000000043 /* idfm-gtfs-2026-10-24-part-00.bin in Resources */,
+				030000000000000000000044 /* idfm-gtfs-2026-10-24-part-01.bin in Resources */,
+				030000000000000000000100 /* idfm-gtfs-2026-10-24-part-02.bin in Resources */,
+				030000000000000000000101 /* idfm-gtfs-2026-10-24-part-03.bin in Resources */,
+				030000000000000000000102 /* idfm-gtfs-2026-10-24-part-04.bin in Resources */,
+				030000000000000000000103 /* idfm-gtfs-2026-10-24-part-05.bin in Resources */,
+				030000000000000000000104 /* idfm-gtfs-2026-10-24-part-06.bin in Resources */,
+				030000000000000000000105 /* idfm-gtfs-2026-10-24-part-07.bin in Resources */,
+				030000000000000000000106 /* idfm-gtfs-2026-10-24-part-08.bin in Resources */,
+				030000000000000000000107 /* idfm-gtfs-2026-10-24-part-09.bin in Resources */,
+				030000000000000000000108 /* idfm-gtfs-2026-10-24-part-10.bin in Resources */,
+				030000000000000000000109 /* idfm-gtfs-2026-10-24-part-11.bin in Resources */,
+				030000000000000000000110 /* idfm-gtfs-2026-10-24-part-12.bin in Resources */,
+				030000000000000000000111 /* idfm-gtfs-2026-10-24-part-13.bin in Resources */,
+				030000000000000000000112 /* idfm-gtfs-2026-10-24-part-14.bin in Resources */,
+				030000000000000000000113 /* idfm-gtfs-2026-10-24-part-15.bin in Resources */,
+				030000000000000000000114 /* idfm-gtfs-2026-10-24-part-16.bin in Resources */,
+				030000000000000000000115 /* idfm-gtfs-2026-10-24-part-17.bin in Resources */,
+				030000000000000000000039 /* idfm-route-geometries-2026-10-20.zip in Resources */,
+				030000000000000000000042 /* bords-de-marne-depot-roster.csv in Resources */,
+			); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		050000000000000000000002 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				030000000000000000000001 /* TransportManagerIDFMApp.swift in Sources */,
+				030000000000000000000002 /* NetworkCatalog.swift in Sources */,
+				030000000000000000000003 /* ScenarioCatalog.swift in Sources */,
+				030000000000000000000004 /* OperationsDashboardView.swift in Sources */,
+				030000000000000000000005 /* DepotInspectorView.swift in Sources */,
+				030000000000000000000006 /* GTFSFeedImporter.swift in Sources */,
+				030000000000000000000007 /* NetworkLibrary.swift in Sources */,
+				030000000000000000000122 /* PublicGTFSFeed.swift in Sources */,
+				030000000000000000000008 /* RouteGeometryImporter.swift in Sources */,
+				030000000000000000000009 /* ZIPArchiveReader.swift in Sources */,
+				030000000000000000000010 /* ContractGeometryImporter.swift in Sources */,
+				030000000000000000000011 /* LineReferenceImporter.swift in Sources */,
+				030000000000000000000012 /* SimulationEngine.swift in Sources */,
+				030000000000000000000013 /* DepotAssignmentRegistry.swift in Sources */,
+				030000000000000000000014 /* VehicleMarket.swift in Sources */,
+				030000000000000000000015 /* LineDocumentStore.swift in Sources */,
+				030000000000000000000016 /* TrafficInformation.swift in Sources */,
+				030000000000000000000017 /* VehicleTowRouter.swift in Sources */,
+				030000000000000000000018 /* VehicleDeadheadRouter.swift in Sources */,
+				030000000000000000000019 /* CareerObjectives.swift in Sources */,
+				030000000000000000000020 /* NetworkCoverageAudit.swift in Sources */,
+				030000000000000000000021 /* NetworkCoverageAuditView.swift in Sources */,
+				030000000000000000000022 /* DepotLineRoster.swift in Sources */,
+				030000000000000000000116 /* DepotFacilityObservation.swift in Sources */,
+				030000000000000000000118 /* CATPOwnershipCostReference.swift in Sources */,
+				030000000000000000000120 /* PublishedServiceDiscrepancy.swift in Sources */,
+				030000000000000000000124 /* DepotChargingInfrastructureObservation.swift in Sources */,
+				030000000000000000000041 /* DepotLineRosterManifest.swift in Sources */,
+				030000000000000000000117 /* DepotFacilityObservationCard.swift in Sources */,
+				030000000000000000000119 /* CATPOwnershipCostBenchmarkView.swift in Sources */,
+				030000000000000000000121 /* PublishedServiceDiscrepancyCard.swift in Sources */,
+				030000000000000000000125 /* DepotChargingInfrastructureObservationCard.swift in Sources */,
+				030000000000000000000126 /* CloudCareerSync.swift in Sources */,
+				030000000000000000000128 /* MobileCareerPlanning.swift in Sources */,
+				030000000000000000000023 /* DepotLineCatalogView.swift in Sources */,
+				030000000000000000000024 /* GTFSRouteTimetableGridView.swift in Sources */,
+				030000000000000000000029 /* RouteDetourRouter.swift in Sources */,
+				030000000000000000000030 /* RouteDetourEditorView.swift in Sources */,
+				030000000000000000000032 /* StopReplacementRouter.swift in Sources */,
+				030000000000000000000033 /* StopClosureEditorView.swift in Sources */,
+				030000000000000000000034 /* CareerProgression.swift in Sources */,
+				030000000000000000000035 /* CareerProgressionView.swift in Sources */,
+				030000000000000000000040 /* BusIllustrationView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		100000000000000000000001 /* Debug Project */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		100000000000000000000002 /* Release Project */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		100000000000000000000003 /* Debug Target */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = TransportManagerIDFM/Resources/TransportManagerIDFM.entitlements;
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]" = TransportManagerIDFM/Resources/TransportManagerIDFM-iOS.entitlements;
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]" = TransportManagerIDFM/Resources/TransportManagerIDFM-iOS.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				"ENABLE_APP_SANDBOX[sdk=macosx*]" = YES;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Transport Manager IDFM";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
+				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/../Frameworks");
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = fr.axel.transport-manager-idfm;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "macosx iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		100000000000000000000004 /* Release Target */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = TransportManagerIDFM/Resources/TransportManagerIDFM.entitlements;
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]" = TransportManagerIDFM/Resources/TransportManagerIDFM-iOS.entitlements;
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]" = TransportManagerIDFM/Resources/TransportManagerIDFM-iOS.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				"ENABLE_APP_SANDBOX[sdk=macosx*]" = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Transport Manager IDFM";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
+				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/../Frameworks");
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = fr.axel.transport-manager-idfm;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "macosx iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		110000000000000000000001 /* Build configuration list for PBXProject */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				100000000000000000000001 /* Debug Project */,
+				100000000000000000000002 /* Release Project */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		110000000000000000000002 /* Build configuration list for PBXNativeTarget */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				100000000000000000000003 /* Debug Target */,
+				100000000000000000000004 /* Release Target */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+	};
+	rootObject = 070000000000000000000001 /* Project object */;
+}
