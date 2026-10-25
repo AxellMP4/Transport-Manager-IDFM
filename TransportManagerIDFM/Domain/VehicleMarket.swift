@@ -175,6 +175,7 @@ struct VehicleMarketModel: Codable, Hashable, Identifiable, Sendable {
     let firstObservedInScenarioYear: Int?
     let lastObservedInScenarioYear: Int?
     let regionalEvidenceYear: Int?
+    let newOfferAvailableFromYear: Int?
     let regionalEvidenceLabel: String?
     let rangeKilometers: Int?
     let rangeEvidenceNote: String?
@@ -1251,6 +1252,7 @@ enum VehicleMarketCatalog {
             firstYear: nil,
             lastYear: nil,
             regionalEvidenceYear: 2021,
+            newOfferAvailableFromYear: 2020,
             referencePrice: 554_500,
             priceReferenceYear: 2022,
             priceEstimateNote: "Repère de l’étude CATP 2024 : autobus électrique à batterie 12 m à charge lente, options comprises, 554 500 € HT (474 500 € véhicule de base et 80 000 € d’options moyennes), montant indiqué comme équivalent à février 2022. La CATP n’en fait pas un devis GX 337e.",
@@ -1296,6 +1298,7 @@ enum VehicleMarketCatalog {
             seatedCapacity: nil,
             firstYear: 2024,
             lastYear: nil,
+            newOfferAvailableFromYear: 2017,
             referencePrice: 310_300,
             priceReferenceYear: 2024,
             priceEstimateNote: "Repère CATP 2024 : autobus GNV Euro VI step E standard 12 m, options comprises, 310 300 € HT (230 300 € hors options et 80 000 € d’options moyennes). Ce repère de catégorie n’est pas un prix individuel de l’Urbanway.",
@@ -1917,6 +1920,7 @@ enum VehicleMarketCatalog {
             firstYear: nil,
             lastYear: nil,
             regionalEvidenceYear: 2025,
+            newOfferAvailableFromYear: 2024,
             regionalEvidenceLabel: "Produit référencé par la CATP · exploitation en Île-de-France non attestée",
             referencePrice: 324_600,
             priceReferenceYear: 2024,
@@ -2209,6 +2213,7 @@ enum VehicleMarketCatalog {
         }
 
         if let urbanway = models.first(where: { $0.id == "iveco-urbanway-12-gnv" }),
+           isAvailableAsNew(urbanway, in: gameYear),
            let newPrice = estimatedNewPrice(for: urbanway, gameYear: gameYear) {
             results.append(makeOffer(
                 model: urbanway,
@@ -2223,6 +2228,7 @@ enum VehicleMarketCatalog {
             ))
         }
         if let electric = models.first(where: { $0.id == "heuliez-gx337e-electric" }),
+           isAvailableAsNew(electric, in: gameYear),
            let newPrice = estimatedNewPrice(for: electric, gameYear: gameYear) {
             results.append(makeOffer(
                 model: electric,
@@ -2237,6 +2243,7 @@ enum VehicleMarketCatalog {
             ))
         }
         if let manHybridGNV = models.first(where: { $0.id == "man-lions-city-12c-gnv-hybrid" }),
+           isAvailableAsNew(manHybridGNV, in: gameYear),
            let newPrice = estimatedNewPrice(for: manHybridGNV, gameYear: gameYear) {
             results.append(makeOffer(
                 model: manHybridGNV,
@@ -2262,6 +2269,12 @@ enum VehicleMarketCatalog {
 
     static var marketableModels: [VehicleMarketModel] {
         models.filter { $0.marketAvailabilityNote == nil }
+    }
+
+    private static func isAvailableAsNew(_ model: VehicleMarketModel, in gameYear: Int) -> Bool {
+        guard model.marketAvailabilityNote == nil,
+              let availableFromYear = model.newOfferAvailableFromYear else { return false }
+        return availableFromYear <= gameYear
     }
 
     static func energyEstimate(for model: VehicleMarketModel) -> VehicleEnergyEstimate {
@@ -2351,6 +2364,7 @@ enum VehicleMarketCatalog {
         firstYear: Int?,
         lastYear: Int?,
         regionalEvidenceYear: Int? = nil,
+        newOfferAvailableFromYear: Int? = nil,
         regionalEvidenceLabel: String? = nil,
         rangeKilometers: Int? = nil,
         rangeEvidenceNote: String? = nil,
@@ -2385,6 +2399,7 @@ enum VehicleMarketCatalog {
             firstObservedInScenarioYear: firstYear,
             lastObservedInScenarioYear: lastYear,
             regionalEvidenceYear: regionalEvidenceYear,
+            newOfferAvailableFromYear: newOfferAvailableFromYear,
             regionalEvidenceLabel: regionalEvidenceLabel,
             rangeKilometers: rangeKilometers,
             rangeEvidenceNote: rangeEvidenceNote,
