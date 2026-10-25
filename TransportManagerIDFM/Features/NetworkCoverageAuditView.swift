@@ -201,7 +201,11 @@ struct NetworkCoverageAuditView: View {
                     in: selectedDateRange ?? Date.distantPast...Date.distantFuture,
                     displayedComponents: .date
                 )
+                    #if os(macOS)
                     .datePickerStyle(.field)
+                    #else
+                    .datePickerStyle(.compact)
+                    #endif
                     .frame(maxWidth: 250)
             }
             .padding(20)
