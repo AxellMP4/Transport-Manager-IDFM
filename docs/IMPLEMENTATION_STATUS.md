@@ -1,3 +1,10 @@
+## Revalidation après la chronologie des offres neuves — 25 octobre 2026, 12:59 CET
+
+- Le smoke ciblé `sh Scripts/validate-vehicle-market-pricing.sh` passe. La compilation Debug macOS universelle, lancée depuis `/tmp/TransitCityCloneForBuild` avec `xcodebuild -quiet -project TransportManagerIDFM.xcodeproj -scheme TransportManagerIDFM -configuration Debug -sdk macosx -destination 'generic/platform=macOS' -derivedDataPath /private/tmp/TransitCityPlayableDebugBuild CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=NO -jobs 2 build`, termine avec le code 0. Les messages CoreSimulator concernent le service simulateur indisponible; la cible macOS compile.
+- Le paquet local `build/Debug/TransportManagerIDFM-Playable.zip` passe `unzip -tq`. Après extraction, `codesign --verify --deep --strict` et le lint d’Info.plist passent; `lipo -info` confirme `x86_64` et `arm64`. SHA-256 du ZIP : `46d3c5a5ac67091a6c557b29a072388dac2491ef074f365871230e0017c638d3`. Signature ad hoc, non notariée.
+- La tentative de relire l’intégralité des séquences et formes du snapshot GTFS embarqué a été interrompue après plus de six minutes sans rapport produit. Aucun nouveau résultat GTFS n’est revendiqué; le réaudit du snapshot et, séparément, les éléments PRIM authentifiés restent ouverts.
+- Avancement inchangé : 133/139 exigences (95,7 %). Les six critères liés aux sources externes ou à des preuves post-transfert demeurent suivis dans la section « Objectif actif ».
+
 # État de réalisation
 
 ## Offres neuves cohérentes avec les premières preuves de marché — 25 octobre 2026, 13:47 CEST
