@@ -1,5 +1,9 @@
 # Archive GTFS IDFM
 
+## Auditeur de production du snapshot embarqué
+
+`sh Scripts/audit-embedded-gtfs.sh` réassemble les 18 fragments du 24 octobre, vérifie leur SHA-256 et l’intégrité ZIP, puis appelle `GTFSFeedInspector` de l’application pour mesurer les horaires, arrêts, formes, calendriers et motifs. La première exécution a confirmé les contrôles d’archive, mais n’a pas dépassé la lecture de `stop_times.txt` après environ neuf minutes. Aucun chiffre d’audit structurel ne doit être déduit tant que l’outil n’a pas terminé; les comptages bruts ci-dessous restent distincts.
+
 ## Délais réseau bornés — 25 octobre 2026, 00:31 CEST
 
 La session de synchronisation utilise désormais un délai de réponse de 45 secondes et un délai total de 300 secondes pour la fiche Datahub et le ZIP. Si une requête ne répond pas ou que le fichier ne passe pas la validation ZIP/GTFS, le miroir PAN est tenté dans le même cycle. Ces délais empêchent un téléchargement suspendu de laisser l’interface bloquée indéfiniment.
