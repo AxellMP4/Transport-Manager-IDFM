@@ -189,6 +189,7 @@ private enum BundledGTFSArchiveAssembler {
 final class NetworkLibrary: ObservableObject {
     @Published private(set) var catalog: NetworkCatalog
     @Published private(set) var importState: NetworkImportState = .idle
+    @Published private(set) var gtfsImportProgress: GTFSFeedInspectionProgress?
     @Published private(set) var busRoutes: [GTFSRouteSummary] = []
     @Published private(set) var busRoutesVersionID: String?
     @Published private(set) var isLoadingBusRoutes = false
@@ -249,6 +250,7 @@ final class NetworkLibrary: ObservableObject {
             contractImportState = .importing
             if catalog.activeVersion == nil {
                 importState = .importing
+                gtfsImportProgress = GTFSFeedInspectionProgress(stage: .readingArchive)
             }
             if catalog.activeGeometryVersion == nil {
                 geometryImportState = .importing
@@ -256,14 +258,22 @@ final class NetworkLibrary: ObservableObject {
             lineReferencesError = nil
             lineDocumentsError = nil
             contractsError = nil
-            task = Task.detached(priority: .utility) {
+            task = Task.detached(priority: .utility) { [weak self] in
                 var catalog = try NetworkVersionStore.loadCatalog()
 
                 if catalog.activeVersion == nil {
                     let source = BundledSnapshotBootstrapError.Source.gtfs
                     do {
                         let url = try BundledGTFSArchiveAssembler.assemble()
-                        catalog = try NetworkVersionStore.importGTFS(from: url, provenance: .publicMirror)
+                        catalog = try NetworkVersionStore.importGTFS(
+                            from: url,
+                            provenance: .publicMirror,
+                            progress: { progress in
+                                Task { @MainActor [weak self] in
+                                    self?.gtfsImportProgress = progress
+                                }
+                            }
+                        )
                     } catch {
                         throw BundledSnapshotBootstrapError.importFailed(source, error.localizedDescription)
                     }
@@ -345,6 +355,7 @@ final class NetworkLibrary: ObservableObject {
             lineDocumentImportState = .imported
             contractImportState = .imported
             geometryImportState = .imported
+            gtfsImportProgress = nil
             if catalog.activeVersion != nil {
                 importState = .imported
             }
@@ -357,6 +368,7 @@ final class NetworkLibrary: ObservableObject {
                 catalog = latestCatalog
             }
             let message = error.localizedDescription
+            gtfsImportProgress = nil
             if let failure = error as? BundledSnapshotBootstrapError {
                 switch failure.source {
                 case .gtfs:
@@ -395,6 +407,7 @@ final class NetworkLibrary: ObservableObject {
     func importGTFS(from sourceURL: URL, provenance: GTFSImportProvenance = .unverifiedManual) {
         guard !importState.isImporting else { return }
         importState = .importing
+        gtfsImportProgress = GTFSFeedInspectionProgress(stage: .readingArchive)
         let shouldStopAccessing = sourceURL.startAccessingSecurityScopedResource()
 
         Task {
@@ -502,8 +515,12 @@ final class NetworkLibrary: ObservableObject {
         }
 
         do {
-            let updatedCatalog = try await Task.detached(priority: .userInitiated) {
-                try NetworkVersionStore.importGTFS(from: sourceURL, provenance: provenance)
+            let updatedCatalog = try await Task.detached(priority: .userInitiated) { [weak self] in
+                try NetworkVersionStore.importGTFS(from: sourceURL, provenance: provenance) { progress in
+                    Task { @MainActor [weak self] in
+                        self?.gtfsImportProgress = progress
+                    }
+                }
             }.value
             catalog = updatedCatalog
             prepareForGTFSImport()
@@ -511,7 +528,9 @@ final class NetworkLibrary: ObservableObject {
             await loadBusStops()
             await loadServiceCalendars()
             importState = .imported
+            gtfsImportProgress = nil
         } catch {
+            gtfsImportProgress = nil
             importState = .failed(error.localizedDescription)
         }
     }
