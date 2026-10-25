@@ -338,6 +338,20 @@ final class CloudCareerSyncManager: ObservableObject {
                 return
             }
 
+            if let checkpoint,
+               remoteRecord.recordChangeTag == checkpoint.changeTag {
+                if localSession.updatedAt > checkpoint.localUpdatedAt {
+                    try await upload(localSession: localSession, engine: engine, library: library, replacing: remoteRecord)
+                } else if localSession.updatedAt < checkpoint.localUpdatedAt {
+                    try await download(remoteRecord, into: engine, library: library)
+                } else {
+                    hasConflict = false
+                    statusMessage = "Carrière synchronisée avec iCloud"
+                    lastSyncedAt = Date()
+                }
+                return
+            }
+
             if remoteEnvelope.sourceUpdatedAt > localSession.updatedAt {
                 try await download(remoteRecord, into: engine, library: library)
             } else if localSession.updatedAt > remoteEnvelope.sourceUpdatedAt {
