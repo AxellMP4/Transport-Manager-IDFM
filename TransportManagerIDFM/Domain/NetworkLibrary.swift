@@ -610,6 +610,31 @@ final class NetworkLibrary: ObservableObject {
         }
     }
 
+    func reloadSnapshotsFromDisk() async {
+        guard let refreshedCatalog = try? NetworkVersionStore.loadCatalog() else { return }
+        catalog = refreshedCatalog
+        busRoutesVersionID = nil
+        routeGeometryVersionID = nil
+        lineReferenceVersionID = nil
+        lineDocumentVersionID = nil
+        busRoutes = []
+        busStops = []
+        serviceCalendarsByID = [:]
+        routeGeometries = []
+        contractFeatures = []
+        lineReferences = []
+        lineReferenceIndex = [:]
+        lineDocuments = []
+
+        await loadBusRoutes()
+        await loadBusStops()
+        await loadServiceCalendars()
+        await loadActiveRouteGeometries()
+        await loadActiveContracts()
+        await loadActiveLineReferences()
+        await loadActiveLineDocuments()
+    }
+
     func loadScheduledDepartures(
         gtfsVersionID: String,
         routeIDs: Set<String>,

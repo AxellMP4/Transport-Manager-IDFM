@@ -277,6 +277,7 @@ struct OperationsDashboardView: View {
     private var scenario: ScenarioDefinition { ScenarioDefinition.forDepot(selectedDepotID) }
     @StateObject private var library = NetworkLibrary()
     @StateObject private var simulation = SimulationEngine()
+    @StateObject private var cloudSync = CloudCareerSyncManager()
 
     @AppStorage("transportManager.selectedDepotID") private var selectedDepotID = "saint-maur"
     @State private var careerStartMoment = Date.now
@@ -922,6 +923,7 @@ struct OperationsDashboardView: View {
                 selectedDepotID = scenario.referenceDepots.first?.id ?? "saint-maur"
             }
             await library.seedBundledIDFMSnapshotsIfNeeded()
+            await cloudSync.synchronize(with: simulation, library: library)
             await library.loadBusRoutes()
             await library.loadBusStops()
             await library.loadServiceCalendars()
@@ -981,6 +983,10 @@ struct OperationsDashboardView: View {
         }
         .onChange(of: simulation.session?.simulatedAt) { _, _ in
             extendTimetableHorizonIfNeeded()
+        }
+        .onChange(of: simulation.lastSavedAt) { _, savedAt in
+            guard savedAt != nil else { return }
+            cloudSync.scheduleSynchronization(with: simulation, library: library)
         }
         .onChange(of: simulation.session?.id) { _, _ in
             browsedDepotID = nil
@@ -1048,6 +1054,23 @@ struct OperationsDashboardView: View {
             }
 
             Menu {
+                Label(cloudSync.statusMessage, systemImage: cloudSync.hasConflict ? "exclamationmark.icloud" : "icloud")
+                    .foregroundStyle(cloudSync.hasConflict ? .orange : .secondary)
+                Button {
+                    Task { await cloudSync.synchronize(with: simulation, library: library) }
+                } label: {
+                    Label("Synchroniser iCloud", systemImage: "arrow.triangle.2.circlepath.icloud")
+                }
+                .disabled(cloudSync.isSyncing)
+                if cloudSync.hasConflict {
+                    Button("Utiliser la version iCloud") {
+                        Task { await cloudSync.resolveConflict(usingCloud: true, with: simulation, library: library) }
+                    }
+                    Button("Publier ma version locale") {
+                        Task { await cloudSync.resolveConflict(usingCloud: false, with: simulation, library: library) }
+                    }
+                }
+                Divider()
                 if simulation.session != nil {
                     Button {
                         prepareSaveExport()

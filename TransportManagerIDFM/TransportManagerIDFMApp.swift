@@ -75,6 +75,8 @@ extension View {
 @MainActor
 private struct MobileOperationsView: View {
     @StateObject private var simulation = SimulationEngine()
+    @StateObject private var library = NetworkLibrary()
+    @StateObject private var cloudSync = CloudCareerSyncManager()
 
     var body: some View {
         TabView {
@@ -95,6 +97,14 @@ private struct MobileOperationsView: View {
                     .navigationTitle("Parc")
             }
             .tabItem { Label("Parc", systemImage: "bus") }
+        }
+        .task {
+            await library.seedBundledIDFMSnapshotsIfNeeded()
+            await cloudSync.synchronize(with: simulation, library: library)
+        }
+        .onChange(of: simulation.lastSavedAt) { _, savedAt in
+            guard savedAt != nil else { return }
+            cloudSync.scheduleSynchronization(with: simulation, library: library)
         }
     }
 
@@ -119,10 +129,27 @@ private struct MobileOperationsView: View {
                         }
                         .buttonStyle(.borderedProminent)
                         .disabled(simulation.session == nil)
-                        if let lastSavedAt = simulation.lastSavedAt {
-                            Label("Sauvegardée \(lastSavedAt.formatted(date: .omitted, time: .shortened))", systemImage: "checkmark.icloud")
+                        if simulation.lastSavedAt != nil {
+                            Label("Sauvegardée sur cet iPhone", systemImage: "checkmark.circle")
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
+                        }
+                        Label(cloudSync.statusMessage, systemImage: cloudSync.hasConflict ? "exclamationmark.icloud" : "icloud")
+                            .font(.footnote)
+                            .foregroundStyle(cloudSync.hasConflict ? .orange : .secondary)
+                        Button {
+                            Task { await cloudSync.synchronize(with: simulation, library: library) }
+                        } label: {
+                            Label("Synchroniser maintenant", systemImage: "arrow.triangle.2.circlepath.icloud")
+                        }
+                        .disabled(cloudSync.isSyncing)
+                        if cloudSync.hasConflict {
+                            Button("Utiliser la version iCloud") {
+                                Task { await cloudSync.resolveConflict(usingCloud: true, with: simulation, library: library) }
+                            }
+                            Button("Publier ma version locale") {
+                                Task { await cloudSync.resolveConflict(usingCloud: false, with: simulation, library: library) }
+                            }
                         }
                     }
 

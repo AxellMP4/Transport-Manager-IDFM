@@ -72,6 +72,7 @@
 		030000000000000000000121 /* PublishedServiceDiscrepancyCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000121 /* PublishedServiceDiscrepancyCard.swift */; };
 		030000000000000000000124 /* DepotChargingInfrastructureObservation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000124 /* DepotChargingInfrastructureObservation.swift */; };
 		030000000000000000000125 /* DepotChargingInfrastructureObservationCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000125 /* DepotChargingInfrastructureObservationCard.swift */; };
+		030000000000000000000126 /* CloudCareerSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000126 /* CloudCareerSync.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -140,6 +141,8 @@
 		020000000000000000000121 /* PublishedServiceDiscrepancyCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublishedServiceDiscrepancyCard.swift; sourceTree = "<group>"; };
 		020000000000000000000124 /* DepotChargingInfrastructureObservation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DepotChargingInfrastructureObservation.swift; sourceTree = "<group>"; };
 		020000000000000000000125 /* DepotChargingInfrastructureObservationCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DepotChargingInfrastructureObservationCard.swift; sourceTree = "<group>"; };
+		020000000000000000000126 /* CloudCareerSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudCareerSync.swift; sourceTree = "<group>"; };
+		020000000000000000000127 /* TransportManagerIDFM-iOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "TransportManagerIDFM-iOS.entitlements"; sourceTree = "<group>"; };
 		020000000000000000000006 /* TransportManagerIDFM.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TransportManagerIDFM.entitlements; sourceTree = "<group>"; };
 		040000000000000000000001 /* TransportManagerIDFM.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TransportManagerIDFM.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -191,6 +194,7 @@
 				020000000000000000000012 /* ContractGeometryImporter.swift */,
 				020000000000000000000013 /* LineReferenceImporter.swift */,
 				020000000000000000000014 /* SimulationEngine.swift */,
+				020000000000000000000126 /* CloudCareerSync.swift */,
 				020000000000000000000015 /* DepotAssignmentRegistry.swift */,
 				020000000000000000000016 /* VehicleMarket.swift */,
 				020000000000000000000017 /* LineDocumentStore.swift */,
@@ -236,6 +240,7 @@
 			sourceTree = "<group>";
 			children = (
 				020000000000000000000006 /* TransportManagerIDFM.entitlements */,
+				020000000000000000000127 /* TransportManagerIDFM-iOS.entitlements */,
 				010000000000000000000007 /* IDFMSnapshots */,
 				020000000000000000000043 /* idfm-gtfs-2026-10-24-part-00.bin */,
 				020000000000000000000044 /* idfm-gtfs-2026-10-24-part-01.bin */,
@@ -378,6 +383,7 @@
 				030000000000000000000119 /* CATPOwnershipCostBenchmarkView.swift in Sources */,
 				030000000000000000000121 /* PublishedServiceDiscrepancyCard.swift in Sources */,
 				030000000000000000000125 /* DepotChargingInfrastructureObservationCard.swift in Sources */,
+				030000000000000000000126 /* CloudCareerSync.swift in Sources */,
 				030000000000000000000023 /* DepotLineCatalogView.swift in Sources */,
 				030000000000000000000024 /* GTFSRouteTimetableGridView.swift in Sources */,
 				030000000000000000000029 /* RouteDetourRouter.swift in Sources */,
@@ -417,6 +423,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = TransportManagerIDFM/Resources/TransportManagerIDFM.entitlements;
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]" = TransportManagerIDFM/Resources/TransportManagerIDFM-iOS.entitlements;
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]" = TransportManagerIDFM/Resources/TransportManagerIDFM-iOS.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				"ENABLE_APP_SANDBOX[sdk=macosx*]" = YES;
@@ -443,6 +451,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = TransportManagerIDFM/Resources/TransportManagerIDFM.entitlements;
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]" = TransportManagerIDFM/Resources/TransportManagerIDFM-iOS.entitlements;
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]" = TransportManagerIDFM/Resources/TransportManagerIDFM-iOS.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				"ENABLE_APP_SANDBOX[sdk=macosx*]" = YES;
