@@ -113,6 +113,147 @@ final class ZIPArchiveReader {
         return decoded
     }
 
+    func forEachChunk(
+        in entry: ZIPArchiveEntry,
+        chunkSize: Int = 64 * 1_024,
+        _ body: (Data) throws -> Void
+    ) throws {
+        guard entry.flags & 0x0001 == 0 else {
+            throw ZIPArchiveError.encryptedEntry(entry.filename)
+        }
+        guard chunkSize > 0,
+              entry.uncompressedSize <= Self.maximumDecodedEntrySize,
+              entry.uncompressedSize <= UInt64(Int.max),
+              entry.compressedSize <= UInt64(Int.max) else {
+            throw ZIPArchiveError.decodedEntryTooLarge(entry.filename)
+        }
+
+        let handle = try FileHandle(forReadingFrom: archiveURL)
+        defer { try? handle.close() }
+        try handle.seek(toOffset: entry.localHeaderOffset)
+        let header = try Self.readExactly(30, from: handle)
+        guard Self.uint32(header, at: 0) == Self.localFileHeaderSignature,
+              Self.uint16(header, at: 6) == entry.flags,
+              Self.uint16(header, at: 8) == entry.compressionMethod else {
+            throw ZIPArchiveError.malformed
+        }
+        let filenameLength = UInt64(Self.uint16(header, at: 26))
+        let extraLength = UInt64(Self.uint16(header, at: 28))
+        let dataOffset = entry.localHeaderOffset + 30 + filenameLength + extraLength
+        try handle.seek(toOffset: dataOffset)
+
+        var remainingCompressed = entry.compressedSize
+        var decodedByteCount: UInt64 = 0
+        var crc: UInt32 = 0xFFFF_FFFF
+        func emit(_ chunk: Data) throws {
+            guard decodedByteCount <= entry.uncompressedSize,
+                  UInt64(chunk.count) <= entry.uncompressedSize - decodedByteCount else {
+                throw ZIPArchiveError.malformed
+            }
+            decodedByteCount += UInt64(chunk.count)
+            crc = Self.updateCRC32(crc, with: chunk)
+            try body(chunk)
+        }
+
+        switch entry.compressionMethod {
+        case 0:
+            while remainingCompressed > 0 {
+                let count = Int(min(UInt64(chunkSize), remainingCompressed))
+                try emit(Self.readExactly(count, from: handle))
+                remainingCompressed -= UInt64(count)
+            }
+        case 8:
+            let initialDestination = UnsafeMutablePointer<UInt8>.allocate(capacity: 1)
+            let initialSource = UnsafeMutablePointer<UInt8>.allocate(capacity: 1)
+            defer {
+                initialDestination.deallocate()
+                initialSource.deallocate()
+            }
+            var stream = compression_stream(
+                dst_ptr: initialDestination,
+                dst_size: 0,
+                src_ptr: UnsafePointer(initialSource),
+                src_size: 0,
+                state: nil
+            )
+            guard compression_stream_init(&stream, COMPRESSION_STREAM_DECODE, COMPRESSION_ZLIB) == COMPRESSION_STATUS_OK else {
+                throw ZIPArchiveError.malformed
+            }
+            defer { compression_stream_destroy(&stream) }
+
+            var finalizationNoProgressCount = 0
+            while remainingCompressed > 0 {
+                let count = Int(min(UInt64(chunkSize), remainingCompressed))
+                let input = try Self.readExactly(count, from: handle)
+                remainingCompressed -= UInt64(count)
+                let isLastInput = remainingCompressed == 0
+                try input.withUnsafeBytes { source in
+                    guard let sourceBase = source.bindMemory(to: UInt8.self).baseAddress else {
+                        throw ZIPArchiveError.malformed
+                    }
+                    stream.src_ptr = sourceBase
+                    stream.src_size = source.count
+                    var reachedEnd = false
+                    while stream.src_size > 0 || (isLastInput && !reachedEnd) {
+                        let sourceSizeBeforeProcessing = stream.src_size
+                        var output = [UInt8](repeating: 0, count: chunkSize)
+                        var produced = 0
+                        let status = output.withUnsafeMutableBufferPointer { destination in
+                            stream.dst_ptr = destination.baseAddress!
+                            stream.dst_size = destination.count
+                            let result = compression_stream_process(
+                                &stream,
+                                isLastInput ? Int32(COMPRESSION_STREAM_FINALIZE.rawValue) : 0
+                            )
+                            produced = destination.count - stream.dst_size
+                            return result
+                        }
+                        if produced > 0 {
+                            try emit(Data(output.prefix(produced)))
+                        }
+                        if status == COMPRESSION_STATUS_ERROR {
+                            throw ZIPArchiveError.malformed
+                        }
+                        if status == COMPRESSION_STATUS_OK {
+                            let consumedSource = stream.src_size < sourceSizeBeforeProcessing
+                            if consumedSource || produced > 0 {
+                                finalizationNoProgressCount = 0
+                            } else {
+                                finalizationNoProgressCount += 1
+                                guard isLastInput, finalizationNoProgressCount <= 1 else {
+                                    throw ZIPArchiveError.malformed
+                                }
+                            }
+                        }
+                        if status == COMPRESSION_STATUS_END {
+                            reachedEnd = true
+                            guard stream.src_size == 0, isLastInput else {
+                                throw ZIPArchiveError.malformed
+                            }
+                        }
+                        if status == COMPRESSION_STATUS_OK,
+                           stream.src_size == 0,
+                           !isLastInput {
+                            break
+                        }
+                        if status == COMPRESSION_STATUS_OK,
+                           stream.src_size == 0,
+                           isLastInput {
+                            continue
+                        }
+                    }
+                }
+            }
+        default:
+            throw ZIPArchiveError.unsupportedCompression(entry.filename, entry.compressionMethod)
+        }
+
+        guard decodedByteCount == entry.uncompressedSize,
+              crc ^ 0xFFFF_FFFF == entry.crc32 else {
+            throw ZIPArchiveError.checksumMismatch(entry.filename)
+        }
+    }
+
     private static func readDirectory(from url: URL) throws -> [ZIPArchiveEntry] {
         let handle = try FileHandle(forReadingFrom: url)
         defer { try? handle.close() }
@@ -232,11 +373,18 @@ final class ZIPArchiveReader {
     }
 
     private static func crc32(_ data: Data) -> UInt32 {
-        var crc: UInt32 = 0xFFFF_FFFF
-        for byte in data {
-            crc = crcTable[Int((crc ^ UInt32(byte)) & 0xFF)] ^ (crc >> 8)
+        updateCRC32(0xFFFF_FFFF, with: data) ^ 0xFFFF_FFFF
+    }
+
+    private static func updateCRC32(_ initialCRC: UInt32, with data: Data) -> UInt32 {
+        var crc = initialCRC
+        data.withUnsafeBytes { bytes in
+            guard let baseAddress = bytes.bindMemory(to: UInt8.self).baseAddress else { return }
+            for index in 0..<bytes.count {
+                crc = crcTable[Int((crc ^ UInt32(baseAddress[index])) & 0xFF)] ^ (crc >> 8)
+            }
         }
-        return crc ^ 0xFFFF_FFFF
+        return crc
     }
 
     private static let crcTable: [UInt32] = (0..<256).map { index in

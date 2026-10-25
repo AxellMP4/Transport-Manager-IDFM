@@ -184,7 +184,9 @@ enum GTFSFeedInspector {
         let stopTimesTable = CSVTableReader(columnsOfInterest: ["trip_id", "stop_id", "stop_sequence", "arrival_time", "departure_time", "shape_dist_traveled"]) {
             stopRouteCollector.consume($0)
         }
-        try stopTimesTable.consume(archive.data(for: stopTimesEntry))
+        try archive.forEachChunk(in: stopTimesEntry) { chunk in
+            try stopTimesTable.consume(chunk)
+        }
         stopTimesTable.finish()
         guard stopTimesTable.hasColumn("trip_id"),
               stopTimesTable.hasColumn("stop_id"),
