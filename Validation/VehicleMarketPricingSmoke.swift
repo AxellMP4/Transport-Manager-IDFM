@@ -21,6 +21,22 @@ struct VehicleMarketPricingSmoke {
             historicalUsedOffers.allSatisfy { $0.vehicleYear <= 2023 },
             "Une carrière 2023 ne doit pas proposer un bus d’occasion construit après 2023."
         )
+        let newOffers2016 = Set(VehicleMarketCatalog.offers(for: 2016).filter { $0.condition == .new }.map(\.modelID))
+        let newOffers2019 = Set(VehicleMarketCatalog.offers(for: 2019).filter { $0.condition == .new }.map(\.modelID))
+        let newOffers2023 = Set(VehicleMarketCatalog.offers(for: 2023).filter { $0.condition == .new }.map(\.modelID))
+        precondition(
+            !newOffers2016.contains("iveco-urbanway-12-gnv")
+                && !newOffers2019.contains("heuliez-gx337e-electric")
+                && !newOffers2023.contains("man-lions-city-12c-gnv-hybrid"),
+            "Le marché neuf doit respecter la première année documentée pour chaque modèle."
+        )
+        let newOffers2024 = Set(VehicleMarketCatalog.offers(for: 2024).filter { $0.condition == .new }.map(\.modelID))
+        precondition(
+            newOffers2024.contains("iveco-urbanway-12-gnv")
+                && newOffers2024.contains("heuliez-gx337e-electric")
+                && newOffers2024.contains("man-lions-city-12c-gnv-hybrid"),
+            "Les offres documentées doivent être disponibles à partir de leur première année d’offre."
+        )
 
         guard let scaniaCitywide = VehicleMarketCatalog.model(id: "scania-citywide-18-gnv-ratp"),
               let scaniaTechnicalVariant = scaniaCitywide.technicalVariants?.first(where: {
