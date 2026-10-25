@@ -5851,6 +5851,12 @@ private struct VehicleMarketView: View {
                 }
             }
 
+            if offer.condition == .new, let availableFromYear = model.newOfferAvailableFromYear {
+                Label("Offre neuve simulée à partir de \(availableFromYear)", systemImage: "calendar")
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(.secondary)
+            }
+
             HStack(spacing: 14) {
                 Label(model.maximumCapacity.map { "\($0) places max. · fiche" } ?? "Capacité source à documenter", systemImage: "person.2")
                 if let seatedCapacity = model.seatedCapacity {
