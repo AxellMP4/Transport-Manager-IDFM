@@ -77,6 +77,12 @@ private struct MobileOperationsView: View {
     @StateObject private var simulation = SimulationEngine()
     @StateObject private var library = NetworkLibrary()
     @StateObject private var cloudSync = CloudCareerSyncManager()
+    @AppStorage("transportManager.mobileSelectedDepotID") private var selectedDepotID = "saint-maur"
+    @State private var careerStartMoment = Date.now
+    @State private var selectedCandidateLineIDs = Set<String>()
+    @State private var isPreparingTimetable = false
+    @State private var careerStartError: String?
+    @State private var mobileActionMessage: String?
 
     var body: some View {
         TabView {
@@ -101,6 +107,18 @@ private struct MobileOperationsView: View {
         .task {
             await library.seedBundledIDFMSnapshotsIfNeeded()
             await cloudSync.synchronize(with: simulation, library: library)
+            if let activeDepotID = simulation.session?.effectiveActiveDepotID {
+                selectedDepotID = activeDepotID
+            } else if !playableDepots.contains(where: { $0.id == selectedDepotID }) {
+                selectedDepotID = playableDepots.first?.id ?? "saint-maur"
+            }
+            await library.loadBusRoutes()
+            await library.loadBusStops()
+            await library.loadServiceCalendars()
+            await library.loadActiveRouteGeometries()
+            await library.loadActiveContracts()
+            await library.loadActiveLineReferences()
+            await library.loadActiveLineDocuments()
         }
         .onChange(of: simulation.lastSavedAt) { _, savedAt in
             guard savedAt != nil else { return }
@@ -128,7 +146,19 @@ private struct MobileOperationsView: View {
                             }
                         }
                         .buttonStyle(.borderedProminent)
-                        .disabled(simulation.session == nil)
+                        Menu {
+                            ForEach(SimulationSpeed.allCases.filter { $0 != .paused }) { speed in
+                                Button(speed.title) { simulation.setSpeed(speed) }
+                            }
+                        } label: {
+                            Label("Vitesse · \(session.speed.title)", systemImage: "speedometer")
+                        }
+                        Button {
+                            if simulation.isRunning { simulation.pause() }
+                            _ = simulation.advanceToNextEvent()
+                        } label: {
+                            Label("Avancer au prochain événement", systemImage: "forward.end")
+                        }
                         if simulation.lastSavedAt != nil {
                             Label("Sauvegardée sur cet iPhone", systemImage: "checkmark.circle")
                                 .font(.footnote)
@@ -159,66 +189,5 @@ private struct MobileOperationsView: View {
                     if let errorMessage = simulation.errorMessage {
                         Section("Sauvegarde") { Text(errorMessage).font(.footnote).foregroundStyle(.red) }
                     }
-                }
-            } else {
-                ContentUnavailableView(
-                    "Aucune carrière sauvegardée",
-                    systemImage: "externaldrive",
-                    description: Text("Créez une carrière sur votre Mac. Elle apparaîtra ici lorsque la synchronisation iCloud sera configurée.")
-                )
-            }
-        }
-    }
-
-    private var networkOverview: some View {
-        Group {
-            if let session = simulation.session {
-                List {
-                    Section("Réseau épinglé par cette carrière") {
-                        let routeIDs = session.effectiveOperatedRouteIDs(for: session.effectiveActiveDepotID).sorted()
-                        LabeledContent("Lignes", value: "\(routeIDs.count)")
-                        ForEach(routeIDs.prefix(40), id: \.self) { routeID in
-                            Text(routeID).font(.body.monospaced())
-                        }
-                        if routeIDs.count > 40 {
-                            Text("Et \(routeIDs.count - 40) autres lignes")
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    Section("Version") {
-                        Text(String(describing: session.networkVersions))
-                            .font(.footnote.monospaced())
-                            .textSelection(.enabled)
-                    }
-                }
-            } else {
-                ContentUnavailableView("Réseau indisponible", systemImage: "point.3.connected.trianglepath.dotted")
-            }
-        }
-    }
-
-    private var fleetOverview: some View {
-        Group {
-            if let session = simulation.session {
-                List {
-                    Section("Parc") {
-                        LabeledContent("Bus possédés", value: "\(session.ownedBuses?.count ?? 0)")
-                        LabeledContent("Machinistes", value: "\(session.machinists?.count ?? 0)")
-                    }
-                    ForEach(session.ownedBuses ?? []) { bus in
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(bus.coquilleNumber ?? bus.id)
-                                .font(.headline)
-                            Text(VehicleMarketCatalog.model(id: bus.modelID)?.displayName ?? bus.modelID)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-            } else {
-                ContentUnavailableView("Parc vide", systemImage: "bus")
-            }
-        }
-    }
-}
-#endif
+                    if let mobileActionMessage {
+                        Section("Action") { Text(mobileActionMessage).font(.footnote).
