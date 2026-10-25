@@ -66,7 +66,17 @@ struct GTFSProvenanceSmoke {
     }
 
     private static func verifyMissingStopDiagnostics(in archiveURL: URL) throws {
-        let inspection = try GTFSFeedInspector.inspect(archiveURL)
+        var inspectionProgress: [GTFSFeedInspectionProgress] = []
+        let inspection = try GTFSFeedInspector.inspect(archiveURL) {
+            inspectionProgress.append($0)
+        }
+        precondition(inspectionProgress.first?.stage == .readingArchive)
+        precondition(inspectionProgress.contains { $0.stage == .readingRoutes })
+        precondition(inspectionProgress.last?.stage == .inspectionComplete)
+        let tripDiagnostics = inspectionProgress.filter { $0.stage == .tripDiagnostics }
+        precondition(tripDiagnostics.first?.completed == 0)
+        precondition(tripDiagnostics.last?.completed == 3)
+        precondition(tripDiagnostics.last?.total == 3)
         let quality = inspection.quality
         precondition(quality.tripsWithMissingStopCoordinates == 1)
         precondition(quality.tripsWithMissingStopRecords == 1)
