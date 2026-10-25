@@ -681,7 +681,7 @@ struct OperationsDashboardView: View {
             }
             workspaceContent
         }
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(PlatformColors.windowBackground)
     }
 
     private var dashboardFileHandling: some View {
@@ -1018,7 +1018,12 @@ struct OperationsDashboardView: View {
 
             if library.importState.isImporting || library.geometryImportState.isImporting || catalog.activeVersion == nil {
                 HStack(spacing: 6) {
-                    if library.importState.isImporting || library.geometryImportState.isImporting {
+                    if let progress = library.gtfsImportProgress,
+                       let fraction = progress.fraction {
+                        ProgressView(value: fraction)
+                            .progressViewStyle(.linear)
+                            .frame(width: 54)
+                    } else if library.importState.isImporting || library.geometryImportState.isImporting {
                         ProgressView().controlSize(.small)
                     } else {
                         Image(systemName: "circle.dashed")
@@ -1074,7 +1079,7 @@ struct OperationsDashboardView: View {
             } label: {
                 Label("Options", systemImage: "ellipsis.circle")
             }
-            .menuStyle(.borderedButton)
+            .platformBorderedMenuStyle()
             .help("Sauvegarde et options de carrière")
 
             if simulation.session == nil, isSelectedDepotPlayable {
@@ -1483,7 +1488,7 @@ struct OperationsDashboardView: View {
             } label: {
                 Label("Importer", systemImage: "square.and.arrow.down")
             }
-            .menuStyle(.borderedButton)
+            .platformBorderedMenuStyle()
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
@@ -1504,7 +1509,9 @@ struct OperationsDashboardView: View {
     }
 
     private var networkStatusTitle: String {
-        if library.importState.isImporting { return "Import initial du réseau" }
+        if library.importState.isImporting {
+            return library.gtfsImportProgress?.message ?? "Import du réseau IDFM"
+        }
         if library.geometryImportState.isImporting { return "Chargement des tracés" }
         if catalog.activeVersion == nil { return "Réseau en attente" }
         return "\(selectedDepotMapLines.count) lignes affichées"
@@ -1595,7 +1602,7 @@ struct OperationsDashboardView: View {
             } label: {
                 Label(simulation.session == nil ? "Choisir un dépôt" : "Changer de dépôt", systemImage: "chevron.down")
             }
-            .menuStyle(.borderedButton)
+            .platformBorderedMenuStyle()
             .help(simulation.session == nil
                 ? "Choisir un dépôt régional et consulter ses lignes réelles"
                 : "Changer de dépôt actif ou choisir un site dans le répertoire régional complet")
@@ -1844,7 +1851,7 @@ struct OperationsDashboardView: View {
             .padding(12)
         }
         .frame(width: 286)
-        .background(Color(nsColor: .controlBackgroundColor))
+        .background(PlatformColors.controlBackground)
     }
 
     private func depotLineRow(_ line: DepotMapLine) -> some View {
@@ -3610,11 +3617,17 @@ struct OperationsDashboardView: View {
     private var networkStartupCard: some View {
         VStack(spacing: 11) {
             if library.importState.isImporting {
-                ProgressView()
-                    .controlSize(.large)
+                if let progress = library.gtfsImportProgress,
+                   let fraction = progress.fraction {
+                    ProgressView(value: fraction)
+                        .progressViewStyle(.linear)
+                } else {
+                    ProgressView()
+                        .controlSize(.large)
+                }
                 Text("Préparation du réseau IDFM")
                     .font(.headline)
-                Text("Le jeu prépare les lignes, arrêts, horaires, plans et tracés déjà intégrés. Le premier lancement peut prendre plusieurs minutes et utiliser plusieurs Go d’espace disque.")
+                Text(library.gtfsImportProgress?.message ?? "Le jeu prépare les lignes, arrêts, horaires, plans et tracés déjà intégrés. Le premier lancement peut prendre plusieurs minutes et utiliser plusieurs Go d’espace disque.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -3916,7 +3929,7 @@ private struct NetworkContractLibraryView: View {
                 }
             }
             .navigationTitle("Contours des contrats bus")
-            .navigationSubtitle("\(library.contractFeatures.count) entités • source conservée avec attribution")
+            .platformNavigationSubtitle("\(library.contractFeatures.count) entités • source conservée avec attribution")
             .searchable(text: $searchText, prompt: "Contrat, exploitant ou attribut source")
             .safeAreaInset(edge: .bottom) {
                 Text("Un contour agrège des communes et peut chevaucher un autre contrat. Il ne rattache pas une ligne à un centre bus.")
@@ -4017,7 +4030,7 @@ private struct NetworkRouteLibraryView: View {
                 }
             }
             .navigationTitle("Lignes de bus importées")
-            .navigationSubtitle("\(library.busRoutes.count) lignes GTFS • \(library.lineReferences.count) références IDFM")
+            .platformNavigationSubtitle("\(library.busRoutes.count) lignes GTFS • \(library.lineReferences.count) références IDFM")
             .searchable(text: $searchText, prompt: "Nom, numéro ou identifiant")
         }
         .task {
@@ -4486,7 +4499,7 @@ private struct NetworkStopDetailPopover: View {
                     } label: {
                         Label("Planifier une déviation", systemImage: "point.3.connected.trianglepath.dotted")
                     }
-                    .menuStyle(.borderedButton)
+                    .platformBorderedMenuStyle()
                     .disabled(simulation.session?.incidentAwaitingRepairResponse != nil)
                 }
                 ForEach(activeClosures) { closure in
@@ -4539,7 +4552,7 @@ private struct NetworkStopDetailPopover: View {
                             }
                         }
                     }
-                    .menuStyle(.borderedButton)
+                    .platformBorderedMenuStyle()
                     .disabled(replacementEligibleRouteIDs.isEmpty || simulation.session?.incidentAwaitingRepairResponse != nil)
                     Text("Le bus conserve le tracé GTFS. L’arrêt de remplacement guide les voyageurs à pied et ne crée pas de déviation routière.")
                         .font(.caption2)
@@ -4822,7 +4835,7 @@ private struct BusDetailPopover: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(PlatformColors.windowBackground)
         .environment(\.timeZone, GTFSServiceDate.parisTimeZone)
     }
 
