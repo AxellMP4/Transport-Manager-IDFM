@@ -85,7 +85,7 @@ struct DepotInspectorView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(PlatformColors.windowBackground)
         .sheet(isPresented: $isDepotLineRosterPresented) {
             if let depot {
                 DepotLineRosterView(
@@ -306,7 +306,11 @@ struct DepotLineRosterView: View {
                         .frame(maxWidth: 300, alignment: .leading)
 
                         DatePicker("Date de service", selection: $serviceDate, displayedComponents: .date)
+                            #if os(macOS)
                             .datePickerStyle(.field)
+                            #else
+                            .datePickerStyle(.compact)
+                            #endif
                             .frame(maxWidth: 250)
                     }
 
@@ -761,7 +765,7 @@ private struct DepotFleetObservationCard: View {
         .padding(compact ? 0 : 10)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            compact ? Color.clear : Color(nsColor: .controlBackgroundColor),
+            compact ? Color.clear : PlatformColors.controlBackground,
             in: RoundedRectangle(cornerRadius: 10, style: .continuous)
         )
     }
@@ -1058,7 +1062,7 @@ struct DepotDirectoryWorkspaceView: View {
             selectedDepotDetail
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(PlatformColors.windowBackground)
         .task(id: coverageSourceTaskID) {
             await library.loadActiveRouteGeometries()
             await library.loadActiveLineDocuments()
@@ -1133,9 +1137,9 @@ struct DepotDirectoryWorkspaceView: View {
                     ContentUnavailableView.search(text: searchText)
                 }
             }
-            .listStyle(.inset(alternatesRowBackgrounds: false))
+            .platformInsetListStyle()
         }
-        .background(Color(nsColor: .controlBackgroundColor))
+        .background(PlatformColors.controlBackground)
     }
 
     @ViewBuilder
