@@ -632,7 +632,7 @@ struct DepotLinesWorkspaceView: View {
                 }
             }
         }
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(PlatformColors.windowBackground)
         .onChange(of: activeLineIDs) { _, ids in
             if !ids.contains(selectedLineID ?? "") {
                 selectedLineID = ids.first
@@ -758,7 +758,7 @@ struct DepotLinesWorkspaceView: View {
             }
         }
         .frame(width: 270)
-        .background(Color(nsColor: .controlBackgroundColor))
+        .background(PlatformColors.controlBackground)
     }
 
     private func lineListRow(_ row: DepotLineRosterRow) -> some View {
