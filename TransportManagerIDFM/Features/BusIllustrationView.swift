@@ -31,7 +31,7 @@ struct BusIllustrationView: View {
             context.scaleBy(x: sx, y: sy)
 
             let shell = Path(roundedRect: CGRect(x: 10, y: 24, width: 280, height: 48), cornerRadius: 9)
-            context.fill(shell, with: .color(Color(nsColor: .controlBackgroundColor)))
+            context.fill(shell, with: .color(PlatformColors.controlBackground))
 
             // Continuous lower belt gives the model a recognisable transit profile.
             let belt = Path(roundedRect: CGRect(x: 13, y: 58, width: 274, height: 10), cornerRadius: 4)
@@ -51,7 +51,7 @@ struct BusIllustrationView: View {
             if bodySections > 1 {
                 let jointX: CGFloat = bodySections == 3 ? 158 : 155
                 let joint = Path(roundedRect: CGRect(x: jointX, y: 25, width: 10, height: 45), cornerRadius: 2)
-                context.fill(joint, with: .color(Color(nsColor: .windowBackgroundColor).opacity(0.85)))
+                context.fill(joint, with: .color(PlatformColors.windowBackground.opacity(0.85)))
                 for rib in stride(from: 0, to: 3, by: 1) {
                     var ribPath = Path()
                     ribPath.move(to: CGPoint(x: jointX + 2 + CGFloat(rib) * 3, y: 27))
@@ -75,7 +75,7 @@ struct BusIllustrationView: View {
                 let wheel = Path(ellipseIn: CGRect(x: x, y: 62, width: 26, height: 26))
                 context.fill(wheel, with: .color(Color(red: 0.12, green: 0.14, blue: 0.16)))
                 let hub = Path(ellipseIn: CGRect(x: x + 7, y: 69, width: 12, height: 12))
-                context.fill(hub, with: .color(Color(nsColor: .controlBackgroundColor)))
+                context.fill(hub, with: .color(PlatformColors.controlBackground))
             }
 
             let headlight = Path(roundedRect: CGRect(x: 282, y: 49, width: 6, height: 8), cornerRadius: 2)
