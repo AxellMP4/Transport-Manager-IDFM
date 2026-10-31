@@ -1016,6 +1016,7 @@ struct PassengerStopDemand: Codable, Hashable, Sendable {
     let isTerminal: Bool
     let capacity: Int
     let capacityIsEstimated: Bool
+    var stopSequence: Int? = nil
 }
 
 enum PassengerInformationRules {
@@ -1024,6 +1025,83 @@ enum PassengerInformationRules {
     static func avoidedArrivals(from estimatedArrivals: Int) -> Int {
         let count = max(0, estimatedArrivals)
         return min(count, Int((Double(count) * detourMessageArrivalAvoidanceRate).rounded()))
+    }
+}
+
+struct LocalPassengerDemandEffect: Hashable, Sendable {
+    let displayName: String
+    let additionalArrivalRate: Double
+
+    func additionalArrivals(for baseEstimate: Int) -> Int {
+        let base = max(0, baseEstimate)
+        guard base > 0, additionalArrivalRate.isFinite, additionalArrivalRate > 0 else { return 0 }
+        let estimatedIncrease = Int((Double(base) * min(1, additionalArrivalRate)).rounded())
+        return min(base, max(1, estimatedIncrease))
+    }
+}
+
+enum LocalPassengerDemandRules {
+    static func effect(
+        stopID: String,
+        stopName: String,
+        at date: Date,
+        randomSeed: UInt64
+    ) -> LocalPassengerDemandEffect? {
+        let normalizedName = stopName
+            .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "fr_FR"))
+            .lowercased()
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = GTFSServiceDate.parisTimeZone
+        calendar.firstWeekday = 2
+        calendar.minimumDaysInFirstWeek = 4
+        let weekday = calendar.component(.weekday, from: date)
+        let hour = calendar.component(.hour, from: date)
+
+        if normalizedName.contains("marche"), weekday == 7, (8..<13).contains(hour) {
+            return LocalPassengerDemandEffect(
+                displayName: "Marché local (simulation)",
+                additionalArrivalRate: 0.60
+            )
+        }
+
+        if normalizedName.contains("parc des expositions")
+            || normalizedName.contains("parc expo")
+            || normalizedName.contains("salon")
+            || normalizedName.contains("exposition") {
+            let isWeekend = weekday == 1 || weekday == 7
+            guard isWeekend, (9..<18).contains(hour) else { return nil }
+            return LocalPassengerDemandEffect(
+                displayName: "Salon local (simulation)",
+                additionalArrivalRate: 0.65
+            )
+        }
+
+        if normalizedName.contains("stade")
+            || normalizedName.contains("arena")
+            || normalizedName.contains("hippodrome") {
+            let week = "\(calendar.component(.yearForWeekOfYear, from: date))-\(calendar.component(.weekOfYear, from: date))"
+            let eventDay = [6, 7, 1][Int(eventDayHash(seed: randomSeed, key: "\(stopID)|\(week)") % 3)]
+            guard weekday == eventDay, (15..<22).contains(hour) else { return nil }
+            return LocalPassengerDemandEffect(
+                displayName: "Affluence sportive locale (simulation)",
+                additionalArrivalRate: 0.90
+            )
+        }
+
+        return nil
+    }
+
+    private static func eventDayHash(seed: UInt64, key: String) -> UInt64 {
+        var hash = seed ^ 14_695_981_039_346_656_037
+        for byte in key.utf8 {
+            hash ^= UInt64(byte)
+            hash &*= 1_099_511_628_211
+        }
+        hash ^= hash >> 30
+        hash &*= 0xbf58_476d_1ce4_e5b9
+        hash ^= hash >> 27
+        hash &*= 0x94d0_49bb_1331_11eb
+        return hash ^ (hash >> 31)
     }
 }
 
@@ -1050,22 +1128,41 @@ struct PassengerStopExchange: Codable, Hashable, Sendable {
     var replacementStopName: String? = nil
     var replacementWaitingAfterCount: Int? = nil
     var informedPassengersAvoidingRouteCount: Int? = nil
+    var localEventName: String? = nil
+    var estimatedEventArrivalsCount: Int? = nil
+    var stopSequence: Int? = nil
+    var validationBreakdown: PassengerValidationBreakdown? = nil
 }
 
 private extension PassengerStopExchange {
     var eventSummary: String {
+        let validationSummary: String
+        if let validationBreakdown {
+            let rateDescription = validationBreakdown.validationRate.map {
+                "\(Int(($0 * 100).rounded())) %"
+            } ?? "sans montée"
+            let titleSummary = PassengerValidationType.allCases.map { type in
+                "\(type.title) \(validationBreakdown.validationCount(for: type))"
+            }.joined(separator: " · ")
+            validationSummary = " · Validations estimées : \(validationBreakdown.validatedCount)/\(validationBreakdown.boardedCount) (\(rateDescription)) · \(titleSummary)"
+        } else {
+            validationSummary = ""
+        }
         let informationEffect = (informedPassengersAvoidingRouteCount ?? 0) > 0
             ? " · message publié : \(informedPassengersAvoidingRouteCount ?? 0) arrivée(s) estimée(s) évitant cette ligne (règle de jeu)"
+            : ""
+        let localEventEffect = (estimatedEventArrivalsCount ?? 0) > 0
+            ? " · \(localEventName ?? "Événement local simulé") : +\(estimatedEventArrivalsCount ?? 0) arrivée(s) estimée(s)"
             : ""
         if stopWasClosed == true {
             guard let replacementStopID else {
                 let leftBehind = newlyLeftBehindCount ?? estimatedArrivalsCount ?? leftBehindCount
-                return "Arrêt fermé · \(leftBehind) voyageur(s) estimé(s) laissé(s) à quai à \(stopName)\(informationEffect)"
+                return "Arrêt fermé · \(leftBehind) voyageur(s) estimé(s) laissé(s) à quai à \(stopName)\(validationSummary)\(informationEffect)\(localEventEffect)"
             }
             let replacementName = replacementStopName.map { "\($0) (\(replacementStopID))" } ?? replacementStopID
-            return "Arrêt fermé · \(redirectedPassengerCount ?? 0) voyageur(s) redirigé(s) vers \(replacementName) · \(replacementWaitingAfterCount ?? 0) en attente\(informationEffect)"
+            return "Arrêt fermé · \(redirectedPassengerCount ?? 0) voyageur(s) redirigé(s) vers \(replacementName) · \(replacementWaitingAfterCount ?? 0) en attente\(validationSummary)\(informationEffect)\(localEventEffect)"
         }
-        return "Voyageurs estimés à \(stopName) · +\(boardedCount), −\(alightedCount), +\(newlyLeftBehindCount ?? leftBehindCount) laissés, \(waitingAfterCount ?? leftBehindCount) en attente\(informationEffect)"
+        return "Voyageurs estimés à \(stopName) · +\(boardedCount), −\(alightedCount), +\(newlyLeftBehindCount ?? leftBehindCount) laissés, \(waitingAfterCount ?? leftBehindCount) en attente\(validationSummary)\(informationEffect)\(localEventEffect)"
     }
 }
 
@@ -1232,6 +1329,12 @@ struct DailyOperationsReport: Codable, Hashable, Identifiable, Sendable {
     let estimatedEnergyExpenses: Int?
     let estimatedPassengerBoardings: Int?
     let estimatedPassengersLeftBehind: Int?
+    var estimatedPassengerValidationBoardings: Int? = nil
+    var estimatedPassengerValidations: Int? = nil
+    var estimatedPassengerNavigoValidations: Int? = nil
+    var estimatedPassengerSingleTicketValidations: Int? = nil
+    var estimatedPassengerReducedFareValidations: Int? = nil
+    var estimatedPassengerFreeTravelValidations: Int? = nil
     let incidentCount: Int?
     let interruptedTripCount: Int?
     let repairExpenses: Int?
@@ -5675,12 +5778,13 @@ final class SimulationEngine: ObservableObject {
                 alightingShare: isFirstStop ? 0 : alightingShare,
                 isTerminal: isTerminal,
                 capacity: capacity,
-                capacityIsEstimated: capacityIsEstimated
+                capacityIsEstimated: capacityIsEstimated,
+                stopSequence: visit.stopSequence
             )
         }
     }
 
-    private static func resolvePassengerDemand(
+    static func resolvePassengerDemand(
         _ event: SimulationEvent,
         in session: SimulationSession
     ) -> SimulationEvent? {
@@ -5692,7 +5796,18 @@ final class SimulationEngine: ObservableObject {
             .map { demand.occurredAt.timeIntervalSince($0) }
             .map { min(10_800.0, max(300.0, $0)) }
             ?? 1_800.0
-        let baselineEstimatedArrivals = Int((Double(demand.estimatedArrivalsCount) * elapsedSinceLastVisit / 1_800.0).rounded())
+        let baselineEstimatedArrivals = max(
+            0,
+            Int((Double(demand.estimatedArrivalsCount) * elapsedSinceLastVisit / 1_800.0).rounded())
+        )
+        let localEventEffect = LocalPassengerDemandRules.effect(
+            stopID: demand.stopID,
+            stopName: demand.stopName,
+            at: demand.occurredAt,
+            randomSeed: session.randomSeed
+        )
+        let estimatedEventArrivals = localEventEffect?.additionalArrivals(for: baselineEstimatedArrivals) ?? 0
+        let estimatedArrivalsBeforeInformation = baselineEstimatedArrivals + estimatedEventArrivals
         let hasPublishedDetourMessage = (session.routeDetours ?? []).contains { detour in
             detour.routeID == demand.routeID
                 && detour.isActive(at: demand.occurredAt)
@@ -5701,9 +5816,9 @@ final class SimulationEngine: ObservableObject {
                     .isEmpty == false
         }
         let informedPassengersAvoidingRouteCount = hasPublishedDetourMessage
-            ? PassengerInformationRules.avoidedArrivals(from: baselineEstimatedArrivals)
+            ? PassengerInformationRules.avoidedArrivals(from: estimatedArrivalsBeforeInformation)
             : 0
-        let estimatedArrivals = max(0, baselineEstimatedArrivals - informedPassengersAvoidingRouteCount)
+        let estimatedArrivals = max(0, estimatedArrivalsBeforeInformation - informedPassengersAvoidingRouteCount)
         let waitingIncludingArrivals = waitingBefore + estimatedArrivals
         let onboardBefore = max(0, bus.onboardPassengerCount ?? 0)
         let activeClosure = session.stopClosures?.first(where: {
@@ -5737,6 +5852,14 @@ final class SimulationEngine: ObservableObject {
         let newlyLeftBehind = stopWasClosed
             ? (passengerCanFollowReplacement ? 0 : estimatedArrivals)
             : (demand.isTerminal ? 0 : max(0, estimatedArrivals - newlyBoarded))
+        let validationBreakdown = PassengerValidationRules.resolve(
+            boardedCount: boarded,
+            tripID: demand.tripID,
+            routeID: demand.routeID,
+            stopID: demand.stopID,
+            stopSequence: demand.stopSequence ?? 0,
+            randomSeed: session.randomSeed
+        )
         let exchange = PassengerStopExchange(
             tripID: demand.tripID,
             vehicleID: demand.vehicleID,
@@ -5761,7 +5884,11 @@ final class SimulationEngine: ObservableObject {
             replacementWaitingAfterCount: replacementWaitingAfter,
             informedPassengersAvoidingRouteCount: informedPassengersAvoidingRouteCount > 0
                 ? informedPassengersAvoidingRouteCount
-                : nil
+                : nil,
+            localEventName: estimatedEventArrivals > 0 ? localEventEffect?.displayName : nil,
+            estimatedEventArrivalsCount: estimatedEventArrivals > 0 ? estimatedEventArrivals : nil,
+            stopSequence: demand.stopSequence,
+            validationBreakdown: validationBreakdown
         )
         let resolvedEvent = SimulationEvent(
             sequence: event.sequence,
@@ -6257,6 +6384,27 @@ final class SimulationEngine: ObservableObject {
         let passengerBoardings = passengerExchanges?.reduce(into: 0) { total, exchange in
             total += exchange.boardedCount
         }
+        let passengerExchangesWithValidationData = passengerExchanges?.filter { exchange in
+            exchange.validationBreakdown?.boardedCount == max(0, exchange.boardedCount)
+        }
+        let passengerValidationBoardings = passengerExchangesWithValidationData?.reduce(into: 0) {
+            $0 += $1.validationBreakdown?.boardedCount ?? 0
+        }
+        let passengerValidations = passengerExchangesWithValidationData?.reduce(into: 0) {
+            $0 += $1.validationBreakdown?.validatedCount ?? 0
+        }
+        let passengerNavigoValidations = passengerExchangesWithValidationData?.reduce(into: 0) {
+            $0 += $1.validationBreakdown?.validationCount(for: .navigoSubscription) ?? 0
+        }
+        let passengerSingleTicketValidations = passengerExchangesWithValidationData?.reduce(into: 0) {
+            $0 += $1.validationBreakdown?.validationCount(for: .singleTicket) ?? 0
+        }
+        let passengerReducedFareValidations = passengerExchangesWithValidationData?.reduce(into: 0) {
+            $0 += $1.validationBreakdown?.validationCount(for: .reducedFare) ?? 0
+        }
+        let passengerFreeTravelValidations = passengerExchangesWithValidationData?.reduce(into: 0) {
+            $0 += $1.validationBreakdown?.validationCount(for: .freeTravel) ?? 0
+        }
         let strandedPassengerTotal = events.reduce(into: 0) { total, event in
             if case let .busServiceCompletedAtClosedStop(_, _, _, _, _, _, _, strandedCount) = event.kind {
                 total += strandedCount
@@ -6287,6 +6435,12 @@ final class SimulationEngine: ObservableObject {
             estimatedEnergyExpenses: energyExpenses,
             estimatedPassengerBoardings: passengerBoardings,
             estimatedPassengersLeftBehind: passengersLeftBehind,
+            estimatedPassengerValidationBoardings: passengerValidationBoardings,
+            estimatedPassengerValidations: passengerValidations,
+            estimatedPassengerNavigoValidations: passengerNavigoValidations,
+            estimatedPassengerSingleTicketValidations: passengerSingleTicketValidations,
+            estimatedPassengerReducedFareValidations: passengerReducedFareValidations,
+            estimatedPassengerFreeTravelValidations: passengerFreeTravelValidations,
             incidentCount: incidents,
             interruptedTripCount: incidents,
             repairExpenses: repairExpenses,
