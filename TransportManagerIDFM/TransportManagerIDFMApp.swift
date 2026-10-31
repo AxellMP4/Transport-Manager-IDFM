@@ -212,7 +212,22 @@ private struct MobileOperationsView: View {
             if library.catalog.activeVersion == nil {
                 Section("Réseau") {
                     if library.importState.isImporting || library.gtfsImportProgress != nil {
-                        ProgressView("Chargement du réseau IDFM…")
+                        if let progress = library.gtfsImportProgress {
+                            HStack(spacing: 12) {
+                                if let fraction = progress.fraction {
+                                    ProgressView(value: fraction)
+                                        .progressViewStyle(.circular)
+                                } else {
+                                    ProgressView()
+                                }
+                                Text(progress.message)
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                        } else {
+                            ProgressView("Chargement du réseau IDFM…")
+                        }
                     } else if let error = library.importState.errorMessage {
                         Label(error, systemImage: "exclamationmark.triangle")
                             .foregroundStyle(.orange)
@@ -389,7 +404,7 @@ private struct MobileOperationsView: View {
                     .font(.headline.monospaced())
                 Text(status.rawValue)
                     .font(.caption)
-                    .foregroundStyle(status == .confirmed ? Color.green : Color.secondary)
+                    .foregroundStyle(status == .confirmed ? Color.primary : Color.secondary)
                 Text("\(choice.routeIDs.count) variantes GTFS")
                     .font(.caption2)
                     .foregroundStyle(.secondary)

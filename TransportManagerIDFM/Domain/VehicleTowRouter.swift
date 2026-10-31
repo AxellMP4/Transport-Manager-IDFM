@@ -98,6 +98,8 @@ enum VehicleTowRouter {
                             routingSourceTitle: "Apple Plans · deux trajets automobiles calculés à la demande",
                             recoveryTeamID: VehicleRecoveryRules.teamID(for: depot.id),
                             recoveryTeamName: VehicleRecoveryRules.teamName(for: depot.name),
+                            recoveryProvider: .depotTeam,
+                            recoveryProviderSurchargeEuro: 0,
                             dispatchStartsAt: teamAvailableAt,
                             dispatchRouteDistanceMeters: dispatchRoute.distance,
                             dispatchExpectedTravelSeconds: dispatchRoute.expectedTravelTime,

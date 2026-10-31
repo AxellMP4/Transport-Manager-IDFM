@@ -1,7 +1,7 @@
+import Foundation
 import CloudKit
 import Combine
 import CryptoKit
-import Foundation
 
 private struct CloudCareerEnvelope: Codable, Sendable {
     let schemaVersion: Int
@@ -17,6 +17,22 @@ private struct CloudCareerEnvelope: Codable, Sendable {
     let assignments: [DepotLineAssignment]
 }
 
+private struct CloudCareerSaveTimestamp: Decodable {
+    let updatedAt: Date
+}
+
+enum CloudCareerSyncPolicy {
+    static func sourceUpdatedAt(from saveData: Data) throws -> Date {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try decoder.decode(CloudCareerSaveTimestamp.self, from: saveData).updatedAt
+    }
+
+    static func remoteIsNewer(remoteUpdatedAt: Date, localUpdatedAt: Date) -> Bool {
+        remoteUpdatedAt > localUpdatedAt
+    }
+}
+
 private struct CloudCareerArchiveManifest: Codable, Sendable {
     struct Entry: Codable, Hashable, Sendable {
         let path: String
@@ -28,7 +44,7 @@ private struct CloudCareerArchiveManifest: Codable, Sendable {
     let entries: [Entry]
 }
 
-private enum CloudCareerArchiveError: LocalizedError {
+enum CloudCareerArchiveError: LocalizedError {
     case missingPinnedVersion(String)
     case missingAssignment(String)
     case invalidArchive
@@ -48,7 +64,7 @@ private enum CloudCareerArchiveError: LocalizedError {
     }
 }
 
-private enum CloudCareerArchive {
+enum CloudCareerArchive {
     private static let magic = Data("TMIDFM1\n".utf8)
     private static let chunkSize = 1_048_576
     private static let maximumManifestBytes = 2_000_000
@@ -91,8 +107,7 @@ private enum CloudCareerArchive {
             guard isSafeRelativePath(relativePath) else { throw CloudCareerArchiveError.unsafePath }
             let values = try fileURL.resourceValues(forKeys: [.fileSizeKey])
             let byteCount = UInt64(max(0, values.fileSize ?? 0))
-            totalBytes += byteCount
-            guard totalBytes <= maximumTotalBytes else { throw CloudCareerArchiveError.oversizedArchive }
+            totalBytes = try adding(byteCount, to: totalBytes)
             entries.append(.init(path: relativePath, byteCount: byteCount, sha256: try checksum(fileURL)))
         }
 
@@ -138,8 +153,10 @@ private enum CloudCareerArchive {
               Set(manifest.entries.map(\.path)).count == manifest.entries.count else {
             throw CloudCareerArchiveError.invalidArchive
         }
-        let totalBytes = manifest.entries.reduce(UInt64(0)) { $0 &+ $1.byteCount }
-        guard totalBytes <= maximumTotalBytes else { throw CloudCareerArchiveError.oversizedArchive }
+        var totalBytes: UInt64 = 0
+        for entry in manifest.entries {
+            totalBytes = try adding(entry.byteCount, to: totalBytes)
+        }
 
         let stagingRoot = FileManager.default.temporaryDirectory
             .appending(path: "TransportManagerIDFM-iCloud-\(UUID().uuidString)", directoryHint: .isDirectory)
@@ -201,6 +218,14 @@ private enum CloudCareerArchive {
         return hasher.finalize().map { String(format: "%02x", $0) }.joined()
     }
 
+    private static func adding(_ byteCount: UInt64, to totalBytes: UInt64) throws -> UInt64 {
+        let (updatedTotal, overflowed) = totalBytes.addingReportingOverflow(byteCount)
+        guard !overflowed, updatedTotal <= maximumTotalBytes else {
+            throw CloudCareerArchiveError.oversizedArchive
+        }
+        return updatedTotal
+    }
+
     private static func readExactly(_ count: Int, from handle: FileHandle) throws -> Data {
         var result = Data()
         result.reserveCapacity(count)
@@ -249,6 +274,7 @@ final class CloudCareerSyncManager: ObservableObject {
     private static let minimumUploadInterval: TimeInterval = 120
 
     private let container = CKContainer(identifier: containerIdentifier)
+    private let throttleRetryScheduler = CloudSyncRetryScheduler()
     private var scheduledSync: Task<Void, Never>?
     private var lastUploadAttemptAt: Date?
     private var deviceID: String {
@@ -345,6 +371,7 @@ final class CloudCareerSyncManager: ObservableObject {
                 } else if localSession.updatedAt < checkpoint.localUpdatedAt {
                     try await download(remoteRecord, into: engine, library: library)
                 } else {
+                    throttleRetryScheduler.cancel()
                     hasConflict = false
                     statusMessage = "Carrière synchronisée avec iCloud"
                     lastSyncedAt = Date()
@@ -352,12 +379,16 @@ final class CloudCareerSyncManager: ObservableObject {
                 return
             }
 
-            if remoteEnvelope.sourceUpdatedAt > localSession.updatedAt {
+            if CloudCareerSyncPolicy.remoteIsNewer(
+                remoteUpdatedAt: remoteEnvelope.sourceUpdatedAt,
+                localUpdatedAt: localSession.updatedAt
+            ) {
                 try await download(remoteRecord, into: engine, library: library)
             } else if localSession.updatedAt > remoteEnvelope.sourceUpdatedAt {
                 try await upload(localSession: localSession, engine: engine, library: library, replacing: remoteRecord)
             } else {
                 storeCheckpoint(remoteRecord, sessionID: localSession.id, localUpdatedAt: localSession.updatedAt)
+                throttleRetryScheduler.cancel()
                 hasConflict = false
                 statusMessage = "Carrière synchronisée avec iCloud"
                 lastSyncedAt = Date()
@@ -373,9 +404,16 @@ final class CloudCareerSyncManager: ObservableObject {
         library: NetworkLibrary,
         replacing record: CKRecord?
     ) async throws {
-        if let lastUploadAttemptAt,
-           Date().timeIntervalSince(lastUploadAttemptAt) < Self.minimumUploadInterval,
-           record != nil {
+        if record != nil,
+           throttleRetryScheduler.scheduleIfThrottled(
+               lastSuccessfulUploadAt: lastUploadAttemptAt,
+               now: Date(),
+               minimumInterval: Self.minimumUploadInterval,
+               retry: { [weak self, weak engine, weak library] in
+                   guard let self, let engine, let library else { return }
+                   await self.synchronize(with: engine, library: library)
+               }
+           ) {
             statusMessage = "Sauvegarde iCloud prévue dans moins de deux minutes"
             return
         }
@@ -392,6 +430,7 @@ final class CloudCareerSyncManager: ObservableObject {
             let savedRecord = try await container.privateCloudDatabase.save(targetRecord)
             lastUploadAttemptAt = Date()
             storeCheckpoint(savedRecord, sessionID: prepared.envelope.sessionID, localUpdatedAt: prepared.localUpdatedAt)
+            throttleRetryScheduler.cancel()
             hasConflict = false
             statusMessage = "Carrière et réseau sauvegardés dans iCloud"
             lastSyncedAt = Date()
@@ -471,6 +510,7 @@ final class CloudCareerSyncManager: ObservableObject {
 
         let checkpointRecord = try await fetchSharedRecord() ?? record
         storeCheckpoint(checkpointRecord, sessionID: envelope.sessionID, localUpdatedAt: engine.session?.updatedAt ?? envelope.sourceUpdatedAt)
+        throttleRetryScheduler.cancel()
         hasConflict = false
         statusMessage = "Carrière et réseau récupérés depuis iCloud"
         lastSyncedAt = Date()
@@ -512,7 +552,7 @@ final class CloudCareerSyncManager: ObservableObject {
         let envelope = CloudCareerEnvelope(
             schemaVersion: Self.schemaVersion,
             sessionID: updatedSession.id,
-            sourceUpdatedAt: updatedSession.updatedAt,
+            sourceUpdatedAt: try CloudCareerSyncPolicy.sourceUpdatedAt(from: saveData),
             deviceID: deviceID,
             networkVersions: updatedSession.networkVersions,
             gtfsVersion: gtfs,
@@ -538,7 +578,7 @@ final class CloudCareerSyncManager: ObservableObject {
     private func populate(_ record: CKRecord, prepared: PreparedSave) throws {
         record["schemaVersion"] = Self.schemaVersion as CKRecordValue
         record["sessionID"] = prepared.envelope.sessionID as CKRecordValue
-        record["sourceUpdatedAt"] = prepared.localUpdatedAt as CKRecordValue
+        record["sourceUpdatedAt"] = prepared.envelope.sourceUpdatedAt as CKRecordValue
         record["deviceID"] = deviceID as CKRecordValue
         record["envelope"] = prepared.envelopeData as CKRecordValue
         record["saveAsset"] = CKAsset(fileURL: prepared.saveURL)
@@ -631,6 +671,64 @@ private extension JSONEncoder {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         return encoder
+    }
+}
+
+@MainActor
+final class CloudSyncRetryScheduler {
+    typealias RetryOperation = @MainActor () async -> Void
+    typealias Cancellation = @Sendable () -> Void
+    typealias ScheduleOperation = @MainActor (TimeInterval, @escaping RetryOperation) -> Cancellation
+
+    private let scheduleOperation: ScheduleOperation
+    private var cancelPendingRetry: Cancellation?
+
+    init(schedule: @escaping ScheduleOperation = CloudSyncRetryScheduler.scheduleWithTask) {
+        scheduleOperation = schedule
+    }
+
+    @discardableResult
+    func scheduleIfThrottled(
+        lastSuccessfulUploadAt: Date?,
+        now: Date,
+        minimumInterval: TimeInterval,
+        retry: @escaping RetryOperation
+    ) -> Bool {
+        guard let lastSuccessfulUploadAt else { return false }
+        let remainingInterval = minimumInterval - now.timeIntervalSince(lastSuccessfulUploadAt)
+        guard remainingInterval > 0 else { return false }
+        guard cancelPendingRetry == nil else { return true }
+
+        cancelPendingRetry = scheduleOperation(remainingInterval) { [weak self] in
+            guard let self else { return }
+            self.cancelPendingRetry = nil
+            await retry()
+        }
+        return true
+    }
+
+    func cancel() {
+        let cancellation = cancelPendingRetry
+        cancelPendingRetry = nil
+        cancellation?()
+    }
+
+    deinit {
+        cancelPendingRetry?()
+    }
+
+    private static func scheduleWithTask(after delay: TimeInterval, retry: @escaping RetryOperation) -> Cancellation {
+        let nanoseconds = UInt64(max(0, delay) * 1_000_000_000)
+        let task = Task { @MainActor in
+            do {
+                try await Task.sleep(nanoseconds: nanoseconds)
+            } catch {
+                return
+            }
+            guard !Task.isCancelled else { return }
+            await retry()
+        }
+        return { task.cancel() }
     }
 }
 

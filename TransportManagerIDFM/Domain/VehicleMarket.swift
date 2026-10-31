@@ -168,6 +168,7 @@ struct VehicleMarketModel: Codable, Hashable, Identifiable, Sendable {
     let doubleDoorCount: Int?
     let wheelchairSpaces: Int?
     let energy: BusEnergy
+    let regionalEnergyDisplayTitle: String?
     let batteryCapacityKWh: Int?
     let maximumPowerKilowatts: Int?
     let maximumCapacity: Int?
@@ -195,6 +196,7 @@ struct VehicleMarketModel: Codable, Hashable, Identifiable, Sendable {
     let marketAvailabilityNote: String?
 
     var displayName: String { "\(manufacturer) \(commercialName)" }
+    var displayEnergyTitle: String { regionalEnergyDisplayTitle ?? energy.title }
 
 }
 
@@ -1485,6 +1487,34 @@ enum VehicleMarketCatalog {
             marketAvailabilityNote: "Référence de la ligne 393 en Île-de-France ; aucune présence à Bords de Marne, compatibilité avec ses COB ni aucun prix individuel ne sont documentés. Aucune offre d’achat n’est proposée."
         ),
         model(
+            id: "solaris-new-urbino-12-hydrogen-idfm",
+            manufacturer: "Solaris",
+            commercialName: "New Urbino 12 H₂",
+            vehicleClass: .standard,
+            length: 12,
+            width: 2.55,
+            height: 3.30,
+            energy: .electric,
+            regionalEnergyDisplayTitle: "Hydrogène · pile à combustible, traction électrique",
+            maxCapacity: 90,
+            seatedCapacity: nil,
+            firstYear: nil,
+            lastYear: nil,
+            regionalEvidenceYear: 2024,
+            regionalEvidenceLabel: "IDFM · 22 Urbino 12 H₂ retenus en 2024",
+            rangeKilometers: 350,
+            rangeEvidenceNote: "La fiche CATP de l’accord-cadre 2022-03, lot 1, annonce 350 km d’autonomie. Cette valeur de catalogue n’est pas une mesure de service.",
+            referencePrice: nil,
+            technicalTitle: "CATP · New Urbino 12 m H₂, accord-cadre 2022-03, lot 1",
+            technicalURL: "https://www.catp.fr/wp-content/uploads/2023/12/FP_CATP_Solaris_Bus-hydrogene-12m.pdf",
+            technicalDataNote: "La fiche CATP publie 34,2 kg d’hydrogène, deux moteurs de 125 kW, une batterie de 30,4 kWh, une pile à combustible de 70 kW, 20 places assises minimales et une capacité maximale de 90 voyageurs. Ces valeurs décrivent la fiche de l’accord-cadre, pas une configuration vérifiée pour chaque autobus livré. Solaris indique qu’IDFM a retenu 22 Urbino 12 H₂ en mars 2024, pour livraison prévue d’ici 2025. La RATP confirme aujourd’hui exploiter 22 bus hydrogène à Créteil sans nommer le constructeur. Cette référence ne prouve ni présence à Bords de Marne ni rattachement à un COB; l’hydrogène n’est pas simulé et aucune offre n’est créée.",
+            additionalEvidenceTitle: "RATP · 22 bus hydrogène exploités à Créteil, constructeur non précisé",
+            additionalEvidenceURL: "https://www.ratp.fr/programme-bus2025",
+            fleetTitle: "Solaris · IDFM retient 22 Urbino 12 H₂ · 14 mars 2024",
+            fleetURL: "https://www.solarisbus.com/en/press/pdf/2133",
+            marketAvailabilityNote: "Référence régionale d’un modèle retenu par IDFM; la RATP confirme un parc de 22 bus hydrogène à Créteil, sans identifier la marque. Aucun prix individuel, rattachement à Bords de Marne ou équipement hydrogène des COB n’est établi. La motorisation et le coût H₂ ne sont pas simulés dans cette version; le modèle reste une fiche de référence sans offre d’achat."
+        ),
+        model(
             id: "heuliez-gx437-hybrid",
             manufacturer: "Heuliez Bus",
             commercialName: "GX 437 Hybrid",
@@ -2357,6 +2387,7 @@ enum VehicleMarketCatalog {
         doubleDoors: Int? = nil,
         wheelchairSpaces: Int? = nil,
         energy: BusEnergy,
+        regionalEnergyDisplayTitle: String? = nil,
         batteryCapacityKWh: Int? = nil,
         maximumPowerKilowatts: Int? = nil,
         maxCapacity: Int?,
@@ -2392,6 +2423,7 @@ enum VehicleMarketCatalog {
             doubleDoorCount: doubleDoors,
             wheelchairSpaces: wheelchairSpaces,
             energy: energy,
+            regionalEnergyDisplayTitle: regionalEnergyDisplayTitle,
             batteryCapacityKWh: batteryCapacityKWh,
             maximumPowerKilowatts: maximumPowerKilowatts,
             maximumCapacity: maxCapacity,

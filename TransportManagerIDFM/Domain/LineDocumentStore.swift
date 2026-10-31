@@ -35,6 +35,64 @@ enum LineDocumentStore {
     private static let licenseURL = "https://www.etalab.gouv.fr/licence-ouverte-open-licence"
     static let latestCSVExportURL = URL(string: "https://data.iledefrance-mobilites.fr/api/explore/v2.1/catalog/datasets/fiches-horaires-et-plans/exports/csv?lang=fr&timezone=Europe%2FParis")!
 
+    // The bundled catalogue snapshot predates these two official November 2026 timetable sheets.
+    // Keep them as dated links until a newer complete IDFM CSV is imported.
+    private static let bordsDeMarneScheduleSupplement: [NetworkLineDocument] = [
+        NetworkLineDocument(
+            id: "idfm-current-schedule-C01228-2026-11-01",
+            idLine: "C01228",
+            documentName: "Horaires Ligne 214 du 1er nov. 2026 au 11 juil. 2027",
+            documentURL: "https://ilico.iledefrance-mobilites.fr/uploads/fiches/20261029T101054Z-d933042c-cf70-42d5-aebb-768007465237.pdf",
+            documentType: "HORAIRE",
+            lineName: "214",
+            attributes: [
+                "date_publication": "2026-10-29",
+                "date_validite": "2026-11-01/2027-07-11",
+                "source": "Catalogue public IDFM des fiches horaires et plans, consulté le 31 octobre 2026"
+            ]
+        ),
+        NetworkLineDocument(
+            id: "idfm-current-schedule-C02890-2026-11-01",
+            idLine: "C02890",
+            documentName: "Horaires Ligne 314 du 1er nov. 2026 au 11 juil. 2027",
+            documentURL: "https://ilico.iledefrance-mobilites.fr/uploads/fiches/20261021T153740Z-878f05ec-b765-486b-bb83-7d8a6d99c48b.pdf",
+            documentType: "HORAIRE",
+            lineName: "314",
+            attributes: [
+                "date_publication": "2026-10-21",
+                "date_validite": "2026-11-01/2027-07-11",
+                "source": "Catalogue public IDFM des fiches horaires et plans, consulté le 31 octobre 2026"
+            ]
+        )
+    ]
+
+    static func supplementalBordsDeMarneSchedules(for idLine: String) -> [NetworkLineDocument] {
+        let canonicalID = LineReferenceMatcher.canonicalIdentifier(idLine)
+        guard !canonicalID.isEmpty else { return [] }
+        return bordsDeMarneScheduleSupplement.filter {
+            LineReferenceMatcher.canonicalIdentifier($0.idLine) == canonicalID
+        }
+    }
+
+    static func documents(fromCatalog documents: [NetworkLineDocument], for idLine: String) -> [NetworkLineDocument] {
+        let canonicalID = LineReferenceMatcher.canonicalIdentifier(idLine)
+        guard !canonicalID.isEmpty else { return [] }
+        let matchingDocuments = documents.filter {
+            LineReferenceMatcher.canonicalIdentifier($0.idLine) == canonicalID
+        }
+        let supplementalDocuments = supplementalBordsDeMarneSchedules(for: canonicalID)
+        var seenURLs = Set<String>()
+        let uniqueDocuments = (matchingDocuments + supplementalDocuments).filter { document in
+            let key = document.documentURL.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !key.isEmpty else { return false }
+            return seenURLs.insert(key).inserted
+        }
+        return uniqueDocuments.sorted {
+            if $0.documentType != $1.documentType { return $0.documentType < $1.documentType }
+            return $0.documentName.localizedStandardCompare($1.documentName) == .orderedAscending
+        }
+    }
+
     static func importCSV(from sourceURL: URL) throws -> LineDocumentImportResult {
         try importCSV(data: Data(contentsOf: sourceURL), originalFilename: sourceURL.lastPathComponent)
     }

@@ -220,6 +220,7 @@ private enum AssignmentWorkspaceSection: String, WorkspacePickerSection {
 
 private enum ReportWorkspaceSection: String, WorkspacePickerSection {
     case daily
+    case passengers
     case finances
     case payroll
     case progression
@@ -228,6 +229,7 @@ private enum ReportWorkspaceSection: String, WorkspacePickerSection {
     var title: String {
         switch self {
         case .daily: "Exploitation"
+        case .passengers: "Voyageurs"
         case .finances: "Finances"
         case .payroll: "Paie"
         case .progression: "Progression"
@@ -1285,6 +1287,12 @@ struct OperationsDashboardView: View {
                         switch reportWorkspaceSection {
                         case .daily:
                             DailyOperationsReportView(simulation: simulation, showsCloseButton: false)
+                        case .passengers:
+                            if let session = simulation.session {
+                                PassengerOperationsReportView(session: session)
+                            } else {
+                                sessionRequiredWorkspace(title: "Démarre une partie pour consulter les montées et validations voyageurs.", symbol: "person.2")
+                            }
                         case .finances:
                             MonthlyFinancialReportView(simulation: simulation, showsCloseButton: false)
                         case .payroll:
@@ -2710,9 +2718,9 @@ struct OperationsDashboardView: View {
         return coordinates.last
     }
 
-    private var mapPanel: some View {
-        Map(position: $cameraPosition, interactionModes: [.pan, .zoom]) {
-            if showsNetworkLayer {
+    @MapContentBuilder
+    private var routeNetworkMapContent: some MapContent {
+        if showsNetworkLayer {
             ForEach(selectedDepotMapLines) { line in
                 ForEach(line.geometries) { geometry in
                     ForEach(Array(geometry.paths.enumerated()), id: \.offset) { component in
@@ -2761,8 +2769,12 @@ struct OperationsDashboardView: View {
                     .stroke(routeColor(for: geometry), lineWidth: 4)
                 }
             }
-            }
-            if showsFleetLayer {
+        }
+    }
+
+    @MapContentBuilder
+    private var fleetMovementMapContent: some MapContent {
+        if showsFleetLayer {
             ForEach(mapFleetBuses.filter { $0.status == .beingTowed || $0.status == .deadheadingToService || $0.status == .returningToDepot }) { bus in
                 if let leg = bus.activeMovementLeg {
                     MapPolyline(coordinates: leg.coordinates.map {
@@ -2782,8 +2794,12 @@ struct OperationsDashboardView: View {
                     .stroke(.orange, style: StrokeStyle(lineWidth: 3, dash: [3, 5]))
                 }
             }
-            }
-            if showsIncidentsLayer {
+        }
+    }
+
+    @MapContentBuilder
+    private var recoveryDispatchMapContent: some MapContent {
+        if showsIncidentsLayer {
             ForEach(recoveryTeamDispatchIncidents) { incident in
                 if let plan = incident.towPlan,
                    let dispatchCoordinates = plan.dispatchRouteCoordinates {
@@ -2803,8 +2819,12 @@ struct OperationsDashboardView: View {
                     }
                 }
             }
-            }
-            if showsNetworkLayer {
+        }
+    }
+
+    @MapContentBuilder
+    private var tripNetworkMapContent: some MapContent {
+        if showsNetworkLayer {
             if let selectedContractFeature {
                 ForEach(Array(selectedContractFeature.outlines.enumerated()), id: \.offset) { outline in
                     MapPolyline(coordinates: outline.element.map {
@@ -2819,8 +2839,12 @@ struct OperationsDashboardView: View {
                 })
                 .stroke(Color.green.opacity(0.85), style: StrokeStyle(lineWidth: 4, dash: [9, 5]))
             }
-            }
-            if showsIncidentsLayer {
+        }
+    }
+
+    @MapContentBuilder
+    private var incidentMapContent: some MapContent {
+        if showsIncidentsLayer {
             ForEach(activeStopReplacementGuides) { item in
                 MapPolyline(coordinates: item.guide.walkingCoordinates.map {
                     CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude)
@@ -2871,8 +2895,12 @@ struct OperationsDashboardView: View {
                         .accessibilityLabel("Incident actif sur la ligne \(incident.routeID), arrêt \(incident.stopName)")
                 }
             }
-            }
-            if showsStopsLayer {
+        }
+    }
+
+    @MapContentBuilder
+    private var stopMapContent: some MapContent {
+        if showsStopsLayer {
             ForEach(visibleBusStops) { stop in
                 let closure = simulation.session?.activeStopClosure(stopID: stop.stopID, routeIDs: stop.routeIDs)
                 Annotation(stop.name, coordinate: CLLocationCoordinate2D(latitude: stop.latitude, longitude: stop.longitude)) {
@@ -2889,42 +2917,44 @@ struct OperationsDashboardView: View {
                     .accessibilityLabel(closure == nil ? "Ouvrir la fiche de l’arrêt \(stop.name)" : "Arrêt fermé : \(stop.name)")
                 }
             }
-            }
-            if showsFleetLayer {
+        }
+    }
+
+    @MapContentBuilder
+    private var fleetVehicleMapContent: some MapContent {
+        if showsFleetLayer {
             ForEach(mapFleetBuses) { bus in
                 if let latitude = bus.latitude, let longitude = bus.longitude,
-                   VehicleMarketCatalog.model(id: bus.modelID) != nil {
+                   let model = VehicleMarketCatalog.model(id: bus.modelID) {
                     let shellNumber = busShellNumber(for: bus)
                     Annotation(
                         "Bus \(shellNumber)",
                         coordinate: CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
                     ) {
-                        Button {
-                            selectedBusID = bus.id
-                        } label: {
-                            HStack(spacing: 5) {
-                            Image(systemName: bus.status == .beingTowed
-                                  ? "truck.box.fill"
-                                  : (bus.status == .outOfService
-                                      ? "wrench.and.screwdriver.fill"
-                                      : (bus.status == .inMaintenance ? "wrench.and.screwdriver" : "bus.fill")))
-                                .font(.caption2.weight(.bold))
-                                .foregroundStyle(.white)
-                            Text(shellNumber)
-                                .font(.caption2.monospaced().weight(.bold))
-                                .foregroundStyle(.primary)
-                            }
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 6)
-                            .background(.regularMaterial, in: Capsule())
-                            .overlay(Capsule().strokeBorder(busMapColor(bus.status), lineWidth: 2))
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Ouvrir le bus \(shellNumber), \(bus.status.title)")
+                        PassengerVehicleMapMarkerView(
+                            shellNumber: shellNumber,
+                            status: bus.status,
+                            mapColor: busMapColor(bus.status),
+                            passengerCount: bus.onboardPassengerCount ?? 0,
+                            capacity: VehicleMarketCatalog.passengerCapacity(for: model),
+                            capacityIsEstimated: VehicleMarketCatalog.usesEstimatedPassengerCapacity(for: model),
+                            action: { selectedBusID = bus.id }
+                        )
                     }
                 }
             }
-            }
+        }
+    }
+
+    private var mapPanel: some View {
+        Map(position: $cameraPosition, interactionModes: [.pan, .zoom]) {
+            routeNetworkMapContent
+            fleetMovementMapContent
+            recoveryDispatchMapContent
+            tripNetworkMapContent
+            incidentMapContent
+            stopMapContent
+            fleetVehicleMapContent
         }
             .mapStyle(.standard(elevation: .flat))
             .mapControls {
@@ -4109,7 +4139,7 @@ private struct LineDocumentsForRouteView: View {
                 .font(.caption2.weight(.bold))
                 .tracking(0.5)
                 .foregroundStyle(.secondary)
-            if !hasDocumentCatalogue {
+            if !hasDocumentCatalogue && documents.isEmpty {
                 Text("Importez le catalogue IDFM des plans et fiches horaires pour afficher les liens de cette ligne.")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
@@ -4742,6 +4772,22 @@ private struct BusDetailPopover: View {
         session.vehicleIncidents?.last(where: { $0.vehicleID == bus.id && !$0.isResolved })
     }
 
+    private var currentTripID: String? {
+        bus.currentTripID ?? serviceAssignment?.tripID
+    }
+
+    private var currentTripExchanges: [PassengerStopExchange] {
+        guard let currentTripID else { return [] }
+        return (session.passengerExchangeRecords ?? []).map(\.exchange).filter {
+            $0.vehicleID == bus.id && $0.tripID == currentTripID
+        }
+    }
+
+    private var currentTripAnalytics: PassengerAnalyticsSnapshot? {
+        guard !currentTripExchanges.isEmpty else { return nil }
+        return PassengerAnalytics.snapshot(exchanges: currentTripExchanges, grouping: .stop)
+    }
+
     private var estimatedSpeedKilometersPerHour: Int? {
         guard let leg = bus.activeMovementLeg,
               leg.endsAt > leg.startsAt,
@@ -4828,6 +4874,47 @@ private struct BusDetailPopover: View {
             detailRow("Kilométrage d’ancienneté", value: "\(bus.odometerKilometers.formatted()) km")
             detailRow("Qui conduit", value: assignedMachinist?.displayName ?? "Aucun machiniste affecté")
             detailRow("Incident", value: activeIncident.map { "\($0.severity.title) · \($0.stopName)" } ?? "Aucun incident actif")
+            if let model {
+                PassengerLoadGaugeView(
+                    passengerCount: bus.onboardPassengerCount ?? 0,
+                    capacity: VehicleMarketCatalog.passengerCapacity(for: model),
+                    capacityIsEstimated: VehicleMarketCatalog.usesEstimatedPassengerCapacity(for: model)
+                )
+            }
+            if let currentTripID {
+                GroupBox("Validations · course \(currentTripID)") {
+                    if let currentTripAnalytics,
+                       currentTripAnalytics.validationDataBoardings > 0 {
+                        VStack(alignment: .leading, spacing: 7) {
+                            Text("\(currentTripAnalytics.validations.formatted()) validées sur \(currentTripAnalytics.validationDataBoardings.formatted()) montées · \(currentTripAnalytics.validationRate.map { "\(Int(($0 * 100).rounded())) %" } ?? "—")")
+                                .font(.subheadline.weight(.semibold))
+                            ForEach(PassengerValidationType.allCases) { type in
+                                HStack {
+                                    Text(type.title)
+                                    Spacer()
+                                    Text(currentTripAnalytics.validationCount(for: type).formatted())
+                                        .monospacedDigit()
+                                }
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            }
+                            Text(PassengerValidationRules.estimatedRulesLabel)
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, 4)
+                    } else {
+                        Text(currentTripExchanges.isEmpty
+                             ? "Les validations apparaîtront après le prochain arrêt desservi."
+                             : "Ancienne course sans ventilation détaillée des validations.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.top, 4)
+                    }
+                }
+            }
 
             Divider()
             Label("RADAR · POSITION SIMULÉE", systemImage: "dot.radiowaves.left.and.right")
@@ -4852,7 +4939,7 @@ private struct BusDetailPopover: View {
                 detailRow("Vitesse de la course", value: "~\(estimatedSpeedKilometersPerHour) km/h · estimation GTFS")
             }
             if let model {
-                detailRow("Modèle", value: "\(model.vehicleClass.title) · \(model.energy.title)")
+                detailRow("Modèle", value: "\(model.vehicleClass.title) · \(model.displayEnergyTitle)")
             }
             detailRow("État du véhicule", value: "\(bus.conditionPercent) %")
         }
@@ -5594,10 +5681,12 @@ private struct VehicleMarketView: View {
                                 }
                             }
                             if let model = VehicleMarketCatalog.model(id: bus.modelID) {
-                                let capacity = VehicleMarketCatalog.passengerCapacity(for: model)
-                                Text("Voyageurs estimés à bord · \(bus.onboardPassengerCount ?? 0)/\(capacity)\(VehicleMarketCatalog.usesEstimatedPassengerCapacity(for: model) ? " · capacité de jeu" : "")")
-                                    .font(.caption2.monospacedDigit())
-                                    .foregroundStyle(.secondary)
+                                PassengerLoadGaugeView(
+                                    passengerCount: bus.onboardPassengerCount ?? 0,
+                                    capacity: VehicleMarketCatalog.passengerCapacity(for: model),
+                                    capacityIsEstimated: VehicleMarketCatalog.usesEstimatedPassengerCapacity(for: model)
+                                )
+                                .frame(maxWidth: 240, alignment: .leading)
                                 if let passengersBoardedCount = bus.passengersBoardedCount,
                                    passengersBoardedCount > 0,
                                    let passengersLeftBehindCount = bus.passengersLeftBehindCount {
@@ -5870,7 +5959,7 @@ private struct VehicleMarketView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(model.displayName)
                         .font(.headline)
-                    Text("\(model.vehicleClass.title) • \(model.lengthMeters.map { "\($0.formatted(.number.precision(.fractionLength(2)))) m" } ?? "longueur à confirmer") • \(model.energy.title)")
+                    Text("\(model.vehicleClass.title) • \(model.lengthMeters.map { "\($0.formatted(.number.precision(.fractionLength(2)))) m" } ?? "longueur à confirmer") • \(model.displayEnergyTitle)")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                     Text("\(offer.condition.title) • année \(offer.vehicleYear) • \(offer.odometerKilometers.formatted()) km • état \(offer.conditionPercent) %")
@@ -6148,7 +6237,7 @@ private struct VehicleMarketView: View {
             }
             .font(.caption2)
             .foregroundStyle(.secondary)
-            Text(model.energy.title)
+            Text(model.displayEnergyTitle)
                 .font(.caption)
             if let note = model.marketAvailabilityNote {
                 Text(note)
@@ -8254,6 +8343,39 @@ private struct DailyOperationsReportView: View {
                     }
                 }
 
+                if let validationBoardings = report.estimatedPassengerValidationBoardings,
+                   validationBoardings > 0,
+                   let validations = report.estimatedPassengerValidations,
+                   let navigo = report.estimatedPassengerNavigoValidations,
+                   let singleTicket = report.estimatedPassengerSingleTicketValidations,
+                   let reducedFare = report.estimatedPassengerReducedFareValidations,
+                   let freeTravel = report.estimatedPassengerFreeTravelValidations {
+                    Divider()
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Validations voyageurs · estimations")
+                            .font(.subheadline.weight(.semibold))
+                        HStack(spacing: 0) {
+                            metric("Validations", value: validations.formatted(), symbol: "checkmark.seal.fill", color: .green)
+                            Divider().frame(height: 48)
+                            metric(
+                                "Taux sur montées détaillées",
+                                value: "\(Int((Double(validations) / Double(validationBoardings) * 100).rounded())) %",
+                                symbol: "percent",
+                                color: .blue
+                            )
+                        }
+                        Text([
+                            "\(PassengerValidationType.navigoSubscription.title) \(navigo.formatted())",
+                            "\(PassengerValidationType.singleTicket.title) \(singleTicket.formatted())",
+                            "\(PassengerValidationType.reducedFare.title) \(reducedFare.formatted())",
+                            "\(PassengerValidationType.freeTravel.title) \(freeTravel.formatted())"
+                        ].joined(separator: " · "))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+
                 if let incidentCount = report.incidentCount,
                    let interruptedTripCount = report.interruptedTripCount {
                     Divider()
@@ -9570,6 +9692,56 @@ private struct IncidentResponseView: View {
         return requiredRepairPart.purchasePriceEuro
     }
 
+    private var recoveryReliefAssessment: VehicleRecoveryReliefAssessment? {
+        guard let plan = towPlan, let session = simulation.session else { return nil }
+        return VehicleRecoveryRules.reliefAssessment(
+            from: plan,
+            simulatedAt: session.simulatedAt,
+            depotTeamAvailableAt: session.nextRecoveryTeamAvailableAt(depotID: plan.depotID),
+            reliefAvailableAt: session.nextRecoveryReliefAvailableAt(depotID: plan.depotID)
+        )
+    }
+
+    @ViewBuilder
+    private var recoveryReliefContent: some View {
+        if let assessment = recoveryReliefAssessment {
+            switch assessment {
+            case .notNeeded:
+                EmptyView()
+            case .outsideEstimatedCoverage:
+                Text("Aucun renfort simulé n’est disponible dans la couverture de jeu de \(Int(VehicleRecoveryRules.reliefMaximumDispatchDistanceMeters / 1_000)) km.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            case let .depotTeamArrivesFirst(reliefEarliestDispatchAt):
+                if let depotAvailableAt = towPlan?.dispatchStartsAt {
+                    Text("Aucun renfort simulé plus rapide : l’équipe du dépôt peut partir à \(depotAvailableAt.formatted(date: .abbreviated, time: .shortened)); le renfort serait disponible au plus tôt à \(reliefEarliestDispatchAt.formatted(date: .abbreviated, time: .shortened)).")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            case let .available(reliefPlan):
+                let session = simulation.session
+                let startsAt = reliefPlan.dispatchStartsAt ?? session?.simulatedAt ?? incident.occurredAt
+                let teamArrivalAt = reliefPlan.expectedRecoveryTeamArrivalAt ?? startsAt
+                let busArrivalAt = reliefPlan.expectedDepotArrivalAt ?? teamArrivalAt
+                VStack(alignment: .leading, spacing: 8) {
+                    incidentDetail("Renfort disponible", value: startsAt.formatted(date: .abbreviated, time: .shortened))
+                    incidentDetail("Attente avant départ", value: durationText(max(0, startsAt.timeIntervalSince(session?.simulatedAt ?? incident.occurredAt))))
+                    incidentDetail("Majoration estimée", value: currency(VehicleRecoveryRules.reliefSurchargeEuro))
+                    incidentDetail("Renfort sur place", value: teamArrivalAt.formatted(date: .abbreviated, time: .shortened))
+                    incidentDetail("Bus à l’atelier", value: busArrivalAt.formatted(date: .abbreviated, time: .shortened))
+                    Text("Règles de jeu estimées : disponibilité après 20 min, couverture de 35 km et majoration fixe de 1 500 €. Aucun prestataire réel n’est représenté.")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    responseButton(
+                        .towToDepot,
+                        subtitle: "Renfort contractuel simulé · sur place \(teamArrivalAt.formatted(date: .omitted, time: .shortened)) · bus à l’atelier \(busArrivalAt.formatted(date: .omitted, time: .shortened))",
+                        towPlan: reliefPlan
+                    )
+                }
+            }
+        }
+    }
+
     private var replacementCandidateBuses: [PurchasedBus] {
         guard let session = simulation.session else { return [] }
         return (session.ownedBuses ?? []).filter { bus in
@@ -9897,6 +10069,14 @@ private struct IncidentResponseView: View {
                                     Text("Une seule équipe de récupération est simulée par dépôt. Elle est réservée jusqu’à l’arrivée du bus à l’atelier. Les trajets automobiles Apple Plans sont calculés à l’instant du choix et ne simulent pas la circulation future de la partie.")
                                         .font(.caption2)
                                         .foregroundStyle(.secondary)
+                                    if let simulatedAt = simulation.session?.simulatedAt,
+                                       let depotTeamAvailableAt = simulation.session?.nextRecoveryTeamAvailableAt(depotID: towPlan.depotID),
+                                       depotTeamAvailableAt > simulatedAt {
+                                        incidentDetail("Attente de l’équipe du dépôt", value: durationText(depotTeamAvailableAt.timeIntervalSince(simulatedAt)))
+                                        Text("L’équipe simulée est réservée jusqu’au retour du bus au dépôt.")
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                    }
                                     Text("Règle de jeu : 2 500 € d’intervention + 12 €/km parcouru par l’équipe (dépôt → panne → dépôt) + réparation selon la gravité.")
                                         .font(.caption2)
                                         .foregroundStyle(.secondary)
@@ -9927,6 +10107,7 @@ private struct IncidentResponseView: View {
                                         subtitle: "Équipe sur place \(towPlan.expectedRecoveryTeamArrivalAt?.formatted(date: .omitted, time: .shortened) ?? "à calculer") · prise en charge 15 min · bus à l’atelier \(towPlan.expectedDepotArrivalAt?.formatted(date: .omitted, time: .shortened) ?? "à calculer") · attente baie/pièce \(durationText(waitingDuration)) + réparation \(durationText(incident.severity.repairDuration))",
                                         towPlan: towPlan
                                     )
+                                    recoveryReliefContent
                                 } else if isCalculatingTowRoute {
                                     ProgressView("Recherche d’un itinéraire vers les dépôts…")
                                         .font(.callout)
@@ -10001,7 +10182,7 @@ private struct IncidentResponseView: View {
         towPlan: VehicleTowPlan? = nil
     ) -> some View {
         let cost = response.cost(for: incident.severity, towDistanceMeters: towPlan?.totalServiceDistanceMeters ?? 0)
-        let displayedCost = cost + repairPartPurchaseCost
+        let displayedCost = cost + (towPlan?.recoveryProviderSurchargeEuro ?? 0) + repairPartPurchaseCost
         let deliveryDelay = simulation.workshopPartDeliveryEstimate(for: requiredRepairPart, modelID: requiredRepairModelID, depotID: requiredRepairDepotID)
             .map { max(0, $0.timeIntervalSince(simulation.session?.simulatedAt ?? incident.occurredAt)) } ?? 0
         let effectiveSubtitle = simulation.workshopPartQuantity(for: requiredRepairPart, modelID: requiredRepairModelID, depotID: requiredRepairDepotID) == 0
@@ -10017,7 +10198,7 @@ private struct IncidentResponseView: View {
         } label: {
             HStack(spacing: 14) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(response.title).font(.headline)
+                    Text(towPlan?.recoveryProvider == .simulatedRelief ? "Remorquage avec renfort simulé" : response.title).font(.headline)
                     Text(effectiveSubtitle).font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()

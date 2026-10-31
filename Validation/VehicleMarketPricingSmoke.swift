@@ -160,6 +160,33 @@ struct VehicleMarketPricingSmoke {
             "La variante Ebusco doit citer la brochure constructeur sans créer d’offre individuelle."
         )
 
+        guard let solarisUrbinoHydrogen = VehicleMarketCatalog.model(id: "solaris-new-urbino-12-hydrogen-idfm") else {
+            fatalError("La sélection IDFM du Solaris Urbino 12 H₂ doit apparaître comme référence régionale.")
+        }
+        precondition(
+            solarisUrbinoHydrogen.lengthMeters == 12
+                && solarisUrbinoHydrogen.widthMeters == 2.55
+                && solarisUrbinoHydrogen.heightMeters == 3.30
+                && solarisUrbinoHydrogen.maximumCapacity == 90
+                && solarisUrbinoHydrogen.seatedCapacity == nil
+                && solarisUrbinoHydrogen.displayEnergyTitle.contains("Hydrogène"),
+            "La fiche Solaris doit conserver les caractéristiques publiées et distinguer l’énergie H₂ de la traction électrique."
+        )
+        precondition(
+            solarisUrbinoHydrogen.estimatedNewPriceReference == nil
+                && solarisUrbinoHydrogen.newOfferAvailableFromYear == nil
+                && solarisUrbinoHydrogen.marketAvailabilityNote != nil
+                && VehicleMarketCatalog.offers(for: 2026).allSatisfy { $0.modelID != solarisUrbinoHydrogen.id },
+            "La référence IDFM ne doit pas produire d’offre, de prix ou d’affectation locale non documentés."
+        )
+        precondition(
+            solarisUrbinoHydrogen.technicalEvidenceURL == "https://www.catp.fr/wp-content/uploads/2023/12/FP_CATP_Solaris_Bus-hydrogene-12m.pdf"
+                && solarisUrbinoHydrogen.fleetEvidenceURL == "https://www.solarisbus.com/en/press/pdf/2133"
+                && solarisUrbinoHydrogen.technicalDataNote?.contains("30,4 kWh") == true
+                && solarisUrbinoHydrogen.technicalDataNote?.contains("34,2 kg") == true,
+            "La fiche CATP et la sélection Solaris IDFM doivent être reliées sans attribuer leurs données aux dépôts Bords de Marne."
+        )
+
         print("Validation de l’indexation tarifaire du marché réussie.")
     }
 }

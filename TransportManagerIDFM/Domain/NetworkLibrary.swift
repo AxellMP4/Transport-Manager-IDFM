@@ -136,11 +136,11 @@ private enum BundledGTFSArchiveAssemblyError: LocalizedError {
 }
 
 private enum BundledGTFSArchiveAssembler {
-    private static let expectedByteCount: UInt64 = 150_163_693
+    private static let expectedByteCount: UInt64 = 147_371_580
     private static let expectedSHA256 = GTFSImportProvenance.bundledArchiveSHA256
     static func assemble() throws -> URL {
         let destination = FileManager.default.temporaryDirectory
-            .appending(path: "idfm-gtfs-2026-10-24-bundled.zip")
+            .appending(path: "idfm-gtfs-2026-10-30-bundled.zip")
         try? FileManager.default.removeItem(at: destination)
         guard FileManager.default.createFile(atPath: destination.path, contents: nil) else {
             throw CocoaError(.fileWriteUnknown)
@@ -153,7 +153,7 @@ private enum BundledGTFSArchiveAssembler {
             let resources = Bundle.main.urls(forResourcesWithExtension: "bin", subdirectory: nil) ?? []
             let partURLs = try PublicGTFSFeed.orderedFragments(
                 resources,
-                named: "idfm-gtfs-2026-10-24-part"
+                named: "idfm-gtfs-2026-10-30-part"
             )
             for partURL in partURLs {
                 let input = try FileHandle(forReadingFrom: partURL)
@@ -1245,13 +1245,7 @@ final class NetworkLibrary: ObservableObject {
 
     func documents(for route: GTFSRouteSummary) -> [NetworkLineDocument] {
         guard let reference = lineReference(for: route) else { return [] }
-        let idLine = LineReferenceMatcher.canonicalIdentifier(reference.idLine)
-        return lineDocuments.filter {
-            LineReferenceMatcher.canonicalIdentifier($0.idLine) == idLine
-        }.sorted {
-            if $0.documentType != $1.documentType { return $0.documentType < $1.documentType }
-            return $0.documentName.localizedStandardCompare($1.documentName) == .orderedAscending
-        }
+        return LineDocumentStore.documents(fromCatalog: lineDocuments, for: reference.idLine)
     }
 
     func depotLineCoverage(

@@ -173,6 +173,152 @@ struct GTFSServiceTripSchedule: Codable, Hashable, Identifiable, Sendable {
     var id: String { tripID }
 }
 
+struct GTFSServiceTransferRule: Codable, Hashable, Sendable {
+    let fromStopID: String?
+    let toStopID: String?
+    let fromRouteID: String?
+    let toRouteID: String?
+    let fromTripID: String?
+    let toTripID: String?
+    let transferType: Int
+    let minimumTransferTime: Int?
+
+    init(
+        fromStopID: String?,
+        toStopID: String?,
+        fromRouteID: String?,
+        toRouteID: String?,
+        fromTripID: String?,
+        toTripID: String?,
+        transferType: Int,
+        minimumTransferTime: Int?
+    ) {
+        self.fromStopID = Self.cleaned(fromStopID)
+        self.toStopID = Self.cleaned(toStopID)
+        self.fromRouteID = Self.cleaned(fromRouteID)
+        self.toRouteID = Self.cleaned(toRouteID)
+        self.fromTripID = Self.cleaned(fromTripID)
+        self.toTripID = Self.cleaned(toTripID)
+        self.transferType = transferType
+        self.minimumTransferTime = minimumTransferTime
+    }
+
+    private static func cleaned(_ value: String?) -> String? {
+        guard let value else { return nil }
+        let result = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return result.isEmpty ? nil : result
+    }
+}
+
+struct GTFSServiceTransferIndex: Codable, Hashable, Sendable {
+    private let rulesByFromStopID: [String: [GTFSServiceTransferRule]]
+    private let rulesWithoutFromStop: [GTFSServiceTransferRule]
+    let parentStationIDByStopID: [String: String]
+
+    init(rules: [GTFSServiceTransferRule], parentStationIDByStopID: [String: String]) {
+        var groupedRules: [String: [GTFSServiceTransferRule]] = [:]
+        var unscopedRules: [GTFSServiceTransferRule] = []
+        for rule in rules {
+            guard (0...5).contains(rule.transferType) else { continue }
+            if let fromStopID = rule.fromStopID {
+                groupedRules[fromStopID, default: []].append(rule)
+            } else {
+                unscopedRules.append(rule)
+            }
+        }
+        rulesByFromStopID = groupedRules
+        rulesWithoutFromStop = unscopedRules
+        self.parentStationIDByStopID = parentStationIDByStopID
+    }
+
+    func rule(
+        fromStopID: String,
+        toStopID: String,
+        fromRouteID: String,
+        toRouteID: String,
+        fromTripID: String,
+        toTripID: String
+    ) -> GTFSServiceTransferRule? {
+        let originKeys = [fromStopID, parentStationIDByStopID[fromStopID]].compactMap { $0 }
+        var selectedRule: GTFSServiceTransferRule?
+        var selectedSpecificity = -1
+        var selectedStopSpecificity = -1
+
+        let indexedRules = originKeys.flatMap { rulesByFromStopID[$0, default: []] }
+        for rule in indexedRules + rulesWithoutFromStop {
+            guard Self.matches(
+                rule,
+                fromStopID: fromStopID,
+                toStopID: toStopID,
+                fromRouteID: fromRouteID,
+                toRouteID: toRouteID,
+                fromTripID: fromTripID,
+                toTripID: toTripID,
+                parentStationIDByStopID: parentStationIDByStopID
+            ) else { continue }
+
+            let specificity = Self.specificity(of: rule)
+            let stopSpecificity = (rule.fromStopID == fromStopID ? 1 : 0)
+                + (rule.toStopID == toStopID ? 1 : 0)
+            if specificity > selectedSpecificity
+                || (specificity == selectedSpecificity && stopSpecificity > selectedStopSpecificity) {
+                selectedRule = rule
+                selectedSpecificity = specificity
+                selectedStopSpecificity = stopSpecificity
+            }
+        }
+        return selectedRule
+    }
+
+    private static func matches(
+        _ rule: GTFSServiceTransferRule,
+        fromStopID: String,
+        toStopID: String,
+        fromRouteID: String,
+        toRouteID: String,
+        fromTripID: String,
+        toTripID: String,
+        parentStationIDByStopID: [String: String]
+    ) -> Bool {
+        if let ruleFromStopID = rule.fromStopID,
+           ruleFromStopID != fromStopID,
+           ruleFromStopID != parentStationIDByStopID[fromStopID] {
+            return false
+        }
+        if let ruleToStopID = rule.toStopID,
+           ruleToStopID != toStopID,
+           ruleToStopID != parentStationIDByStopID[toStopID] {
+            return false
+        }
+        if let ruleFromTripID = rule.fromTripID {
+            guard ruleFromTripID == fromTripID else { return false }
+        } else if let ruleFromRouteID = rule.fromRouteID,
+                  ruleFromRouteID != fromRouteID {
+            return false
+        }
+        if let ruleToTripID = rule.toTripID {
+            guard ruleToTripID == toTripID else { return false }
+        } else if let ruleToRouteID = rule.toRouteID,
+                  ruleToRouteID != toRouteID {
+            return false
+        }
+        return true
+    }
+
+    private static func specificity(of rule: GTFSServiceTransferRule) -> Int {
+        let hasFromTrip = rule.fromTripID != nil
+        let hasToTrip = rule.toTripID != nil
+        let hasFromRoute = !hasFromTrip && rule.fromRouteID != nil
+        let hasToRoute = !hasToTrip && rule.toRouteID != nil
+        if hasFromTrip && hasToTrip { return 6 }
+        if (hasFromTrip && hasToRoute) || (hasFromRoute && hasToTrip) { return 5 }
+        if hasFromTrip || hasToTrip { return 4 }
+        if hasFromRoute && hasToRoute { return 3 }
+        if hasFromRoute || hasToRoute { return 2 }
+        return 1
+    }
+}
+
 struct GTFSServiceTripMotif: Codable, Hashable, Identifiable, Sendable {
     let routeID: String
     let shapeID: String?
@@ -775,8 +921,10 @@ struct GTFSImportMetadata: Sendable {
 }
 
 enum GTFSImportProvenance: String, CaseIterable, Identifiable, Sendable {
-    static let bundledArchiveSHA256 = "7c5a06711fbe7cafaafd7ef02781ba1548a178e80326250131a63bbb829670bc"
+    static let bundledArchiveSHA256 = "501a1533cfe37c26795343cbf83a399515692bc87303816b1b0b91891e55e578"
     static let legacyBundledArchiveSHA256s: Set<String> = [
+        "110c0dfb5fd7771f985943ce05fcb71788aab8edde8bc67be1b0a7db9881cc16",
+        "7c5a06711fbe7cafaafd7ef02781ba1548a178e80326250131a63bbb829670bc",
         "6eb741b6eedb6b72d53bb3b76160ad3751aa33939357713759e0ca3ba96f8eb3",
         "3c3fe0eb7e165dde283ff87489339b48b4c3dcf69be011cc7ae2bc78d1764500"
     ]

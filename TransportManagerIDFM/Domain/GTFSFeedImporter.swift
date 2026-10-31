@@ -9,6 +9,7 @@ struct GTFSFeedInspection: Sendable {
     let busTripDepartures: [GTFSServiceTripDeparture]
     let busTripSchedules: [GTFSServiceTripSchedule]
     let busTripShapes: GTFSShapeDataset
+    let transferRuleIndex: GTFSServiceTransferIndex?
     let quality: GTFSImportQuality
     let busStopCount: Int
     let feedStopCount: Int
@@ -22,6 +23,7 @@ enum GTFSFeedInspectionStage: Equatable, Sendable {
     case readingTrips
     case readingStopTimes
     case readingStops
+    case readingTransfers
     case readingShapes
     case readingCalendars
     case tripDiagnostics
@@ -37,6 +39,7 @@ enum GTFSFeedInspectionStage: Equatable, Sendable {
         case .readingTrips: "Lecture des courses GTFS"
         case .readingStopTimes: "Lecture des horaires et arrêts desservis"
         case .readingStops: "Lecture des coordonnées des arrêts"
+        case .readingTransfers: "Indexation des règles de correspondance"
         case .readingShapes: "Lecture des géométries de lignes"
         case .readingCalendars: "Lecture des calendriers de service"
         case .tripDiagnostics: "Analyse des courses, arrêts et géométries"
@@ -80,6 +83,7 @@ enum GTFSFeedImportError: LocalizedError {
     case invalidCalendarDatesTable
     case invalidStopsTable
     case invalidShapesTable
+    case invalidTransfersTable
     case noBusRoutes
     case noStops
     case noGeolocatedBusStops
@@ -105,6 +109,8 @@ enum GTFSFeedImportError: LocalizedError {
             "Le fichier stops.txt ne contient pas les colonnes stop_id, stop_lat et stop_lon attendues."
         case .invalidShapesTable:
             "Le fichier shapes.txt ne contient pas les colonnes de géométrie GTFS attendues."
+        case .invalidTransfersTable:
+            "Le fichier transfers.txt ne contient pas la colonne transfer_type attendue."
         case .noBusRoutes:
             "Aucune ligne de bus n’a été trouvée dans le GTFS. Vérifiez que vous avez choisi l’offre IDFM complète."
         case .noStops:
@@ -139,6 +145,7 @@ enum GTFSFeedInspector {
         let calendarEntry = archive.entry(named: "calendar.txt")
         let calendarDatesEntry = archive.entry(named: "calendar_dates.txt")
         let shapesEntry = archive.entry(named: "shapes.txt")
+        let transfersEntry = archive.entry(named: "transfers.txt")
 
         var missingFiles: [String] = []
         if routesEntry == nil { missingFiles.append("routes.txt") }
@@ -200,7 +207,9 @@ enum GTFSFeedInspector {
             routeIDsByStopID: stopRouteCollector.routeIDsByStopID,
             routeDirectionsByStopID: stopRouteCollector.routeDirectionsByStopID
         )
-        let stopsTable = CSVTableReader(columnsOfInterest: ["stop_id", "stop_name", "stop_lat", "stop_lon"]) {
+        let stopsTable = CSVTableReader(columnsOfInterest: [
+            "stop_id", "stop_name", "stop_lat", "stop_lon", "parent_station", "location_type"
+        ]) {
             stopCollector.consume($0)
         }
         try stopsTable.consume(archive.data(for: stopsEntry))
@@ -212,6 +221,31 @@ enum GTFSFeedInspector {
             throw GTFSFeedImportError.invalidStopsTable
         }
         guard !stopCollector.stops.isEmpty else { throw GTFSFeedImportError.noGeolocatedBusStops }
+
+        let transferRuleIndex: GTFSServiceTransferIndex?
+        if let transfersEntry {
+            progress?(GTFSFeedInspectionProgress(stage: .readingTransfers))
+            let transferCollector = GTFSServiceTransferCollector()
+            let transfersTable = CSVTableReader(columnsOfInterest: [
+                "from_stop_id", "to_stop_id", "from_route_id", "to_route_id",
+                "from_trip_id", "to_trip_id", "transfer_type", "min_transfer_time"
+            ]) {
+                transferCollector.consume($0)
+            }
+            try archive.forEachChunk(in: transfersEntry) { chunk in
+                try transfersTable.consume(chunk)
+            }
+            transfersTable.finish()
+            guard transfersTable.hasColumn("transfer_type") else {
+                throw GTFSFeedImportError.invalidTransfersTable
+            }
+            transferRuleIndex = transferCollector.index(
+                parentStationIDByStopID: stopCollector.parentStationIDByStopID,
+                locationTypeByStopID: stopCollector.locationTypeByStopID
+            )
+        } else {
+            transferRuleIndex = nil
+        }
 
         let tripShapeReferences = tripCollector.tripByID.compactMap { tripID, trip in
             trip.shapeID.map { GTFSServiceTripShapeReference(tripID: tripID, shapeID: $0) }
@@ -354,6 +388,7 @@ enum GTFSFeedInspector {
             busTripDepartures: stopRouteCollector.tripDepartures,
             busTripSchedules: busTripSchedules,
             busTripShapes: busTripShapes,
+            transferRuleIndex: transferRuleIndex,
             quality: quality,
             busStopCount: stopCollector.stops.count,
             feedStopCount: stopsTable.rowCount,
@@ -362,6 +397,41 @@ enum GTFSFeedInspector {
         )
         progress?(GTFSFeedInspectionProgress(stage: .inspectionComplete))
         return inspection
+    }
+
+    static func inspectTransferRuleIndex(in archiveURL: URL) throws -> GTFSServiceTransferIndex? {
+        let archive = try ZIPArchiveReader(url: archiveURL)
+        guard let transfersEntry = archive.entry(named: "transfers.txt") else { return nil }
+
+        let stopCollector = BusStopCollector(routeIDsByStopID: [:], routeDirectionsByStopID: [:])
+        if let stopsEntry = archive.entry(named: "stops.txt") {
+            let stopsTable = CSVTableReader(columnsOfInterest: ["stop_id", "parent_station", "location_type"]) {
+                stopCollector.consume($0)
+            }
+            try archive.forEachChunk(in: stopsEntry) { chunk in
+                try stopsTable.consume(chunk)
+            }
+            stopsTable.finish()
+        }
+
+        let transferCollector = GTFSServiceTransferCollector()
+        let transfersTable = CSVTableReader(columnsOfInterest: [
+            "from_stop_id", "to_stop_id", "from_route_id", "to_route_id",
+            "from_trip_id", "to_trip_id", "transfer_type", "min_transfer_time"
+        ]) {
+            transferCollector.consume($0)
+        }
+        try archive.forEachChunk(in: transfersEntry) { chunk in
+            try transfersTable.consume(chunk)
+        }
+        transfersTable.finish()
+        guard transfersTable.hasColumn("transfer_type") else {
+            throw GTFSFeedImportError.invalidTransfersTable
+        }
+        return transferCollector.index(
+            parentStationIDByStopID: stopCollector.parentStationIDByStopID,
+            locationTypeByStopID: stopCollector.locationTypeByStopID
+        )
     }
 
     private static func hasIncompleteTimes(_ stops: [GTFSServiceTripStopTime]) -> Bool {
@@ -897,6 +967,8 @@ private final class BusStopCollector {
     private let routeDirectionsByStopID: [String: [GTFSStopRouteDirection]]
     private var stopsByID: [String: GTFSStopSummary] = [:]
     private(set) var stopIDsInFeed = Set<String>()
+    private(set) var parentStationIDByStopID: [String: String] = [:]
+    private(set) var locationTypeByStopID: [String: Int] = [:]
 
     var stops: [GTFSStopSummary] {
         stopsByID.values.sorted {
@@ -916,6 +988,11 @@ private final class BusStopCollector {
     func consume(_ row: [String: String]) {
         guard let stopID = row["stop_id"], !stopID.isEmpty else { return }
         stopIDsInFeed.insert(stopID)
+        if let parentStationID = row["parent_station"]?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !parentStationID.isEmpty {
+            parentStationIDByStopID[stopID] = parentStationID
+        }
+        locationTypeByStopID[stopID] = Int(row["location_type"] ?? "") ?? 0
         guard
               let routeIDs = routeIDsByStopID[stopID],
               let latitude = Double(row["stop_lat"] ?? ""), latitude.isFinite,
@@ -932,6 +1009,73 @@ private final class BusStopCollector {
             routeIDs: routeIDs.sorted(),
             routeDirections: routeDirectionsByStopID[stopID] ?? []
         )
+    }
+}
+
+private final class GTFSServiceTransferCollector {
+    private var rules: [GTFSServiceTransferRule] = []
+
+    func consume(_ row: [String: String]) {
+        let transferType = Self.cleaned(row["transfer_type"]).flatMap(Int.init) ?? 0
+        guard (0...5).contains(transferType) else { return }
+        let fromStopID = Self.cleaned(row["from_stop_id"])
+        let toStopID = Self.cleaned(row["to_stop_id"])
+        let fromRouteID = Self.cleaned(row["from_route_id"])
+        let toRouteID = Self.cleaned(row["to_route_id"])
+        let fromTripID = Self.cleaned(row["from_trip_id"])
+        let toTripID = Self.cleaned(row["to_trip_id"])
+        let minimumTransferTime = Self.cleaned(row["min_transfer_time"]).flatMap(Int.init)
+        switch transferType {
+        case 0, 1, 3:
+            guard fromStopID != nil, toStopID != nil else { return }
+        case 2:
+            guard fromStopID != nil, toStopID != nil,
+                  let minimumTransferTime, minimumTransferTime >= 0 else { return }
+        case 4, 5:
+            guard fromTripID != nil, toTripID != nil else { return }
+        default:
+            return
+        }
+        rules.append(GTFSServiceTransferRule(
+            fromStopID: fromStopID,
+            toStopID: toStopID,
+            fromRouteID: fromRouteID,
+            toRouteID: toRouteID,
+            fromTripID: fromTripID,
+            toTripID: toTripID,
+            transferType: transferType,
+            minimumTransferTime: minimumTransferTime.flatMap { $0 >= 0 ? $0 : nil }
+        ))
+    }
+
+    func index(
+        parentStationIDByStopID: [String: String],
+        locationTypeByStopID: [String: Int]
+    ) -> GTFSServiceTransferIndex {
+        let validRules = rules.filter { rule in
+            if rule.transferType <= 3 {
+                guard let fromStopID = rule.fromStopID,
+                      let toStopID = rule.toStopID,
+                      let fromLocationType = locationTypeByStopID[fromStopID],
+                      let toLocationType = locationTypeByStopID[toStopID] else { return false }
+                return (0...1).contains(fromLocationType) && (0...1).contains(toLocationType)
+            }
+            if let fromStopID = rule.fromStopID,
+               locationTypeByStopID[fromStopID] != 0 { return false }
+            if let toStopID = rule.toStopID,
+               locationTypeByStopID[toStopID] != 0 { return false }
+            return true
+        }
+        return GTFSServiceTransferIndex(
+            rules: validRules,
+            parentStationIDByStopID: parentStationIDByStopID
+        )
+    }
+
+    private static func cleaned(_ value: String?) -> String? {
+        guard let value else { return nil }
+        let result = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return result.isEmpty ? nil : result
     }
 }
 
@@ -1233,6 +1377,7 @@ private enum NetworkVersionStoreError: LocalizedError {
 enum NetworkVersionStore {
     private static let folderName = "TransportManagerIDFM"
     private static let catalogFilename = "NetworkCatalog.json"
+    private static let transferRuleIndexFilename = "transfer-rules-v1.json"
 
     static func rootDirectory() throws -> URL {
         guard let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
@@ -1326,6 +1471,14 @@ enum NetworkVersionStore {
             to: versionDirectory.appending(path: "trip-shapes.json"),
             options: .atomic
         )
+        if let transferRuleIndex = inspection.transferRuleIndex {
+            let transferEncoder = JSONEncoder()
+            transferEncoder.outputFormatting = [.sortedKeys]
+            try transferEncoder.encode(transferRuleIndex).write(
+                to: versionDirectory.appending(path: transferRuleIndexFilename),
+                options: .atomic
+            )
+        }
 
         let source = provenance.metadata
         let version = NetworkVersion(
@@ -1436,6 +1589,26 @@ enum NetworkVersionStore {
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         try encoder.encode(schedules).write(to: schedulesURL, options: .atomic)
         return schedules
+    }
+
+    static func loadTransferRuleIndex(forGTFSVersionID versionID: String) throws -> GTFSServiceTransferIndex? {
+        let catalog = try loadCatalog()
+        guard let version = catalog.versions.first(where: { $0.id == versionID }) else { return nil }
+        let versionDirectory = try rootDirectory()
+            .appending(path: "versions/\(String(version.sha256.prefix(20)))", directoryHint: .isDirectory)
+        let indexURL = versionDirectory.appending(path: transferRuleIndexFilename)
+        if FileManager.default.fileExists(atPath: indexURL.path) {
+            return try JSONDecoder().decode(GTFSServiceTransferIndex.self, from: Data(contentsOf: indexURL))
+        }
+        guard let archiveURL = version.archiveURL,
+              FileManager.default.fileExists(atPath: archiveURL.path),
+              let transferRuleIndex = try GTFSFeedInspector.inspectTransferRuleIndex(in: archiveURL) else {
+            return nil
+        }
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        try encoder.encode(transferRuleIndex).write(to: indexURL, options: .atomic)
+        return transferRuleIndex
     }
 
     static func loadTripMotifs(for version: NetworkVersion) throws -> [GTFSServiceTripMotif] {

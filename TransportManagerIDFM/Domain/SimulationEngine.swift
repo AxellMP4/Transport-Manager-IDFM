@@ -1014,9 +1014,137 @@ struct PassengerStopDemand: Codable, Hashable, Sendable {
     let estimatedArrivalsCount: Int
     let alightingShare: Double
     let isTerminal: Bool
+    var isFirstStop: Bool? = nil
     let capacity: Int
     let capacityIsEstimated: Bool
     var stopSequence: Int? = nil
+}
+
+struct PassengerTransferQueueEntry: Codable, Hashable, Sendable {
+    let sourceTripID: String
+    let targetRouteID: String
+    var intendedTripID: String?
+    let stopID: String
+    var passengerCount: Int
+    let readyAt: Date
+    var lastMissedTripID: String? = nil
+    var sourceEventSequence: UInt64? = nil
+}
+
+struct PassengerConnectionCandidate: Sendable {
+    let demand: PassengerStopDemand
+    let minimumTransferTime: TimeInterval
+}
+
+enum PassengerConnectionRules {
+    static let estimatedAlightingTransferShare = 0.20
+    static let minimumTransferTime: TimeInterval = 5 * 60
+    static let maximumConnectionWait: TimeInterval = 30 * 60
+
+    static func estimatedTransferCount(from alightedCount: Int) -> Int {
+        max(0, Int((Double(max(0, alightedCount)) * estimatedAlightingTransferShare).rounded()))
+    }
+
+    static func nextConnection(
+        from demand: PassengerStopDemand,
+        in session: SimulationSession,
+        transferRuleIndex: GTFSServiceTransferIndex?
+    ) -> PassengerConnectionCandidate? {
+        return session.pendingEvents.compactMap { event -> PassengerConnectionCandidate? in
+            guard case let .passengerDemand(candidate) = event.kind,
+                  candidate.tripID != demand.tripID,
+                  !candidate.isTerminal,
+                  candidate.occurredAt >= demand.occurredAt,
+                  session.stopClosures?.contains(where: {
+                      $0.affects(stopID: candidate.stopID, routeID: candidate.routeID, at: candidate.occurredAt)
+                  }) != true,
+                  let minimumTransferTime = Self.requiredTransferTime(
+                      from: demand,
+                      to: candidate,
+                      using: transferRuleIndex,
+                      in: session
+                  ),
+                  candidate.occurredAt <= demand.occurredAt.addingTimeInterval(
+                      minimumTransferTime + maximumConnectionWait
+                  ) else { return nil }
+            return PassengerConnectionCandidate(demand: candidate, minimumTransferTime: minimumTransferTime)
+        }
+        .sorted {
+            if $0.demand.occurredAt != $1.demand.occurredAt {
+                return $0.demand.occurredAt < $1.demand.occurredAt
+            }
+            if $0.demand.routeID != $1.demand.routeID { return $0.demand.routeID < $1.demand.routeID }
+            return $0.demand.tripID < $1.demand.tripID
+        }
+        .first
+    }
+
+    private static func requiredTransferTime(
+        from arrivingDemand: PassengerStopDemand,
+        to departingDemand: PassengerStopDemand,
+        using index: GTFSServiceTransferIndex?,
+        in session: SimulationSession
+    ) -> TimeInterval? {
+        let rule = index?.rule(
+            fromStopID: arrivingDemand.stopID,
+            toStopID: departingDemand.stopID,
+            fromRouteID: arrivingDemand.routeID,
+            toRouteID: departingDemand.routeID,
+            fromTripID: arrivingDemand.tripID,
+            toTripID: departingDemand.tripID
+        )
+        if let rule {
+            switch rule.transferType {
+            case 0:
+                return TimeInterval(rule.minimumTransferTime ?? Int(minimumTransferTime))
+            case 1:
+                return TimeInterval(rule.minimumTransferTime ?? 0)
+            case 2:
+                guard let seconds = rule.minimumTransferTime, seconds >= 0 else { return nil }
+                return TimeInterval(seconds)
+            case 3, 4:
+                // Type 4 passengers stay onboard; the current exchange model cannot
+                // represent them without first keeping them aboard through the link.
+                return nil
+            case 5:
+                guard hasProvenLinkedContinuation(
+                    from: arrivingDemand,
+                    to: departingDemand,
+                    rule: rule,
+                    in: session
+                ) else { return nil }
+                return TimeInterval(rule.minimumTransferTime ?? Int(minimumTransferTime))
+            default:
+                return nil
+            }
+        }
+
+        guard arrivingDemand.stopID == departingDemand.stopID,
+              arrivingDemand.routeID != departingDemand.routeID else { return nil }
+        return minimumTransferTime
+    }
+
+    private static func hasProvenLinkedContinuation(
+        from arrivingDemand: PassengerStopDemand,
+        to departingDemand: PassengerStopDemand,
+        rule: GTFSServiceTransferRule,
+        in session: SimulationSession
+    ) -> Bool {
+        guard rule.fromTripID == arrivingDemand.tripID,
+              rule.toTripID == departingDemand.tripID,
+              arrivingDemand.isTerminal,
+              arrivingDemand.vehicleID == departingDemand.vehicleID,
+              departingDemand.isFirstStop == true else { return false }
+        let hasInterveningTrip = session.pendingEvents.contains { event in
+            guard case let .passengerDemand(intermediateDemand) = event.kind,
+                  intermediateDemand.vehicleID == arrivingDemand.vehicleID,
+                  intermediateDemand.tripID != arrivingDemand.tripID,
+                  intermediateDemand.tripID != departingDemand.tripID else { return false }
+            return intermediateDemand.occurredAt >= arrivingDemand.occurredAt
+                && intermediateDemand.occurredAt <= departingDemand.occurredAt
+        }
+        return !hasInterveningTrip
+    }
 }
 
 enum PassengerInformationRules {
@@ -1132,6 +1260,14 @@ struct PassengerStopExchange: Codable, Hashable, Sendable {
     var estimatedEventArrivalsCount: Int? = nil
     var stopSequence: Int? = nil
     var validationBreakdown: PassengerValidationBreakdown? = nil
+    var connectingRouteID: String? = nil
+    var connectingTripID: String? = nil
+    var connectingStopID: String? = nil
+    var estimatedTransferPassengerCount: Int? = nil
+    var transferReadyAt: Date? = nil
+    var estimatedTransferBoardedCount: Int? = nil
+    var missedConnectionCount: Int? = nil
+    var missedConnectionToTripID: String? = nil
 }
 
 private extension PassengerStopExchange {
@@ -1154,15 +1290,24 @@ private extension PassengerStopExchange {
         let localEventEffect = (estimatedEventArrivalsCount ?? 0) > 0
             ? " · \(localEventName ?? "Événement local simulé") : +\(estimatedEventArrivalsCount ?? 0) arrivée(s) estimée(s)"
             : ""
+        let transferEffect = (estimatedTransferPassengerCount ?? 0) > 0
+            ? " · \(estimatedTransferPassengerCount ?? 0) voyageur(s) estimé(s) en correspondance vers \(connectingRouteID ?? "une autre ligne") (règle de jeu)"
+            : ""
+        let missedConnectionEffect = (missedConnectionCount ?? 0) > 0
+            ? " · \(missedConnectionCount ?? 0) correspondance(s) estimée(s) manquée(s) vers la course \(missedConnectionToTripID ?? "inconnue")"
+            : ""
+        let transferBoardingEffect = (estimatedTransferBoardedCount ?? 0) > 0
+            ? " · \(estimatedTransferBoardedCount ?? 0) voyageur(s) en correspondance estimé(s) monté(s)"
+            : ""
         if stopWasClosed == true {
             guard let replacementStopID else {
                 let leftBehind = newlyLeftBehindCount ?? estimatedArrivalsCount ?? leftBehindCount
-                return "Arrêt fermé · \(leftBehind) voyageur(s) estimé(s) laissé(s) à quai à \(stopName)\(validationSummary)\(informationEffect)\(localEventEffect)"
+                return "Arrêt fermé · \(leftBehind) voyageur(s) estimé(s) laissé(s) à quai à \(stopName)\(validationSummary)\(informationEffect)\(localEventEffect)\(transferEffect)\(missedConnectionEffect)\(transferBoardingEffect)"
             }
             let replacementName = replacementStopName.map { "\($0) (\(replacementStopID))" } ?? replacementStopID
-            return "Arrêt fermé · \(redirectedPassengerCount ?? 0) voyageur(s) redirigé(s) vers \(replacementName) · \(replacementWaitingAfterCount ?? 0) en attente\(validationSummary)\(informationEffect)\(localEventEffect)"
+            return "Arrêt fermé · \(redirectedPassengerCount ?? 0) voyageur(s) redirigé(s) vers \(replacementName) · \(replacementWaitingAfterCount ?? 0) en attente\(validationSummary)\(informationEffect)\(localEventEffect)\(transferEffect)\(missedConnectionEffect)\(transferBoardingEffect)"
         }
-        return "Voyageurs estimés à \(stopName) · +\(boardedCount), −\(alightedCount), +\(newlyLeftBehindCount ?? leftBehindCount) laissés, \(waitingAfterCount ?? leftBehindCount) en attente\(validationSummary)\(informationEffect)\(localEventEffect)"
+        return "Voyageurs estimés à \(stopName) · +\(boardedCount), −\(alightedCount), +\(newlyLeftBehindCount ?? leftBehindCount) laissés, \(waitingAfterCount ?? leftBehindCount) en attente\(validationSummary)\(informationEffect)\(localEventEffect)\(transferEffect)\(missedConnectionEffect)\(transferBoardingEffect)"
     }
 }
 
@@ -1198,6 +1343,8 @@ struct VehicleTowPlan: Codable, Hashable, Sendable {
     let routingSourceTitle: String
     var recoveryTeamID: String? = nil
     var recoveryTeamName: String? = nil
+    var recoveryProvider: VehicleRecoveryProvider? = nil
+    var recoveryProviderSurchargeEuro: Int? = nil
     var dispatchStartsAt: Date? = nil
     var dispatchRouteDistanceMeters: Double? = nil
     var dispatchExpectedTravelSeconds: TimeInterval? = nil
@@ -1221,9 +1368,24 @@ struct VehicleTowPlan: Codable, Hashable, Sendable {
     }
 }
 
+enum VehicleRecoveryProvider: String, Codable, Hashable, Sendable {
+    case depotTeam
+    case simulatedRelief
+}
+
+enum VehicleRecoveryReliefAssessment: Hashable, Sendable {
+    case notNeeded
+    case outsideEstimatedCoverage
+    case depotTeamArrivesFirst(reliefEarliestDispatchAt: Date)
+    case available(VehicleTowPlan)
+}
+
 enum VehicleRecoveryRules {
     static let simulatedTeamCountPerDepot = 1
     static let towHookupDuration: TimeInterval = 15 * 60
+    static let reliefCalloutWait: TimeInterval = 20 * 60
+    static let reliefMaximumDispatchDistanceMeters: Double = 35_000
+    static let reliefSurchargeEuro = 1_500
 
     static func teamID(for depotID: String) -> String {
         "simulated-recovery-team-\(depotID)"
@@ -1231,6 +1393,45 @@ enum VehicleRecoveryRules {
 
     static func teamName(for depotName: String) -> String {
         "Équipe simulée · \(depotName)"
+    }
+
+    static func reliefTeamID(for depotID: String) -> String {
+        "simulated-relief-recovery-\(depotID)"
+    }
+
+    static var reliefTeamName: String {
+        "Renfort contractuel simulé · estimation de jeu"
+    }
+
+    static func reliefAssessment(
+        from depotPlan: VehicleTowPlan,
+        simulatedAt: Date,
+        depotTeamAvailableAt: Date,
+        reliefAvailableAt: Date
+    ) -> VehicleRecoveryReliefAssessment {
+        guard depotTeamAvailableAt > simulatedAt else { return .notNeeded }
+        guard let dispatchDistance = depotPlan.dispatchRouteDistanceMeters,
+              dispatchDistance.isFinite,
+              dispatchDistance > 0,
+              dispatchDistance <= reliefMaximumDispatchDistanceMeters,
+              let dispatchTravel = depotPlan.dispatchExpectedTravelSeconds,
+              dispatchTravel.isFinite,
+              dispatchTravel > 0 else {
+            return .outsideEstimatedCoverage
+        }
+
+        let reliefDispatchAt = max(simulatedAt.addingTimeInterval(reliefCalloutWait), reliefAvailableAt)
+        guard reliefDispatchAt < depotTeamAvailableAt else {
+            return .depotTeamArrivesFirst(reliefEarliestDispatchAt: reliefDispatchAt)
+        }
+
+        var reliefPlan = depotPlan
+        reliefPlan.recoveryProvider = .simulatedRelief
+        reliefPlan.recoveryProviderSurchargeEuro = reliefSurchargeEuro
+        reliefPlan.recoveryTeamID = reliefTeamID(for: depotPlan.depotID)
+        reliefPlan.recoveryTeamName = reliefTeamName
+        reliefPlan.dispatchStartsAt = reliefDispatchAt
+        return .available(reliefPlan)
     }
 }
 
@@ -1393,6 +1594,7 @@ struct SimulationSession: Codable, Hashable, Identifiable, Sendable {
     var passengerExchangeRecords: [PassengerExchangeRecord]?
     var passengerQueuesByRouteStopKey: [String: Int]?
     var passengerQueueUpdatedAtByRouteStopKey: [String: Date]?
+    var passengerTransferQueueEntries: [PassengerTransferQueueEntry]? = nil
     var vehicleIncidents: [VehicleIncident]?
     var vehicleMaintenanceRecords: [VehicleMaintenanceRecord]?
     var stopClosures: [SimulatedStopClosure]? = nil
@@ -1508,9 +1710,27 @@ struct SimulationSession: Codable, Hashable, Identifiable, Sendable {
     func nextRecoveryTeamAvailableAt(depotID: String) -> Date {
         let teamID = VehicleRecoveryRules.teamID(for: depotID)
         let occupiedUntil = (vehicleIncidents ?? []).compactMap { incident -> Date? in
+            let plan = incident.towPlan
+            guard incident.repairResponse == .towToDepot,
+                  plan?.depotID == depotID,
+                  plan?.recoveryProvider != .simulatedRelief,
+                  (plan?.recoveryTeamID == teamID || plan?.recoveryTeamID == nil) else { return nil }
+            let expectedArrival = plan?.expectedDepotArrivalAt
+                ?? incident.depotArrivedAt
+                ?? incident.towArrivedAt
+                ?? incident.occurredAt.addingTimeInterval(plan?.expectedTravelSeconds ?? 0)
+            return expectedArrival > simulatedAt ? expectedArrival : nil
+        }.max()
+        return max(simulatedAt, occupiedUntil ?? simulatedAt)
+    }
+
+    func nextRecoveryReliefAvailableAt(depotID: String) -> Date {
+        let reliefTeamID = VehicleRecoveryRules.reliefTeamID(for: depotID)
+        let occupiedUntil = (vehicleIncidents ?? []).compactMap { incident -> Date? in
             guard incident.repairResponse == .towToDepot,
                   incident.towPlan?.depotID == depotID,
-                  (incident.towPlan?.recoveryTeamID == teamID || incident.towPlan?.recoveryTeamID == nil) else { return nil }
+                  incident.towPlan?.recoveryProvider == .simulatedRelief,
+                  incident.towPlan?.recoveryTeamID == reliefTeamID else { return nil }
             let plan = incident.towPlan
             let expectedArrival = plan?.expectedDepotArrivalAt
                 ?? incident.depotArrivedAt
@@ -1657,6 +1877,10 @@ final class SimulationEngine: ObservableObject {
     @Published private(set) var lastSavedAt: Date?
     @Published private(set) var errorMessage: String?
     @Published private(set) var recoveryNotice: String?
+
+    private static var cachedTransferRuleIndexVersionID: String?
+    private static var cachedTransferRuleIndex: GTFSServiceTransferIndex?
+    private static var didCacheTransferRuleIndexResult = false
 
     private var clockTask: Task<Void, Never>?
     private var lastTickUptime: TimeInterval?
@@ -3546,7 +3770,9 @@ final class SimulationEngine: ObservableObject {
         var workshopPartOrders = activeSession.workshopPartOrders ?? []
         let requiredPart = VehicleWorkshopPart.repairKit(for: incident.severity)
         let modelName = VehicleMarketCatalog.model(id: bus.modelID)?.displayName ?? bus.modelID
+        let providerSurcharge = towPlan?.recoveryProviderSurchargeEuro ?? 0
         let interventionCost = response.cost(for: incident.severity, towDistanceMeters: towPlan?.totalServiceDistanceMeters ?? 0)
+            + providerSurcharge
         var partsCost = 0
         var partsAvailableAt = activeSession.simulatedAt
         if workshopPartsStock.contains(where: {
@@ -3634,7 +3860,10 @@ final class SimulationEngine: ObservableObject {
                 .formatted(.number.precision(.fractionLength(1)))
             let towDistance = (towPlan.routeDistanceMeters / 1_000)
                 .formatted(.number.precision(.fractionLength(1)))
-            interventionDetails = " · équipe \(dispatchDistance) km jusqu’à la panne, bus \(towDistance) km vers \(towPlan.depotName)"
+            let providerSurchargeDetails = providerSurcharge > 0
+                ? " · renfort simulé +\(providerSurcharge.formatted()) € (règle de jeu)"
+                : ""
+            interventionDetails = " · équipe \(dispatchDistance) km jusqu’à la panne, bus \(towDistance) km vers \(towPlan.depotName)\(providerSurchargeDetails)"
         } else {
             interventionDetails = ""
         }
@@ -3859,16 +4088,37 @@ final class SimulationEngine: ObservableObject {
     }
 
     private static func isValid(_ plan: VehicleTowPlan, for incident: VehicleIncident, in session: SimulationSession) -> Bool {
+        guard let depot = DepotCareerScope.depotReference(for: plan.depotID),
+              let dispatchStartsAt = plan.dispatchStartsAt else { return false }
+        let depotTeamAvailableAt = session.nextRecoveryTeamAvailableAt(depotID: depot.id)
+        let providerIsValid: Bool
+        switch plan.recoveryProvider ?? .depotTeam {
+        case .depotTeam:
+            providerIsValid = plan.recoveryTeamID == VehicleRecoveryRules.teamID(for: depot.id)
+                && plan.recoveryTeamName == VehicleRecoveryRules.teamName(for: depot.name)
+                && (plan.recoveryProviderSurchargeEuro == nil || plan.recoveryProviderSurchargeEuro == 0)
+                && dispatchStartsAt == depotTeamAvailableAt
+        case .simulatedRelief:
+            if case let .available(estimatedPlan) = VehicleRecoveryRules.reliefAssessment(
+                from: plan,
+                simulatedAt: session.simulatedAt,
+                depotTeamAvailableAt: depotTeamAvailableAt,
+                reliefAvailableAt: session.nextRecoveryReliefAvailableAt(depotID: depot.id)
+            ) {
+                providerIsValid = plan.recoveryTeamID == VehicleRecoveryRules.reliefTeamID(for: depot.id)
+                    && plan.recoveryTeamName == VehicleRecoveryRules.reliefTeamName
+                    && plan.recoveryProviderSurchargeEuro == VehicleRecoveryRules.reliefSurchargeEuro
+                    && dispatchStartsAt == estimatedPlan.dispatchStartsAt
+            } else {
+                providerIsValid = false
+            }
+        }
         guard let bus = session.ownedBuses?.first(where: { $0.id == incident.vehicleID }),
               session.effectiveManagedDepotIDs.contains(bus.depotID),
               DepotCareerScope.supports(scenarioID: session.scenarioID, depotID: bus.depotID),
               plan.depotID == bus.depotID,
-              let depot = DepotCareerScope.depotReference(for: plan.depotID),
+              providerIsValid,
               plan.depotName == depot.name,
-              plan.recoveryTeamID == VehicleRecoveryRules.teamID(for: depot.id),
-              plan.recoveryTeamName == VehicleRecoveryRules.teamName(for: depot.name),
-              let dispatchStartsAt = plan.dispatchStartsAt,
-              dispatchStartsAt == session.nextRecoveryTeamAvailableAt(depotID: depot.id),
               let dispatchDistance = plan.dispatchRouteDistanceMeters,
               dispatchDistance.isFinite,
               dispatchDistance > 0,
@@ -5777,6 +6027,7 @@ final class SimulationEngine: ObservableObject {
                 estimatedArrivalsCount: estimatedWaiting,
                 alightingShare: isFirstStop ? 0 : alightingShare,
                 isTerminal: isTerminal,
+                isFirstStop: isFirstStop,
                 capacity: capacity,
                 capacityIsEstimated: capacityIsEstimated,
                 stopSequence: visit.stopSequence
@@ -5792,6 +6043,22 @@ final class SimulationEngine: ObservableObject {
               let bus = session.ownedBuses?.first(where: { $0.id == demand.vehicleID }) else { return nil }
         let queueKey = passengerQueueKey(routeID: demand.routeID, stopID: demand.stopID)
         let waitingBefore = max(0, session.passengerQueuesByRouteStopKey?[queueKey] ?? 0)
+        let transferEntriesAtStop = (session.passengerTransferQueueEntries ?? []).filter {
+            $0.targetRouteID == demand.routeID && $0.stopID == demand.stopID && $0.passengerCount > 0
+        }
+        let unreadyTransferCount = transferEntriesAtStop
+            .filter { $0.readyAt > demand.occurredAt }
+            .reduce(0) { $0 + $1.passengerCount }
+        let readyTransferCount = transferEntriesAtStop
+            .filter { $0.readyAt <= demand.occurredAt }
+            .reduce(0) { $0 + $1.passengerCount }
+        let transfersIntendedForThisTrip = transferEntriesAtStop
+            .filter { $0.intendedTripID == demand.tripID }
+        let readyTransfersIntendedForThisTrip = transfersIntendedForThisTrip
+            .filter { $0.readyAt <= demand.occurredAt }
+            .reduce(0) { $0 + $1.passengerCount }
+        let totalTransfersIntendedForThisTrip = transfersIntendedForThisTrip
+            .reduce(0) { $0 + $1.passengerCount }
         let elapsedSinceLastVisit = session.passengerQueueUpdatedAtByRouteStopKey?[queueKey]
             .map { demand.occurredAt.timeIntervalSince($0) }
             .map { min(10_800.0, max(300.0, $0)) }
@@ -5820,6 +6087,7 @@ final class SimulationEngine: ObservableObject {
             : 0
         let estimatedArrivals = max(0, estimatedArrivalsBeforeInformation - informedPassengersAvoidingRouteCount)
         let waitingIncludingArrivals = waitingBefore + estimatedArrivals
+        let boardableWaiting = max(0, waitingIncludingArrivals - unreadyTransferCount)
         let onboardBefore = max(0, bus.onboardPassengerCount ?? 0)
         let activeClosure = session.stopClosures?.first(where: {
             $0.affects(stopID: demand.stopID, routeID: demand.routeID, at: demand.occurredAt)
@@ -5833,7 +6101,13 @@ final class SimulationEngine: ObservableObject {
                 : min(onboardBefore, Int((Double(onboardBefore) * demand.alightingShare).rounded())))
         let onboardAfterAlighting = max(0, onboardBefore - alighted)
         let remainingCapacity = max(0, demand.capacity - onboardAfterAlighting)
-        let boarded = (stopWasClosed || demand.isTerminal) ? 0 : min(waitingIncludingArrivals, remainingCapacity)
+        let boarded = (stopWasClosed || demand.isTerminal) ? 0 : min(boardableWaiting, remainingCapacity)
+        let estimatedTransferBoarded = min(readyTransferCount, boarded)
+        let missedConnectionCount = max(
+            0,
+            totalTransfersIntendedForThisTrip
+                - min(readyTransfersIntendedForThisTrip, estimatedTransferBoarded)
+        )
         var queueAfter = waitingIncludingArrivals - boarded
         var replacementWaitingAfter: Int?
         let informationWasPublished = activeClosure?.passengerInformationMessage != nil
@@ -5860,6 +6134,17 @@ final class SimulationEngine: ObservableObject {
             stopSequence: demand.stopSequence ?? 0,
             randomSeed: session.randomSeed
         )
+        let transferRuleIndex = Self.transferRuleIndex(forGTFSVersionID: session.networkVersions.gtfsID)
+        let nextConnection = !stopWasClosed
+            ? PassengerConnectionRules.nextConnection(
+                from: demand,
+                in: session,
+                transferRuleIndex: transferRuleIndex
+            )
+            : nil
+        let estimatedTransferPassengerCount = nextConnection.map { _ in
+            PassengerConnectionRules.estimatedTransferCount(from: alighted)
+        } ?? 0
         let exchange = PassengerStopExchange(
             tripID: demand.tripID,
             vehicleID: demand.vehicleID,
@@ -5888,7 +6173,19 @@ final class SimulationEngine: ObservableObject {
             localEventName: estimatedEventArrivals > 0 ? localEventEffect?.displayName : nil,
             estimatedEventArrivalsCount: estimatedEventArrivals > 0 ? estimatedEventArrivals : nil,
             stopSequence: demand.stopSequence,
-            validationBreakdown: validationBreakdown
+            validationBreakdown: validationBreakdown,
+            connectingRouteID: estimatedTransferPassengerCount > 0 ? nextConnection?.demand.routeID : nil,
+            connectingTripID: estimatedTransferPassengerCount > 0 ? nextConnection?.demand.tripID : nil,
+            connectingStopID: estimatedTransferPassengerCount > 0 ? nextConnection?.demand.stopID : nil,
+            estimatedTransferPassengerCount: estimatedTransferPassengerCount > 0
+                ? estimatedTransferPassengerCount
+                : nil,
+            transferReadyAt: estimatedTransferPassengerCount > 0
+                ? demand.occurredAt.addingTimeInterval(nextConnection?.minimumTransferTime ?? 0)
+                : nil,
+            estimatedTransferBoardedCount: estimatedTransferBoarded > 0 ? estimatedTransferBoarded : nil,
+            missedConnectionCount: missedConnectionCount > 0 ? missedConnectionCount : nil,
+            missedConnectionToTripID: missedConnectionCount > 0 ? demand.tripID : nil
         )
         let resolvedEvent = SimulationEvent(
             sequence: event.sequence,
@@ -5896,6 +6193,17 @@ final class SimulationEngine: ObservableObject {
             kind: .passengersExchanged(exchange)
         )
         return resolvedEvent
+    }
+
+    private static func transferRuleIndex(forGTFSVersionID versionID: String) -> GTFSServiceTransferIndex? {
+        if didCacheTransferRuleIndexResult, cachedTransferRuleIndexVersionID == versionID {
+            return cachedTransferRuleIndex
+        }
+        let index = try? NetworkVersionStore.loadTransferRuleIndex(forGTFSVersionID: versionID)
+        cachedTransferRuleIndexVersionID = versionID
+        cachedTransferRuleIndex = index ?? nil
+        didCacheTransferRuleIndexResult = true
+        return cachedTransferRuleIndex
     }
 
     private static func deterministicDemandHash(seed: UInt64, key: String) -> UInt64 {
@@ -7648,7 +7956,7 @@ final class SimulationEngine: ObservableObject {
         }
     }
 
-    private static func applyVehicleEvent(_ event: SimulationEvent, to session: inout SimulationSession) {
+    static func applyVehicleEvent(_ event: SimulationEvent, to session: inout SimulationSession) {
         if case let .batteryRechargeCompleted(planID, vehicleID, chargeKWh) = event.kind {
             guard var buses = session.ownedBuses,
                   let index = buses.firstIndex(where: { $0.id == vehicleID }),
@@ -7919,6 +8227,96 @@ final class SimulationEngine: ObservableObject {
                 queueUpdatedAt[replacementQueueKey] = exchange.occurredAt
             }
             session.passengerQueueUpdatedAtByRouteStopKey = queueUpdatedAt
+
+            var transferEntries = session.passengerTransferQueueEntries ?? []
+            var missedToMark = max(0, exchange.missedConnectionCount ?? 0)
+            if missedToMark > 0, let missedConnectionToTripID = exchange.missedConnectionToTripID {
+                var retainedEntries: [PassengerTransferQueueEntry] = []
+                var missedEntries: [PassengerTransferQueueEntry] = []
+                for var entry in transferEntries {
+                    guard entry.targetRouteID == exchange.routeID,
+                          entry.stopID == exchange.stopID,
+                          entry.intendedTripID == missedConnectionToTripID,
+                          missedToMark > 0 else {
+                        retainedEntries.append(entry)
+                        continue
+                    }
+                    let markedCount = min(max(0, entry.passengerCount), missedToMark)
+                    if markedCount > 0 {
+                        var missedEntry = entry
+                        missedEntry.passengerCount = markedCount
+                        missedEntry.intendedTripID = nil
+                        missedEntry.lastMissedTripID = missedConnectionToTripID
+                        missedEntries.append(missedEntry)
+                        entry.passengerCount -= markedCount
+                        missedToMark -= markedCount
+                    }
+                    if entry.passengerCount > 0 { retainedEntries.append(entry) }
+                }
+                transferEntries = retainedEntries + missedEntries
+            }
+
+            var transferBoardingRemaining = max(0, exchange.estimatedTransferBoardedCount ?? 0)
+            let boardingOrder = transferEntries.indices.sorted { leftIndex, rightIndex in
+                let left = transferEntries[leftIndex]
+                let right = transferEntries[rightIndex]
+                let leftMatchesTrip = left.intendedTripID == exchange.tripID
+                let rightMatchesTrip = right.intendedTripID == exchange.tripID
+                if leftMatchesTrip != rightMatchesTrip { return leftMatchesTrip }
+                if left.readyAt != right.readyAt { return left.readyAt < right.readyAt }
+                return left.sourceTripID < right.sourceTripID
+            }
+            var boardedTransferCountsByIndex: [Int: Int] = [:]
+            for index in boardingOrder where transferBoardingRemaining > 0 {
+                let entry = transferEntries[index]
+                guard entry.targetRouteID == exchange.routeID,
+                      entry.stopID == exchange.stopID,
+                      entry.readyAt <= exchange.occurredAt,
+                      entry.passengerCount > 0 else { continue }
+                let boardedCount = min(entry.passengerCount, transferBoardingRemaining)
+                boardedTransferCountsByIndex[index] = boardedCount
+                transferBoardingRemaining -= boardedCount
+            }
+            transferEntries = transferEntries.enumerated().compactMap { index, entry in
+                var updatedEntry = entry
+                updatedEntry.passengerCount -= boardedTransferCountsByIndex[index] ?? 0
+                return updatedEntry.passengerCount > 0 ? updatedEntry : nil
+            }
+
+            let targetStopID = exchange.connectingStopID ?? exchange.stopID
+            if let targetRouteID = exchange.connectingRouteID,
+               let targetTripID = exchange.connectingTripID,
+               let readyAt = exchange.transferReadyAt,
+               let passengerCount = exchange.estimatedTransferPassengerCount,
+               passengerCount > 0 {
+                let newEntry = PassengerTransferQueueEntry(
+                    sourceTripID: exchange.tripID,
+                    targetRouteID: targetRouteID,
+                    intendedTripID: targetTripID,
+                    stopID: targetStopID,
+                    passengerCount: passengerCount,
+                    readyAt: readyAt,
+                    sourceEventSequence: event.sequence
+                )
+                let isDuplicate = transferEntries.contains { existing in
+                    if let sourceEventSequence = existing.sourceEventSequence {
+                        return sourceEventSequence == event.sequence
+                    }
+                    return existing.sourceTripID == newEntry.sourceTripID
+                        && existing.targetRouteID == newEntry.targetRouteID
+                        && existing.intendedTripID == newEntry.intendedTripID
+                        && existing.stopID == newEntry.stopID
+                        && existing.readyAt == newEntry.readyAt
+                }
+                if !isDuplicate {
+                    transferEntries.append(newEntry)
+                    let targetQueueKey = passengerQueueKey(routeID: targetRouteID, stopID: targetStopID)
+                    queues[targetQueueKey] = max(0, queues[targetQueueKey] ?? 0) + passengerCount
+                    session.passengerQueuesByRouteStopKey = queues
+                }
+            }
+            session.passengerTransferQueueEntries = transferEntries
+
             var records = session.passengerExchangeRecords ?? []
             records.append(PassengerExchangeRecord(eventSequence: event.sequence, exchange: exchange))
             session.passengerExchangeRecords = records
