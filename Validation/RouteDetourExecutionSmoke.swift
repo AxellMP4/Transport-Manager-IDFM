@@ -4,6 +4,7 @@ import Foundation
 @MainActor
 struct RouteDetourExecutionSmoke {
     static func main() {
+        accidentCauseIsStoredAndLegacyDetoursDecode()
         futureDetoursShiftOnlyUpcomingVisits()
         passedSegmentsAreNotRewritten()
         dispatchedTripEventsAndReservationsAreUpdated()
@@ -11,6 +12,39 @@ struct RouteDetourExecutionSmoke {
         detourReservationConflictIsAtomic()
         legacySessionsDecodeWithoutTripPlans()
         print("PASS: dispatched route detours update future events and reservations atomically")
+    }
+
+    private static func accidentCauseIsStoredAndLegacyDetoursDecode() {
+        let start = Date(timeIntervalSince1970: 1_800_000_000)
+        let visits = routeVisits(startingAt: start)
+        var detour = routeDetour(
+            id: "accident-detour",
+            from: visits[1],
+            to: visits[2],
+            startsAt: start,
+            endsAt: start.addingTimeInterval(3_600),
+            additionalTravelSeconds: 600
+        )
+        detour.cause = .accident
+
+        let details = RouteDetourEventDetails(detour)
+        precondition(details.cause == .accident)
+        let event = SimulationEvent(
+            sequence: 1,
+            simulatedAt: start,
+            kind: .routeDetourScheduled(details, startsAt: start)
+        )
+        precondition(event.summary.contains("Accident routier"))
+
+        let encoded = try! JSONEncoder().encode(detour)
+        let decoded = try! JSONDecoder().decode(SimulatedRouteDetour.self, from: encoded)
+        precondition(decoded.cause == .accident)
+        let json = try! JSONSerialization.jsonObject(with: encoded) as! [String: Any]
+        var legacyJSON = json
+        legacyJSON.removeValue(forKey: "cause")
+        let legacyData = try! JSONSerialization.data(withJSONObject: legacyJSON)
+        let decodedLegacy = try! JSONDecoder().decode(SimulatedRouteDetour.self, from: legacyData)
+        precondition(decodedLegacy.cause == nil)
     }
 
     private static func futureDetoursShiftOnlyUpcomingVisits() {
