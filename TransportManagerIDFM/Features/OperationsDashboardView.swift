@@ -455,6 +455,8 @@ struct OperationsDashboardView: View {
     @State private var incidentForResponse: VehicleIncident?
     @State private var isSaveImporterPresented = false
     @State private var isSaveExporterPresented = false
+    @State private var pendingSaveImportData: Data?
+    @State private var isReplaceSaveConfirmationPresented = false
     @State private var returnsToLaunchMenuAfterSaveExport = false
     @State private var saveExportDocument = SimulationSaveFile(data: Data())
     @State private var saveTransferNotice: String?
@@ -1138,19 +1140,17 @@ struct OperationsDashboardView: View {
                     if didStartAccessing { url.stopAccessingSecurityScopedResource() }
                 }
                 do {
-                    let importResult = try simulation.importSaveData(Data(contentsOf: url))
-                    if let depotID = simulation.session?.effectiveActiveDepotID {
-                        selectedDepotID = depotID
+                    let saveData = try Data(contentsOf: url)
+                    if simulation.session != nil {
+                        pendingSaveImportData = saveData
+                        isReplaceSaveConfirmationPresented = true
+                    } else {
+                        importCareerSave(saveData)
                     }
-                    saveTransferNotice = importResult.createdCopy
-                        ? "La carrière a été importée comme une copie, car une sauvegarde locale porte déjà son identifiant. La carrière locale existante est conservée. Ses archives réseau doivent aussi être présentes dans cette installation."
-                        : "La carrière a été importée et mise en pause. Ses archives réseau doivent aussi être présentes dans cette installation."
-                    isPreparingNewCareer = false
-                    simulation.refreshSavedCareers()
                 } catch {
                     saveTransferNotice = "Import impossible : \(error.localizedDescription)"
+                    isLaunchMenuPresented = true
                 }
-                isLaunchMenuPresented = true
             case let .failure(error):
                 let nsError = error as NSError
                 if nsError.code != NSUserCancelledError {
@@ -1158,6 +1158,22 @@ struct OperationsDashboardView: View {
                 }
                 isLaunchMenuPresented = true
             }
+        }
+        .confirmationDialog(
+            "Remplacer la carrière actuelle ?",
+            isPresented: $isReplaceSaveConfirmationPresented,
+            titleVisibility: .visible
+        ) {
+            Button("Charger la sauvegarde") {
+                guard let pendingSaveImportData else { return }
+                importCareerSave(pendingSaveImportData)
+            }
+            Button("Annuler", role: .cancel) {
+                pendingSaveImportData = nil
+                isLaunchMenuPresented = true
+            }
+        } message: {
+            Text("La carrière active sera mise en pause puis remplacée à l’écran. Sa sauvegarde locale restera disponible dans la liste des carrières.")
         }
         .fileExporter(
             isPresented: $isSaveExporterPresented,
@@ -2864,6 +2880,27 @@ struct OperationsDashboardView: View {
         isPreparingNewCareer = false
         isLaunchMenuPresented = false
         isSaveImporterPresented = true
+    }
+
+    private func importCareerSave(_ data: Data) {
+        defer {
+            pendingSaveImportData = nil
+            isLaunchMenuPresented = true
+        }
+        do {
+            let importResult = try simulation.importSaveData(data)
+            if let depotID = simulation.session?.effectiveActiveDepotID {
+                selectedDepotID = depotID
+            }
+            selectedWorkspaceTab = .network
+            saveTransferNotice = importResult.createdCopy
+                ? "La carrière a été importée comme une copie, car une sauvegarde locale porte déjà son identifiant. La carrière locale existante est conservée. Ses archives réseau doivent aussi être présentes dans cette installation."
+                : "La carrière a été importée et mise en pause. Ses archives réseau doivent aussi être présentes dans cette installation."
+            isPreparingNewCareer = false
+            simulation.refreshSavedCareers()
+        } catch {
+            saveTransferNotice = "Import impossible : \(error.localizedDescription)"
+        }
     }
 
     private func prepareSaveExport() {
