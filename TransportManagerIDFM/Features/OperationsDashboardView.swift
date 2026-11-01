@@ -9726,15 +9726,20 @@ private struct IncidentHistoryView: View {
                         let teamAvailableAt = session.nextRecoveryTeamAvailableAt(depotID: depotID)
 
                         LabeledContent("Dépôt", value: depotName)
-                        HStack(spacing: 10) {
-                            Label("État", systemImage: "wrench.and.screwdriver")
-                            Spacer()
+                        Gauge(value: Double(condition), in: 0...100) {
+                            Text("État de l’équipe")
+                        } currentValueLabel: {
                             Text("\(condition) %")
                                 .monospacedDigit()
-                                .foregroundStyle(condition < VehicleRecoveryRules.teamMaintenanceThresholdPercent ? Color.orange : Color.primary)
+                        } minimumValueLabel: {
+                            Text("0 %")
+                        } maximumValueLabel: {
+                            Text("100 %")
                         }
-                        ProgressView(value: Double(condition), total: 100)
-                            .accessibilityLabel("État de l’équipe de dépannage · \(condition) pour cent")
+                        .gaugeStyle(.linearCapacity)
+                        .tint(condition < VehicleRecoveryRules.teamMaintenanceThresholdPercent ? .orange : .accentColor)
+                        .accessibilityLabel("État de l’équipe de dépannage")
+                        .accessibilityValue("\(condition) pour cent")
 
                         if let completionAt {
                             Label("Entretien jusqu’à \(completionAt.formatted(date: .abbreviated, time: .shortened))", systemImage: "clock")
