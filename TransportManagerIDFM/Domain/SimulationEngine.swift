@@ -627,6 +627,50 @@ private extension SimulatedStopClosure {
     }
 }
 
+enum RouteDetourCause: String, Codable, CaseIterable, Hashable, Identifiable, Sendable {
+    case accident
+    case roadworks
+    case localEvent
+    case congestion
+    case trafficReport
+    case other
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .accident: "Accident routier"
+        case .roadworks: "Travaux"
+        case .localEvent: "Événement local"
+        case .congestion: "Congestion"
+        case .trafficReport: "Information trafic PRIM"
+        case .other: "Autre perturbation"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .accident: "car.rear.fill"
+        case .roadworks: "hammer.fill"
+        case .localEvent: "calendar"
+        case .congestion: "car.front.waves.up.fill"
+        case .trafficReport: "antenna.radiowaves.left.and.right"
+        case .other: "point.3.connected.trianglepath.dotted"
+        }
+    }
+
+    var explanation: String {
+        switch self {
+        case .accident: "Perturbation de jeu déclarée par le gestionnaire; aucun accident réel n’est annoncé."
+        case .roadworks: "Travaux simulés sur le segment sélectionné."
+        case .localEvent: "Perturbation simulée liée à un événement local."
+        case .congestion: "Retard simulé lié à la circulation sur le segment sélectionné."
+        case .trafficReport: "Une observation PRIM reste séparée; son enregistrement crée seulement cette déviation de jeu."
+        case .other: "Perturbation de jeu dont la cause n’est pas précisée."
+        }
+    }
+}
+
 struct SimulatedRouteDetour: Codable, Hashable, Identifiable, Sendable {
     let id: String
     let routeID: String
@@ -641,6 +685,7 @@ struct SimulatedRouteDetour: Codable, Hashable, Identifiable, Sendable {
     var endedAt: Date? = nil
     let replacementCoordinates: [BusMovementCoordinate]
     let additionalTravelSeconds: TimeInterval
+    var cause: RouteDetourCause? = nil
     var sourceObservation: PRIMTrafficObservation? = nil
     var passengerInformationMessage: String? = nil
 
@@ -674,6 +719,7 @@ struct RouteDetourEventDetails: Codable, Hashable, Sendable {
     let fromStopName: String
     let toStopName: String
     let scheduledEndAt: Date
+    let cause: RouteDetourCause?
 
     init(_ detour: SimulatedRouteDetour) {
         detourID = detour.id
@@ -681,6 +727,7 @@ struct RouteDetourEventDetails: Codable, Hashable, Sendable {
         fromStopName = detour.fromStopName
         toStopName = detour.toStopName
         scheduledEndAt = detour.scheduledEndAt
+        cause = detour.cause
     }
 }
 
@@ -848,17 +895,17 @@ struct SimulationEvent: Codable, Hashable, Identifiable, Sendable {
         case let .routeClosureEnded(_, _, routeName):
             "Reprise des départs · ligne \(routeName)"
         case let .routeDetourScheduled(details, startsAt):
-            "Déviation planifiée · ligne \(details.routeID), \(details.fromStopName) → \(details.toStopName) · début \(startsAt.formatted(date: .omitted, time: .shortened))"
+            "\(details.cause.map { "\($0.title) · " } ?? "")déviation planifiée · ligne \(details.routeID), \(details.fromStopName) → \(details.toStopName) · début \(startsAt.formatted(date: .omitted, time: .shortened))"
         case let .routeDetourStarted(details):
-            "Déviation active · ligne \(details.routeID), \(details.fromStopName) → \(details.toStopName)"
+            "\(details.cause.map { "\($0.title) · " } ?? "")déviation active · ligne \(details.routeID), \(details.fromStopName) → \(details.toStopName)"
         case let .routeDetourReplanned(tripID, routeID, addedDelaySeconds, addedDistanceMeters):
             "Course \(tripID) recalée sur la déviation de la ligne \(routeID) · +\(Int((addedDelaySeconds / 60).rounded())) min · +\((addedDistanceMeters / 1_000).formatted(.number.precision(.fractionLength(1)))) km"
         case let .followingServiceDelayed(fromTripID, toTripID, routeID, delaySeconds):
             "Retard propagé de la course \(fromTripID) à la course \(toTripID) · ligne \(routeID) · +\(Int((delaySeconds / 60).rounded())) min"
         case let .routeDetourExtended(details):
-            "Déviation prolongée · ligne \(details.routeID), \(details.fromStopName) → \(details.toStopName) · fin \(details.scheduledEndAt.formatted(date: .omitted, time: .shortened))"
+            "\(details.cause.map { "\($0.title) · " } ?? "")déviation prolongée · ligne \(details.routeID), \(details.fromStopName) → \(details.toStopName) · fin \(details.scheduledEndAt.formatted(date: .omitted, time: .shortened))"
         case let .routeDetourEnded(details):
-            "Fin de déviation · ligne \(details.routeID), \(details.fromStopName) → \(details.toStopName)"
+            "Fin de déviation · \(details.cause?.title.lowercased() ?? "perturbation") · ligne \(details.routeID), \(details.fromStopName) → \(details.toStopName)"
         case let .stopArrival(_, stopID):
             "Arrivée à l’arrêt \(stopID)"
         case .serviceCompleted:
@@ -5057,6 +5104,7 @@ final class SimulationEngine: ObservableObject {
         endsAt: Date,
         replacementCoordinates: [BusMovementCoordinate],
         additionalTravelSeconds: TimeInterval,
+        cause: RouteDetourCause = .other,
         sourceObservation: PRIMTrafficObservation? = nil,
         passengerInformationMessage: String? = nil
     ) throws -> SimulatedRouteDetour {
@@ -5117,6 +5165,7 @@ final class SimulationEngine: ObservableObject {
             scheduledEndAt: endsAt,
             replacementCoordinates: replacementCoordinates,
             additionalTravelSeconds: additionalTravelSeconds,
+            cause: cause,
             sourceObservation: sourceObservation,
             passengerInformationMessage: passengerInformationMessage
                 .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
