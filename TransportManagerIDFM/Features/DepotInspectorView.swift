@@ -1181,6 +1181,16 @@ struct DepotDirectoryWorkspaceView: View {
         }
     }
 
+    private var depotDirectorySplitView: some View {
+        HStack(spacing: 0) {
+            directoryList
+                .frame(minWidth: 320, idealWidth: 390, maxWidth: 480)
+            Divider()
+            selectedDepotDetail
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+    }
+
     private var directoryList: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 4) {
