@@ -2,7 +2,7 @@ import MapKit
 import SwiftUI
 import UniformTypeIdentifiers
 
-private struct SimulationSaveFile: FileDocument {
+struct SimulationSaveFile: FileDocument {
     static var readableContentTypes: [UTType] { [.json] }
 
     var data: Data
