@@ -284,7 +284,7 @@ struct OperationsDashboardView: View {
     @AppStorage("transportManager.selectedDepotID") private var selectedDepotID = "saint-maur"
     @State private var careerStartMoment = Date.now
     @State private var selectedCandidateCareerLineIDs = Set<String>()
-    @State private var breakdownFrequency: VehicleIncidentFrequency = .standard
+    @AppStorage("transportManager.breakdownFrequency") private var breakdownFrequencyRaw = VehicleIncidentFrequency.standard.rawValue
     @State private var careerStartError: String?
     @State private var isPreparingTimetable = false
     @State private var isTimetableExtensionBlocked = false
@@ -320,6 +320,7 @@ struct OperationsDashboardView: View {
     @State private var incidentForResponse: VehicleIncident?
     @State private var isSaveImporterPresented = false
     @State private var isSaveExporterPresented = false
+    @State private var returnsToLaunchMenuAfterSaveExport = false
     @State private var saveExportDocument = SimulationSaveFile(data: Data())
     @State private var saveTransferNotice: String?
     @State private var activeTripShapes: [ActiveTripMapShape] = []
@@ -328,6 +329,8 @@ struct OperationsDashboardView: View {
     // A new player should first choose a real depot, then enter its line roster.
     // Existing careers are redirected to the operating map during dashboard setup.
     @State private var selectedWorkspaceTab: OperationsWorkspaceTab = .network
+    @State private var isLaunchMenuPresented = true
+    @State private var isPreparingNewCareer = false
     @State private var assignmentWorkspaceSection: AssignmentWorkspaceSection = .depotLines
     @State private var reportWorkspaceSection: ReportWorkspaceSection = .daily
     @State private var dataWorkspaceSection: DataWorkspaceSection = .contracts
@@ -345,6 +348,51 @@ struct OperationsDashboardView: View {
         return "\(simulation.session?.id ?? "préparation")|\(catalog.activeVersion?.id ?? "aucune")|\(catalog.activeLineReferenceVersion?.id ?? "aucune-référence")|\(dateKey)|\(library.busRoutes.count)|\(library.lineReferences.count)"
     }
 
+    private var isCareerPreparationMode: Bool {
+        simulation.session == nil || isPreparingNewCareer
+    }
+
+    private var breakdownFrequency: VehicleIncidentFrequency {
+        VehicleIncidentFrequency(rawValue: breakdownFrequencyRaw) ?? .standard
+    }
+
+    private var breakdownFrequencyBinding: Binding<VehicleIncidentFrequency> {
+        Binding(
+            get: { VehicleIncidentFrequency(rawValue: breakdownFrequencyRaw) ?? .standard },
+            set: { breakdownFrequencyRaw = $0.rawValue }
+        )
+    }
+
+    private var activeCareerSummary: SavedCareerSummary? {
+        guard let session = simulation.session else { return nil }
+        return simulation.savedCareers.first(where: { $0.id == session.id })
+            ?? SavedCareerSummary(
+                id: session.id,
+                scenarioID: session.scenarioID,
+                depotID: session.depotID,
+                createdAt: session.createdAt,
+                updatedAt: session.updatedAt,
+                simulatedAt: session.simulatedAt,
+                cashBalance: session.cashBalance
+            )
+    }
+
+    private var launchScenarioChoices: [GameLaunchScenarioChoice] {
+        DepotLineRoster.selectableSites
+            .filter(\.hasPlayableContractScope)
+            .map { site in
+                let scenario = ScenarioDefinition.forDepot(site.id)
+                let contract = site.idfmBusContractID ?? scenario.contractID
+                return GameLaunchScenarioChoice(
+                    id: site.id,
+                    depotID: site.id,
+                    title: site.name,
+                    subtitle: "\(scenario.name) · contrat \(contract) · \(site.locality)"
+                )
+            }
+            .sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+    }
+
     private var scenarioLineChecklist: ScenarioLineChecklist? {
         scenario.publishedLineChecklist(at: careerStartMoment)
     }
@@ -355,7 +403,7 @@ struct OperationsDashboardView: View {
             && isCareerStartWithinNetworkValidity
             && isSelectedDepotPlayable
             && !selectedDepotRouteIDs.isEmpty
-            && simulation.session == nil
+            && isCareerPreparationMode
             && !isPreparingTimetable
             && !library.importState.isImporting
             && !library.geometryImportState.isImporting
@@ -410,11 +458,11 @@ struct OperationsDashboardView: View {
     }
 
     private var lineCatalogDepotID: String {
-        simulation.session == nil ? selectedDepotID : (browsedDepotID ?? selectedDepotID)
+        isCareerPreparationMode ? selectedDepotID : (browsedDepotID ?? selectedDepotID)
     }
 
     private var lineCatalogCanShowOnMap: Bool {
-        simulation.session == nil || lineCatalogDepotID == selectedDepotID
+        isCareerPreparationMode || lineCatalogDepotID == selectedDepotID
     }
 
     private var selectedDepotSite: DepotLineRosterSite? {
@@ -439,7 +487,7 @@ struct OperationsDashboardView: View {
     }
 
     private var selectedDepotRosterDate: Date {
-        simulation.session?.simulatedAt ?? careerStartMoment
+        isCareerPreparationMode ? careerStartMoment : (simulation.session?.simulatedAt ?? careerStartMoment)
     }
 
     private var selectedDepotMapLines: [DepotMapLine] {
@@ -478,7 +526,7 @@ struct OperationsDashboardView: View {
             return DepotMapLine(row: row, routes: routes, geometries: uniqueGeometries.values.sorted { $0.id < $1.id })
         }
 
-        guard let session = simulation.session else { return entries }
+        guard !isCareerPreparationMode, let session = simulation.session else { return entries }
         let depotRouteIDs = session.effectiveOperatedRouteIDs(for: selectedDepotID)
         let matchedRouteIDs = Set(entries.flatMap(\.routes).map(\.routeID))
         let legacyLines = depotRouteIDs.filter { !matchedRouteIDs.contains($0) }.compactMap { routeID -> DepotMapLine? in
@@ -503,7 +551,7 @@ struct OperationsDashboardView: View {
     }
 
     private var selectedDepotRouteIDs: Set<String> {
-        if let session = simulation.session {
+        if let session = simulation.session, !isCareerPreparationMode {
             return session.effectiveOperatedRouteIDs(for: selectedDepotID)
         }
         let confirmedRouteIDs = Set(selectedDepotMapLines
@@ -519,7 +567,7 @@ struct OperationsDashboardView: View {
         library.depotLineCoverage(
             depotID: selectedDepotID,
             serviceDate: selectedDepotRosterDate,
-            operatedRouteIDs: simulation.session?.effectiveOperatedRouteIDs(for: selectedDepotID) ?? []
+            operatedRouteIDs: selectedDepotRouteIDs
         )
     }
 
@@ -623,7 +671,7 @@ struct OperationsDashboardView: View {
     }
 
     private var mapFleetBuses: [PurchasedBus] {
-        guard let session = simulation.session else { return [] }
+        guard !isCareerPreparationMode, let session = simulation.session else { return [] }
         let assignments = session.machinistServiceAssignments ?? []
         return (session.ownedBuses ?? []).filter { bus in
             (bus.status == .inService || bus.status == .atStop || bus.status == .waitingForWorkshop || bus.status == .inMaintenance || bus.status == .beingTowed || bus.status == .deadheadingToService || bus.status == .returningToDepot || bus.status == .outOfService)
@@ -642,11 +690,13 @@ struct OperationsDashboardView: View {
     }
 
     private var activeBusTripIDs: [String] {
-        Array(Set((simulation.session?.ownedBuses ?? []).compactMap(\.currentTripID))).sorted()
+        guard !isCareerPreparationMode else { return [] }
+        return Array(Set((simulation.session?.ownedBuses ?? []).compactMap(\.currentTripID))).sorted()
     }
 
     private var activeStopReplacementGuides: [ActiveStopReplacementMapGuide] {
-        (simulation.session?.activeStopClosures ?? []).flatMap { closure in
+        guard !isCareerPreparationMode else { return [] }
+        return (simulation.session?.activeStopClosures ?? []).flatMap { closure in
             (closure.replacementGuidesByRouteID ?? [:]).values.map { guide in
                 ActiveStopReplacementMapGuide(
                     id: "\(closure.id)|\(guide.routeID)",
@@ -668,17 +718,51 @@ struct OperationsDashboardView: View {
         )
     }
 
-    var body: some View { dashboardLifecycle }
+    var body: some View {
+        ZStack {
+            dashboardLifecycle
+                .allowsHitTesting(!isLaunchMenuPresented)
+                .accessibilityHidden(isLaunchMenuPresented)
+            if isLaunchMenuPresented {
+                GameLaunchMenuView(
+                    breakdownFrequency: breakdownFrequencyBinding,
+                    activeCareer: activeCareerSummary,
+                    savedCareers: simulation.savedCareers,
+                    savedCareerNotice: simulation.savedCareerNotice,
+                    scenarios: launchScenarioChoices,
+                    networkLineCount: library.busRoutes.count,
+                    isSynchronizing: cloudSync.isSyncing,
+                    syncStatus: cloudSync.statusMessage,
+                    hasSyncConflict: cloudSync.hasConflict,
+                    onContinue: continueCareerFromMenu,
+                    onNewCareer: { beginNewCareerPreparation() },
+                    onChooseScenario: { choice in beginNewCareerPreparation(depotID: choice.depotID) },
+                    onSelectCareer: loadCareerFromMenu,
+                    onImportCareer: presentCareerImporterFromMenu,
+                    onExportCareer: prepareSaveExport,
+                    onSaveCareer: { simulation.pauseAndSave() },
+                    onSynchronize: { Task { await cloudSync.synchronize(with: simulation, library: library) } }
+                )
+                .zIndex(1)
+            }
+        }
+        .animation(.easeInOut(duration: 0.18), value: isLaunchMenuPresented)
+        .onAppear {
+            if isLaunchMenuPresented { simulation.pauseAndSave() }
+        }
+    }
 
     private var dashboardLayout: some View {
         VStack(spacing: 0) {
             topBar
             Divider()
-            workspaceNavigationBar
-            Divider()
+            if !isCareerPreparationMode {
+                workspaceNavigationBar
+                Divider()
+            }
             depotSelectionBar
             Divider()
-            if simulation.session != nil {
+            if simulation.session != nil && !isCareerPreparationMode {
                 simulationControlBar
                 Divider()
             }
@@ -740,19 +824,25 @@ struct OperationsDashboardView: View {
                     if didStartAccessing { url.stopAccessingSecurityScopedResource() }
                 }
                 do {
-                    try simulation.importSaveData(Data(contentsOf: url))
+                    let importResult = try simulation.importSaveData(Data(contentsOf: url))
                     if let depotID = simulation.session?.effectiveActiveDepotID {
                         selectedDepotID = depotID
                     }
-                    saveTransferNotice = "La carrière a été importée et mise en pause. Ses archives réseau doivent aussi être présentes dans cette installation."
+                    saveTransferNotice = importResult.createdCopy
+                        ? "La carrière a été importée comme une copie, car une sauvegarde locale porte déjà son identifiant. La carrière locale existante est conservée. Ses archives réseau doivent aussi être présentes dans cette installation."
+                        : "La carrière a été importée et mise en pause. Ses archives réseau doivent aussi être présentes dans cette installation."
+                    isPreparingNewCareer = false
+                    simulation.refreshSavedCareers()
                 } catch {
                     saveTransferNotice = "Import impossible : \(error.localizedDescription)"
                 }
+                isLaunchMenuPresented = true
             case let .failure(error):
                 let nsError = error as NSError
                 if nsError.code != NSUserCancelledError {
                     saveTransferNotice = "Import impossible : \(error.localizedDescription)"
                 }
+                isLaunchMenuPresented = true
             }
         }
         .fileExporter(
@@ -769,6 +859,10 @@ struct OperationsDashboardView: View {
                 if nsError.code != NSUserCancelledError {
                     saveTransferNotice = "Export impossible : \(error.localizedDescription)"
                 }
+            }
+            if returnsToLaunchMenuAfterSaveExport {
+                returnsToLaunchMenuAfterSaveExport = false
+                isLaunchMenuPresented = true
             }
         }
     }
@@ -992,6 +1086,7 @@ struct OperationsDashboardView: View {
         }
         .onChange(of: simulation.session?.id) { _, _ in
             browsedDepotID = nil
+            simulation.refreshSavedCareers()
         }
         .onChange(of: pendingIncidentResponse?.id) { _, incidentID in
             guard let incidentID,
@@ -1015,7 +1110,7 @@ struct OperationsDashboardView: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text("Transport Manager IDFM")
                     .font(.headline)
-                Text(simulation.session == nil
+                Text(isCareerPreparationMode
                      ? "Choisis un dépôt et exploite ses lignes réelles"
                      : "Partie en cours · \(scenario.name)")
                     .font(.caption)
@@ -1047,13 +1142,19 @@ struct OperationsDashboardView: View {
                 .help(networkStatusHelp)
             }
 
-            if simulation.session == nil {
+            if isCareerPreparationMode {
                 DatePicker("Départ", selection: $careerStartMoment, displayedComponents: [.date, .hourAndMinute])
                     .datePickerStyle(.compact)
                     .frame(width: 190)
                     .environment(\.timeZone, GTFSServiceDate.parisTimeZone)
                     .help("Date et heure de début de la carrière")
             }
+
+            Button(action: openLaunchMenu) {
+                Label("Menu principal", systemImage: "house")
+            }
+            .buttonStyle(.bordered)
+            .help("Ouvrir le menu principal et mettre la partie en pause")
 
             Menu {
                 Label(cloudSync.statusMessage, systemImage: cloudSync.hasConflict ? "exclamationmark.icloud" : "icloud")
@@ -1073,7 +1174,7 @@ struct OperationsDashboardView: View {
                     }
                 }
                 Divider()
-                if simulation.session != nil {
+                if simulation.session != nil && !isCareerPreparationMode {
                     Button {
                         prepareSaveExport()
                     } label: {
@@ -1091,9 +1192,9 @@ struct OperationsDashboardView: View {
                 } label: {
                     Label("Importer une carrière…", systemImage: "square.and.arrow.down")
                 }
-                if simulation.session == nil {
+                if isCareerPreparationMode {
                     Divider()
-                    Picker("Fréquence des pannes", selection: $breakdownFrequency) {
+                    Picker("Fréquence des pannes", selection: breakdownFrequencyBinding) {
                         ForEach(VehicleIncidentFrequency.allCases) { frequency in
                             Text(frequency.title).tag(frequency)
                         }
@@ -1107,7 +1208,7 @@ struct OperationsDashboardView: View {
             .platformBorderedMenuStyle()
             .help("Sauvegarde et options de carrière")
 
-            if simulation.session == nil, isSelectedDepotPlayable {
+            if isCareerPreparationMode, isSelectedDepotPlayable {
                 Button(action: startCareer) {
                     if isPreparingTimetable {
                         Label("Chargement des horaires…", systemImage: "clock.arrow.circlepath")
@@ -1118,7 +1219,7 @@ struct OperationsDashboardView: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(!canStartCareer || isPreparingTimetable)
                 .help(startCareerHelp)
-            } else if simulation.session == nil {
+            } else if isCareerPreparationMode {
                 Button {
                     selectedWorkspaceTab = .lines
                 } label: {
@@ -1598,7 +1699,7 @@ struct OperationsDashboardView: View {
             .frame(minWidth: 165, alignment: .leading)
 
             Menu {
-                if let session = simulation.session {
+                if let session = simulation.session, !isCareerPreparationMode {
                     Section("Dépôts de mon entreprise") {
                         ForEach(session.effectiveManagedDepotIDs.sorted(), id: \.self) { depotID in
                             Button {
@@ -1631,10 +1732,10 @@ struct OperationsDashboardView: View {
                     }
                 }
             } label: {
-                Label(simulation.session == nil ? "Choisir un dépôt" : "Changer de dépôt", systemImage: "chevron.down")
+                Label(isCareerPreparationMode ? "Choisir un dépôt" : "Changer de dépôt", systemImage: "chevron.down")
             }
             .platformBorderedMenuStyle()
-            .help(simulation.session == nil
+            .help(isCareerPreparationMode
                 ? "Choisir un dépôt régional et consulter ses lignes réelles"
                 : "Changer de dépôt actif ou choisir un site dans le répertoire régional complet")
 
@@ -1655,7 +1756,7 @@ struct OperationsDashboardView: View {
     }
 
     private var currentlyDisplayedDepotName: String {
-        if let activeDepotID = simulation.session?.effectiveActiveDepotID {
+        if let activeDepotID = simulation.session?.effectiveActiveDepotID, !isCareerPreparationMode {
             return DepotCareerScope.depotReference(for: activeDepotID)?.name ?? activeDepotID
         }
         return selectedDepotSite?.name ?? selectedDepot?.name ?? "Choisis ton centre"
@@ -1737,7 +1838,7 @@ struct OperationsDashboardView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Lignes du dépôt")
                         .font(.headline)
-                    Text(simulation.session == nil
+                    Text(isCareerPreparationMode
                          ? "\(selectedDepotRouteIDs.count) variantes retenues · \(selectedDepotMapLines.count) lignes au catalogue"
                          : "\(selectedDepotMapLines.count) lignes sur la carte")
                         .font(.caption)
@@ -1757,7 +1858,7 @@ struct OperationsDashboardView: View {
 
             Divider()
 
-            if simulation.session == nil {
+            if isCareerPreparationMode {
                 Text("Les lignes confirmées sont incluses. Utilise le bouton rond pour choisir les autres lignes que tu veux exploiter.")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
@@ -1800,7 +1901,7 @@ struct OperationsDashboardView: View {
                                 .buttonStyle(.plain)
                                 .frame(maxWidth: .infinity, alignment: .leading)
 
-                                if simulation.session == nil,
+                                if isCareerPreparationMode,
                                    !line.routes.isEmpty,
                                    line.row.evidenceStatus(on: selectedDepotRosterDate) != .confirmed,
                                    line.row.evidenceStatus(on: selectedDepotRosterDate) != .planned {
@@ -1837,7 +1938,7 @@ struct OperationsDashboardView: View {
                                         Label("Centrer la ligne sur la carte", systemImage: "scope")
                                     }
                                 }
-                                if simulation.session == nil,
+                                if isCareerPreparationMode,
                                    !line.routes.isEmpty,
                                    line.row.evidenceStatus(on: selectedDepotRosterDate) != .confirmed,
                                    line.row.evidenceStatus(on: selectedDepotRosterDate) != .planned {
@@ -1924,7 +2025,7 @@ struct OperationsDashboardView: View {
 
     private func refreshScenarioLineCoverage(for taskID: String) async {
         scenarioLineCoverageTaskKey = taskID
-        guard simulation.session == nil,
+        guard isCareerPreparationMode,
               let checklist = scenarioLineChecklist,
               isCareerStartWithinNetworkValidity,
               let version = catalog.activeVersion,
@@ -2026,7 +2127,7 @@ struct OperationsDashboardView: View {
     }
 
     private func toggleCandidateCareerLine(_ line: DepotMapLine) {
-        guard simulation.session == nil,
+        guard isCareerPreparationMode,
               !line.routes.isEmpty,
               line.row.evidenceStatus(on: selectedDepotRosterDate) != .confirmed,
               line.row.evidenceStatus(on: selectedDepotRosterDate) != .planned else { return }
@@ -2087,15 +2188,70 @@ struct OperationsDashboardView: View {
                     breakdownFrequency: breakdownFrequency
                 )
                 selectedWorkspaceTab = .network
+                isPreparingNewCareer = false
             } catch {
                 careerStartError = error.localizedDescription
             }
         }
     }
 
+    private func openLaunchMenu() {
+        simulation.pauseAndSave()
+        simulation.refreshSavedCareers()
+        isPreparingNewCareer = false
+        isLaunchMenuPresented = true
+    }
+
+    private func continueCareerFromMenu() {
+        guard let session = simulation.session else {
+            beginNewCareerPreparation()
+            return
+        }
+        selectedDepotID = session.effectiveActiveDepotID
+        selectedWorkspaceTab = .network
+        isPreparingNewCareer = false
+        simulation.resume()
+        isLaunchMenuPresented = false
+    }
+
+    private func beginNewCareerPreparation(depotID: String? = nil) {
+        simulation.pauseAndSave()
+        simulation.refreshSavedCareers()
+        if let depotID { selectedDepotID = depotID }
+        careerStartMoment = Date.now
+        selectedCandidateCareerLineIDs.removeAll()
+        browsedDepotID = nil
+        selectedWorkspaceTab = .network
+        isPreparingNewCareer = true
+        isLaunchMenuPresented = false
+    }
+
+    private func loadCareerFromMenu(_ summary: SavedCareerSummary) {
+        do {
+            try simulation.loadSavedCareer(id: summary.id)
+            if let depotID = simulation.session?.effectiveActiveDepotID {
+                selectedDepotID = depotID
+            }
+            selectedWorkspaceTab = .network
+            isPreparingNewCareer = false
+            isLaunchMenuPresented = false
+        } catch {
+            saveTransferNotice = "Reprise impossible : \(error.localizedDescription)"
+        }
+    }
+
+    private func presentCareerImporterFromMenu() {
+        simulation.pauseAndSave()
+        isPreparingNewCareer = false
+        isLaunchMenuPresented = false
+        isSaveImporterPresented = true
+    }
+
     private func prepareSaveExport() {
         do {
             saveExportDocument = SimulationSaveFile(data: try simulation.exportSaveData())
+            returnsToLaunchMenuAfterSaveExport = isLaunchMenuPresented
+            if returnsToLaunchMenuAfterSaveExport { isLaunchMenuPresented = false }
             isSaveExporterPresented = true
         } catch {
             saveTransferNotice = "Export impossible : \(error.localizedDescription)"
@@ -2308,7 +2464,7 @@ struct OperationsDashboardView: View {
             .padding(12)
             .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 11))
 
-            if simulation.session == nil {
+            if isCareerPreparationMode {
                 DatePicker(
                     "Date et heure de départ",
                     selection: $careerStartMoment,
@@ -2317,7 +2473,7 @@ struct OperationsDashboardView: View {
                 .datePickerStyle(.compact)
                 .environment(\.timeZone, GTFSServiceDate.parisTimeZone)
                 VStack(alignment: .leading, spacing: 5) {
-                    Picker("Fréquence des pannes", selection: $breakdownFrequency) {
+                    Picker("Fréquence des pannes", selection: breakdownFrequencyBinding) {
                         ForEach(VehicleIncidentFrequency.allCases) { frequency in
                             Text(frequency.title).tag(frequency)
                         }
