@@ -14,14 +14,22 @@ require_source() {
     fi
 }
 
-require_source 'isInitialCareerRestorePending || cloudSync.isSyncing' "$project_root/TransportManagerIDFM/TransportManagerIDFMApp.swift"
-require_source 'cloudRestorePresentation.canStartNewCareer' "$project_root/TransportManagerIDFM/TransportManagerIDFMApp.swift"
-require_source '.disabled(!cloudRestorePresentation.canImportSave)' "$project_root/TransportManagerIDFM/TransportManagerIDFMApp.swift"
-require_source 'Pour choisir, reprends la partie locale puis ouvre le menu iCloud dans la barre supérieure du tableau de bord.' "$project_root/TransportManagerIDFM/Features/GameLaunchMenuView.swift"
+app_source="$project_root/TransportManagerIDFM/TransportManagerIDFMApp.swift"
+dashboard_source="$project_root/TransportManagerIDFM/Features/OperationsDashboardView.swift"
+launch_menu_source="$project_root/TransportManagerIDFM/Features/GameLaunchMenuView.swift"
+
+require_source 'CareerRestorePresentation(' "$launch_menu_source"
+require_source 'statusMessage: syncStatus,' "$launch_menu_source"
+require_source 'careerRestorePresentation.isPending' "$launch_menu_source"
+require_source 'careerRestorePresentation.canStartNewCareer' "$launch_menu_source"
+require_source 'careerRestorePresentation.canImportSave' "$launch_menu_source"
+require_source 'await cloudSync.synchronize(with: simulation, library: library)' "$dashboard_source"
+require_source 'Pour choisir, reprends la partie locale puis ouvre le menu iCloud dans la barre supérieure du tableau de bord.' "$launch_menu_source"
 
 swiftc -frontend -parse \
-    "$project_root/TransportManagerIDFM/TransportManagerIDFMApp.swift" \
-    "$project_root/TransportManagerIDFM/Features/GameLaunchMenuView.swift"
+    "$app_source" \
+    "$launch_menu_source" \
+    "$dashboard_source"
 
 mkdir -p "$temporary_directory/swift-modules" "$temporary_directory/clang-modules"
 swiftc \
@@ -31,7 +39,7 @@ swiftc \
     -Xcc "-fmodules-cache-path=$temporary_directory/clang-modules" \
     -emit-executable \
     -module-name TransportManagerIDFM \
-    "$project_root/TransportManagerIDFM/TransportManagerIDFMApp.swift" \
+    "$app_source" \
     "$project_root/Validation/MobileCloudRestorePresentationSmoke.swift" \
     -o "$temporary_directory/MobileCloudRestorePresentationSmoke"
 "$temporary_directory/MobileCloudRestorePresentationSmoke"
