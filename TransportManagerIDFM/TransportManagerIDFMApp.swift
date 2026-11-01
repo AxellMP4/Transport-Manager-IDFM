@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 #if os(macOS)
 import AppKit
 typealias PlatformColor = NSColor
@@ -97,6 +98,12 @@ private struct MobileOperationsView: View {
     @State private var isPreparingTimetable = false
     @State private var careerStartError: String?
     @State private var mobileActionMessage: String?
+    @State private var mobileSaveTransferMessage: String?
+    @State private var isSaveImporterPresented = false
+    @State private var isSaveExporterPresented = false
+    @State private var saveExportDocument = SimulationSaveFile(data: Data())
+    @State private var pendingSaveImportData: Data?
+    @State private var isReplaceSaveConfirmationPresented = false
 
     var body: some View {
         TabView {
@@ -137,6 +144,68 @@ private struct MobileOperationsView: View {
         .onChange(of: simulation.lastSavedAt) { _, savedAt in
             guard savedAt != nil else { return }
             cloudSync.scheduleSynchronization(with: simulation, library: library)
+        }
+        .fileImporter(
+            isPresented: $isSaveImporterPresented,
+            allowedContentTypes: [.json],
+            allowsMultipleSelection: false
+        ) { result in
+            switch result {
+            case let .success(urls):
+                guard let url = urls.first else { return }
+                let didStartAccessing = url.startAccessingSecurityScopedResource()
+                defer {
+                    if didStartAccessing { url.stopAccessingSecurityScopedResource() }
+                }
+                do {
+                    let saveData = try Data(contentsOf: url)
+                    guard simulation.session != nil else {
+                        importMobileSave(saveData)
+                        return
+                    }
+                    pendingSaveImportData = saveData
+                    isReplaceSaveConfirmationPresented = true
+                } catch {
+                    mobileSaveTransferMessage = "Import impossible : \(error.localizedDescription)"
+                }
+            case let .failure(error):
+                let nsError = error as NSError
+                if nsError.code != NSUserCancelledError {
+                    mobileSaveTransferMessage = "Import impossible : \(error.localizedDescription)"
+                }
+            }
+        }
+        .fileExporter(
+            isPresented: $isSaveExporterPresented,
+            document: saveExportDocument,
+            contentType: .json,
+            defaultFilename: "TransportManager-IDFM-\(simulation.session?.id ?? "carriere").json"
+        ) { result in
+            switch result {
+            case let .success(url):
+                mobileSaveTransferMessage = "Sauvegarde exportée : \(url.lastPathComponent)."
+            case let .failure(error):
+                let nsError = error as NSError
+                if nsError.code != NSUserCancelledError {
+                    mobileSaveTransferMessage = "Export impossible : \(error.localizedDescription)"
+                }
+            }
+        }
+        .confirmationDialog(
+            "Remplacer la carrière actuelle ?",
+            isPresented: $isReplaceSaveConfirmationPresented,
+            titleVisibility: .visible
+        ) {
+            Button("Remplacer la carrière", role: .destructive) {
+                guard let pendingSaveImportData else { return }
+                importMobileSave(pendingSaveImportData)
+                self.pendingSaveImportData = nil
+            }
+            Button("Annuler", role: .cancel) {
+                pendingSaveImportData = nil
+            }
+        } message: {
+            Text("L’import remplace la partie sur cet iPhone. Sa nouvelle sauvegarde pourra ensuite être synchronisée avec iCloud. Les archives réseau ne sont pas incluses dans le fichier.")
         }
     }
 
@@ -197,6 +266,23 @@ private struct MobileOperationsView: View {
                         }
                     }
 
+                    Section("Fichier de sauvegarde") {
+                        Button(action: prepareMobileSaveExport) {
+                            Label("Exporter la sauvegarde JSON", systemImage: "square.and.arrow.up")
+                        }
+                        Button {
+                            isSaveImporterPresented = true
+                        } label: {
+                            Label("Importer une sauvegarde JSON", systemImage: "square.and.arrow.down")
+                        }
+                        if let mobileSaveTransferMessage {
+                            Text(mobileSaveTransferMessage)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+
                     if let recoveryNotice = simulation.recoveryNotice {
                         Section("Récupération") { Text(recoveryNotice).font(.footnote) }
                     }
@@ -228,6 +314,20 @@ private struct MobileOperationsView: View {
                         .frame(minHeight: 44, alignment: .leading)
                 }
                 .disabled(!cloudRestorePresentation.isRetryEnabled)
+            }
+
+            Section("Fichier de sauvegarde") {
+                Button {
+                    isSaveImporterPresented = true
+                } label: {
+                    Label("Importer une sauvegarde JSON", systemImage: "square.and.arrow.down")
+                }
+                if let mobileSaveTransferMessage {
+                    Text(mobileSaveTransferMessage)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
 
             Section {
@@ -359,6 +459,27 @@ private struct MobileOperationsView: View {
             isSyncing: cloudSync.isSyncing,
             hasConflict: cloudSync.hasConflict
         )
+    }
+
+    private func prepareMobileSaveExport() {
+        do {
+            saveExportDocument = SimulationSaveFile(data: try simulation.exportSaveData())
+            isSaveExporterPresented = true
+        } catch {
+            mobileSaveTransferMessage = "Export impossible : \(error.localizedDescription)"
+        }
+    }
+
+    private func importMobileSave(_ data: Data) {
+        do {
+            try simulation.importSaveData(data)
+            if let activeDepotID = simulation.session?.effectiveActiveDepotID {
+                selectedDepotID = activeDepotID
+            }
+            mobileSaveTransferMessage = "Carrière importée et mise en pause. Vérifie que ses archives réseau sont aussi présentes sur cet appareil."
+        } catch {
+            mobileSaveTransferMessage = "Import impossible : \(error.localizedDescription)"
+        }
     }
 
     private var playableDepots: [DepotReference] {
