@@ -23,6 +23,78 @@ struct SimulationSaveFile: FileDocument {
     }
 }
 
+private struct EmptyMapFleetActionCard: View {
+    let onBuyBus: () -> Void
+    let onHireDriver: () -> Void
+    let onAssignDeparture: () -> Void
+
+    private var status: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "bus.fill")
+                .foregroundStyle(.tint)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Aucun bus en circulation")
+                    .font(.subheadline.weight(.semibold))
+                Text("Achète un bus, engage un conducteur, puis affecte un départ pour le voir circuler.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var actions: some View {
+        HStack(spacing: 8) {
+            Button("Acheter un bus", action: onBuyBus)
+                .buttonStyle(.borderedProminent)
+            Button("Engager un conducteur", action: onHireDriver)
+                .buttonStyle(.bordered)
+            Button("Affecter un départ", action: onAssignDeparture)
+                .buttonStyle(.bordered)
+        }
+    }
+
+    private var compactStatus: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "bus.fill")
+                .foregroundStyle(.tint)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Aucun bus en circulation")
+                    .font(.subheadline.weight(.semibold))
+                Text("Achète un bus, engage un conducteur et affecte un départ.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+        }
+    }
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 12) {
+                status
+                actions
+            }
+            .frame(minWidth: 940)
+            .fixedSize(horizontal: true, vertical: false)
+
+            HStack(spacing: 12) {
+                compactStatus
+                actions
+            }
+            .fixedSize(horizontal: true, vertical: false)
+
+            VStack(alignment: .leading, spacing: 10) {
+                status.frame(maxWidth: .infinity, alignment: .leading)
+                actions
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
+        .shadow(color: .black.opacity(0.12), radius: 12, y: 5)
+    }
+}
+
 private struct StopClosureRequest: Identifiable {
     let stop: GTFSStopSummary
     let routeID: String
@@ -3237,28 +3309,14 @@ struct OperationsDashboardView: View {
             }
             .overlay(alignment: .bottom) {
                 if simulation.session != nil && mapFleetBuses.isEmpty {
-                    HStack(spacing: 12) {
-                        Image(systemName: "bus.fill").foregroundStyle(.tint)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Aucun bus en circulation")
-                                .font(.subheadline.weight(.semibold))
-                            Text("Achète un bus, engage un conducteur, puis affecte un départ pour le voir circuler.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Button("Acheter un bus") { selectedWorkspaceTab = .fleet }
-                            .buttonStyle(.borderedProminent)
-                        Button("Engager un conducteur") { selectedWorkspaceTab = .staff }
-                            .buttonStyle(.bordered)
-                        Button("Affecter un départ") {
+                    EmptyMapFleetActionCard(
+                        onBuyBus: { selectedWorkspaceTab = .fleet },
+                        onHireDriver: { selectedWorkspaceTab = .staff },
+                        onAssignDeparture: {
                             assignmentWorkspaceSection = .busDepartures
                             selectedWorkspaceTab = .assignments
                         }
-                            .buttonStyle(.bordered)
-                    }
-                    .padding(12)
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
-                    .shadow(color: .black.opacity(0.12), radius: 12, y: 5)
+                    )
                     .padding(16)
                 }
             }
