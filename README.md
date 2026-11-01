@@ -6,7 +6,7 @@ Jeu de gestion en SwiftUI et MapKit, avec une application macOS et une cible iPh
 
 - Le jeu macOS nécessite macOS 14 ou ultérieur. Le projet utilise Swift 6 et prend en charge Apple Silicon et Intel.
 - Ouvrir `TransportManagerIDFM.xcodeproj` dans Xcode, choisir le schéma **TransportManagerIDFM**, destination **My Mac**, puis lancer avec **Run** (⌘R). Xcode et son SDK macOS doivent être compatibles avec Swift 6.
-- La cible iPhone nécessite iOS 17 ou ultérieur. Pour la compiler ou la lancer, ouvrir le même projet dans Xcode, choisir une destination iPhone ou simulateur et configurer la signature iOS de l’équipe Apple utilisée. La version iPhone est une interface réduite, décrite plus bas.
+- La cible iPhone nécessite iOS 17 ou ultérieur. Le projet comprend aussi un paquet prêt à jouer dans le simulateur iPhone, décrit dans « Livraison simulateur iOS 26 ». Pour lancer la version sur un appareil physique, ouvrir le projet dans Xcode, choisir l’iPhone puis configurer la signature de l’équipe Apple utilisée.
 - Le projet source embarque des données de réseau. Au premier démarrage, elles sont importées si aucune version active correspondante n’existe déjà sur l’appareil. Une version déjà importée reste active.
 
 ## Inspection avant achat d’occasion
@@ -24,6 +24,10 @@ Le moteur peut générer une congestion, des travaux ou un accident fictifs lors
 Le paquet jouable local est `build/Debug/TransportManagerIDFM-Playable.zip`; une copie est également disponible à la racine sous `TransportManagerIDFM-Playable.zip`. Son empreinte se trouve dans `build/Debug/TransportManagerIDFM-Playable.zip.sha256`, hors de l’app afin que sa valeur ne s’invalide pas elle-même puisque ce README est embarqué comme ressource.
 
 L’app du paquet porte une signature **ad hoc**, sans identité Developer ID, et n’est **pas notariée**. macOS peut donc afficher un avertissement à l’ouverture; ce paquet est destiné à l’essai local. La livraison publique concerne les sources, la documentation et les fragments GTFS autorisés; le ZIP binaire reste local.
+
+## Livraison simulateur iOS 26
+
+Le paquet local `TransportManagerIDFM-iOS-26-Simulator.zip` contient `TransportManagerIDFM.app`, compilée avec le SDK iOS 26.2 pour simulateur iPhone Intel (`x86_64`). Décompresser l’archive et glisser l’app dans une fenêtre du simulateur iPhone pour jouer. Le paquet vise iOS 17 ou ultérieur et n’est pas une IPA pour appareil physique; une installation sur iPhone demande une compilation Xcode signée pour cet appareil.
 
 ## Données réseau et limites de provenance
 
@@ -53,7 +57,7 @@ La logique et les scripts de validation couvrent le moteur des voyageurs, des va
 
 ## Version iPhone et synchronisation iCloud
 
-- L’application iPhone (iOS 17+) présente **Carrière**, **Courses**, **Réseau** et **Parc**. L’onglet Courses affiche les départs GTFS à affecter et permet de choisir un autobus compatible et un machiniste qualifié; un bus au dépôt vérifie son trajet MapKit et son heure d’arrivée avant le départ. La carrière peut être préparée à partir du dépôt, de la date et des lignes couvertes. Le joueur peut aussi importer ou exporter une sauvegarde JSON via Fichiers; l’import d’une carrière existante demande confirmation et ne contient pas l’archive réseau. La sauvegarde locale reste disponible hors ligne. Sans carrière locale, l’écran affiche l’état ou l’erreur de récupération iCloud et propose une nouvelle tentative avant le formulaire de création.
+- L’application iPhone (iOS 17+) présente **Carrière**, **Courses**, **Réseau**, **Parc** et **Finances**. En iOS 26, la barre d’onglets adopte le style Liquid Glass du système et un accessoire inférieur affiche la date simulée, la vitesse, la pause/reprise et l’avance au prochain événement pendant une partie. Sur iOS 17 à 25, les onglets et les commandes de simulation classiques restent disponibles. L’onglet Courses affiche les départs GTFS à affecter et permet de choisir un autobus compatible et un machiniste qualifié; un bus au dépôt vérifie son trajet MapKit et son heure d’arrivée avant le départ. La carrière peut être préparée à partir du dépôt, de la date et des lignes couvertes. Le joueur peut aussi importer ou exporter une sauvegarde JSON via Fichiers; l’import d’une carrière existante demande confirmation et ne contient pas l’archive réseau. La sauvegarde locale reste disponible hors ligne. Sans carrière locale, l’écran affiche l’état ou l’erreur de récupération iCloud et propose une nouvelle tentative avant le formulaire de création.
 - La carrière iCloud transporte aussi les versions réseau épinglées, les fichiers, leurs empreintes et les rattachements utilisés. Les conflits entre versions disposent d’un parcours de résolution; choisir une autre carrière iCloud crée d’abord une sauvegarde distante de la carrière locale et n’effectue pas le remplacement si cette sauvegarde échoue. L’envoi limité est retenté après le délai CloudKit prévu.
 - Pour synchroniser une carrière entre un Mac et un iPhone, il faut que le conteneur CloudKit `iCloud.fr.axel.transport-manager-idfm` soit créé et provisionné pour l’équipe Apple qui signe les deux cibles, que les deux appareils soient connectés au même compte Apple/iCloud avec iCloud activé, et qu’ils puissent accéder au réseau. Les entitlements sont déclarés en environnement de développement dans le projet.
 - Le build simulateur et les tests locaux de la logique de synchronisation ne constituent pas un essai de CloudKit en direct. La synchronisation entre deux appareils réellement provisionnés et connectés au même compte n’a pas encore été validée.
