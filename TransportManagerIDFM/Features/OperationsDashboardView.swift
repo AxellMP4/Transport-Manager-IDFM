@@ -5516,6 +5516,8 @@ private struct VehicleMarketView: View {
     var showsCloseButton = true
     @Environment(\.dismiss) private var dismiss
     @State private var pendingConfirmation: PendingConfirmation?
+    @State private var inspectionReport: VehicleMarketInspectionReport?
+    @State private var inspectedUsedOfferIDs = Set<String>()
     @State private var operationErrorMessage: String?
     @State private var calculatingDepotReturnBusID: String?
     @State private var depotReturnRequestID = UUID()
@@ -5685,6 +5687,11 @@ private struct VehicleMarketView: View {
                     Text("Le coût estimé de jeu de \(currency(infrastructure.installationCostEuro ?? 0)) sera débité immédiatement. La construction simulée prendra \(durationText(infrastructure.installationDuration)), puis l’achat et l’affectation des bus nécessitant cet équipement seront disponibles. \(infrastructure.installationEstimateNote) Pour la recharge électrique, chaque chantier ajoute une borne de 60 kW, valeur de simulation et non caractéristique attestée du dépôt.")
                 case nil:
                     EmptyView()
+                }
+            }
+            .sheet(item: $inspectionReport) { report in
+                VehicleMarketInspectionSheet(report: report) {
+                    inspectedUsedOfferIDs.insert(report.offerID)
                 }
             }
             .alert("Opération impossible", isPresented: Binding(
@@ -6154,6 +6161,7 @@ private struct VehicleMarketView: View {
             model: model,
             startingAt: session?.simulatedAt ?? Date()
         )
+        let inspectionCompleted = inspectedUsedOfferIDs.contains(offer.id)
 
         return VStack(alignment: .leading, spacing: 13) {
             HStack(alignment: .top, spacing: 12) {
@@ -6185,6 +6193,24 @@ private struct VehicleMarketView: View {
                 Label("Offre neuve simulée à partir de \(availableFromYear)", systemImage: "calendar")
                     .font(.caption2.weight(.medium))
                     .foregroundStyle(.secondary)
+            }
+
+            if offer.condition == .used {
+                VStack(alignment: .leading, spacing: 6) {
+                    Label(
+                        inspectionCompleted ? "Inspection estimée consultée" : "Inspection estimée requise avant l’achat",
+                        systemImage: inspectionCompleted ? "checkmark.seal" : "magnifyingglass"
+                    )
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(inspectionCompleted ? Color.green : Color.secondary)
+                    Text("L’état, les défauts et la remise en état restent des estimations de jeu. Consulter l’inspection ne débite pas la trésorerie.")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.accentColor.opacity(0.045), in: RoundedRectangle(cornerRadius: 9))
             }
 
             HStack(spacing: 14) {
@@ -6315,13 +6341,22 @@ private struct VehicleMarketView: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
+                if offer.condition == .used {
+                    Button {
+                        presentInspection(for: offer)
+                    } label: {
+                        Label(inspectionCompleted ? "Revoir l’inspection" : "Inspecter l’offre", systemImage: "magnifyingglass")
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityHint("Ouvre une estimation séparée de l’état et de la remise en état. Aucun achat n’est effectué.")
+                }
                 Button {
                     pendingConfirmation = .purchase(offer)
                 } label: {
                     Label("Acheter", systemImage: "cart.badge.plus")
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(remainingStock == 0 || cash < offer.askingPrice || session?.cashBalance == nil || energyReadiness?.isReady != true || (model.energy == .electric && session?.energySimulationVersion != nil && (session?.installedChargingPointCount(for: activeDepotID) ?? 0) == 0))
+                .disabled(remainingStock == 0 || cash < offer.askingPrice || session?.cashBalance == nil || energyReadiness?.isReady != true || (offer.condition == .used && !inspectionCompleted) || (model.energy == .electric && session?.energySimulationVersion != nil && (session?.installedChargingPointCount(for: activeDepotID) ?? 0) == 0))
             }
 
             VStack(alignment: .leading, spacing: 5) {
@@ -6366,6 +6401,17 @@ private struct VehicleMarketView: View {
         }
         .font(.caption2)
         .foregroundStyle(.secondary)
+    }
+
+    private func presentInspection(for offer: VehicleMarketOffer) {
+        let gameYear = session.map {
+            GTFSServiceDate.calendar(timeZone: GTFSServiceDate.parisTimeZone).component(.year, from: $0.simulatedAt)
+        } ?? VehicleMarketCatalog.referenceYear
+        guard let report = VehicleMarketInspectionRules.estimate(for: offer, gameYear: gameYear) else {
+            operationErrorMessage = "Seules les offres d’occasion peuvent recevoir cette estimation d’inspection."
+            return
+        }
+        inspectionReport = report
     }
 
     @ViewBuilder
@@ -6640,6 +6686,94 @@ private struct VehicleMarketView: View {
             operationErrorMessage = "Vente : \(error.localizedDescription)"
             pendingConfirmation = nil
         }
+    }
+}
+
+private struct VehicleMarketInspectionSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let report: VehicleMarketInspectionReport
+    let onComplete: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    GroupBox("Données de l’offre") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            LabeledContent("Année", value: String(report.vehicleYear))
+                            LabeledContent("Kilométrage", value: "\(report.odometerKilometers.formatted()) km")
+                            LabeledContent("État estimé", value: "\(report.estimatedConditionPercent) %")
+                            ProgressView(value: Double(report.estimatedConditionPercent), total: 100)
+                                .accessibilityLabel("État estimé du véhicule")
+                                .accessibilityValue("\(report.estimatedConditionPercent) %")
+                        }
+                        .padding(.top, 4)
+                    }
+
+                    GroupBox("Défauts estimés par le modèle de jeu") {
+                        if report.findings.isEmpty {
+                            Text("Aucune remise en état supplémentaire n’est estimée par ces règles de jeu.")
+                                .foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.top, 4)
+                        } else {
+                            VStack(alignment: .leading, spacing: 12) {
+                                ForEach(report.findings) { finding in
+                                    VStack(alignment: .leading, spacing: 5) {
+                                        Text(finding.title)
+                                            .font(.headline)
+                                        Text(finding.detail)
+                                            .font(.body)
+                                            .foregroundStyle(.secondary)
+                                            .fixedSize(horizontal: false, vertical: true)
+                                        LabeledContent(
+                                            "Remise en état estimée",
+                                            value: finding.estimatedCostEuro.formatted(.currency(code: "EUR").precision(.fractionLength(0)))
+                                        )
+                                    }
+                                    if finding.id != report.findings.last?.id { Divider() }
+                                }
+                            }
+                            .padding(.top, 4)
+                        }
+                    }
+
+                    GroupBox("Coût total estimé") {
+                        VStack(alignment: .leading, spacing: 7) {
+                            Text(report.estimatedRemediationCostEuro.formatted(.currency(code: "EUR").precision(.fractionLength(0))))
+                                .font(.title2.weight(.semibold).monospacedDigit())
+                            Text("Estimation de jeu calculée à partir de l’âge, du kilométrage et de l’état indiqué dans l’offre. Elle n’est ni un diagnostic réel ni un devis de réparation.")
+                                .font(.body)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Text("Aucun montant n’est débité pendant l’inspection. L’achat reste une action séparée; le coût estimé n’est pas ajouté automatiquement à l’offre.")
+                                .font(.body)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, 4)
+                    }
+                }
+                .padding(20)
+                .frame(maxWidth: 720, alignment: .leading)
+                .frame(maxWidth: .infinity)
+            }
+            .navigationTitle("Inspection d’occasion")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Fermer") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Terminer l’inspection") {
+                        onComplete()
+                        dismiss()
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+            }
+        }
+        .frame(minWidth: 480, minHeight: 460)
     }
 }
 
