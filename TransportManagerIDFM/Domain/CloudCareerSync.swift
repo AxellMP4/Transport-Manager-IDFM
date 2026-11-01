@@ -545,7 +545,7 @@ final class CloudCareerSyncManager: ObservableObject {
         let currentAssignments = try DepotAssignmentStore.load()
         let mergedAssignments = Self.mergingAssignments(envelope.assignments, with: currentAssignments)
         try DepotAssignmentStore.save(mergedAssignments)
-        try engine.importSaveData(saveData)
+        try engine.importSaveData(saveData, replacingExistingCareer: true)
         await library.reloadSnapshotsFromDisk()
 
         let checkpointRecord = try await fetchSharedRecord() ?? record
