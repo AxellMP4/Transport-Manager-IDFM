@@ -8718,9 +8718,11 @@ private struct TripDispatchView: View {
     @ObservedObject var simulation: SimulationEngine
     var depotRouteIDs: Set<String>? = nil
     var showsCloseButton = true
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.dismiss) private var dismiss
 
     @State private var selectedDepartureSequence: UInt64?
+    @State private var isCompactDispatchDetailPresented = false
     @State private var selectedVehicleID: String?
     @State private var selectedMachinistID: String?
     @State private var stopVisits: [ScheduledTripStopVisit] = []
@@ -8826,24 +8828,56 @@ private struct TripDispatchView: View {
 
     var body: some View {
         NavigationStack {
-            HStack(spacing: 0) {
-                departureList
-                    .frame(width: 340)
-                Divider()
-                departureDetails
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            Group {
+                if horizontalSizeClass == .compact {
+                    departureList
+                        .navigationTitle("Départs à affecter")
+#if os(iOS)
+                        .navigationBarTitleDisplayMode(.inline)
+#endif
+                        .navigationDestination(isPresented: $isCompactDispatchDetailPresented) {
+                            departureDetails
+                                .navigationTitle("Affecter la course")
+#if os(iOS)
+                                .navigationBarTitleDisplayMode(.inline)
+#endif
+                                .safeAreaInset(edge: .bottom) {
+                                    if selectedDeparture != nil {
+                                        Button(action: dispatchSelectedDeparture) {
+                                            Label("Affecter bus et machiniste", systemImage: "checkmark.circle.fill")
+                                                .frame(maxWidth: .infinity, minHeight: 44)
+                                        }
+                                        .buttonStyle(.borderedProminent)
+                                        .disabled(!canDispatchSelection)
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 10)
+                                        .background(.bar)
+                                    }
+                                }
+                        }
+                } else {
+                    HStack(spacing: 0) {
+                        departureList
+                            .frame(width: 340)
+                        Divider()
+                        departureDetails
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
+                    .navigationTitle("Affecter une course GTFS")
+                }
             }
-            .navigationTitle("Affecter une course GTFS")
             .toolbar {
                 if showsCloseButton {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Fermer") { dismiss() }
                     }
                 }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Affecter bus et machiniste") { dispatchSelectedDeparture() }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(!canDispatchSelection)
+                if horizontalSizeClass != .compact {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Affecter bus et machiniste") { dispatchSelectedDeparture() }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(!canDispatchSelection)
+                    }
                 }
             }
             .task(id: selectedDepartureSequence) {
@@ -8857,6 +8891,7 @@ private struct TripDispatchView: View {
                     deadheadPlan = nil
                     deadheadError = nil
                     loadedSequence = nil
+                    isCompactDispatchDetailPresented = false
                 }
             }
             .onChange(of: eligibleMachinists.map(\.id)) { _, currentIDs in
@@ -8922,6 +8957,9 @@ private struct TripDispatchView: View {
             deadheadError = nil
             loadedSequence = nil
             scheduleError = nil
+            if horizontalSizeClass == .compact {
+                isCompactDispatchDetailPresented = true
+            }
         } label: {
             VStack(alignment: .leading, spacing: 5) {
                 HStack {
@@ -9283,7 +9321,11 @@ private struct TripDispatchView: View {
                 stopVisits: stopVisits,
                 deadheadPlan: selectedVehicle?.status == .atDepot ? deadheadPlan : nil
             )
-            dismiss()
+            if horizontalSizeClass == .compact && !showsCloseButton {
+                isCompactDispatchDetailPresented = false
+            } else {
+                dismiss()
+            }
         } catch {
             dispatchError = error.localizedDescription
         }
