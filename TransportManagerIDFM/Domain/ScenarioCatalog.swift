@@ -521,7 +521,7 @@ struct ScenarioDefinition: Identifiable, Hashable {
                 ),
                 ScenarioFinancialFact(
                     label: "Pondération des critères d’attribution",
-                    value: "Valeur économique et financière : 40 % · exploitation et qualité de l’offre : 30 % · social, sociétal et organisation : 15 % · qualité de gestion du matrimoine : 5 % · qualité de service et expérience voyageurs : 5 % · transition et continuité du service : 5 %",
+                    value: "Valeur économique et financière : 40 % · exploitation et qualité de l’offre : 30 % · social, sociétal et organisation : 15 % · qualité de gestion du patrimoine : 5 % · qualité de service et expérience voyageurs : 5 % · transition et continuité du service : 5 %",
                     context: "Critères de notation des offres pour l’attribution de la DSP 45. Ils décrivent la sélection du titulaire, pas les obligations financières d’exécution ni un barème de bonus ou de malus ; ils ne modifient aucune écriture de la simulation.",
                     sourceTitle: "TED · avis d’attribution 85449-2025",
                     sourceURL: URL(string: "https://ted.europa.eu/fr/notice/-/detail/85449-2025")!
