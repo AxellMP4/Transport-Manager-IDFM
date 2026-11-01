@@ -1,3 +1,12 @@
+Warning: truncated output (original token count: 134752)
+Total output lines: 1777
+
+# Affectation des départs GTFS sur iPhone — 1er novembre 2026
+
+- Nouveauté : l’iPhone dispose maintenant d’un onglet « Courses » qui liste les départs théoriques en attente des lignes de la carrière. Une fiche charge la séquence d’arrêts et permet d’affecter un autobus compatible et un machiniste disponible/qualifié. Pour un bus au dépôt, l’app calcule son trajet MapKit vers le premier arrêt et vérifie l’heure d’arrivée; un bus déjà au premier arrêt peut être affecté sans ce trajet. La validation, la réservation du bus, le bloc de service du machiniste et la sauvegarde restent gérés par le moteur existant; la sauvegarde alimente le mécanisme de synchronisation iCloud déjà présent.
+- Vérification : build Debug macOS universel non signé et build Debug iPhoneOS générique non signé terminés au code 0. Le simulateur iOS est indisponible, donc le rendu et le flux MapKit ne sont pas revendiqués comme testés sur appareil. Le trajet depuis le dépôt dépend de la géocodification et de MapKit Apple au moment du jeu.
+- Limites externes inchangées : CloudKit doit être provisionné pour l’équipe Apple et essayé entre vrais appareils; l’archive PRIM reste authentifiée et inaccessible sans compte; les preuves actuelles ligne–COB manquent encore pour les rattachements concernés.
+
 # Transfert manuel des carrières sur iPhone — 1er novembre 2026
 
 - Nouveauté : l’onglet Carrière iOS propose maintenant d’exporter la sauvegarde JSON vers Fichiers ou d’en importer une, y compris avant la création d’une partie. Si une carrière est déjà ouverte, l’import demande confirmation avant de la remplacer; la restauration passe par le même validateur du moteur et met la partie importée en pause. Les changements de sauvegarde continuent d’alimenter la synchronisation iCloud existante. Le fichier n’embarque pas les archives réseau, qui doivent aussi être disponibles sur l’appareil.
