@@ -101,6 +101,11 @@ struct GTFSRouteTimetableGridView: View {
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
 
+                    Label("Les espacements sont calculés entre les premiers départs de chaque groupe pour la date choisie. Aucune période de pointe ou d’heures creuses n’est déduite.", systemImage: "clock")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+
                     if let validFrom = version.validFrom, let validThrough = version.validThrough {
                         Text("Flux valide du \(validFrom.formatted(date: .abbreviated, time: .omitted)) au \(validThrough.formatted(date: .abbreviated, time: .omitted)) · importé le \(version.importedAt.formatted(date: .abbreviated, time: .omitted))")
                             .font(.caption)
@@ -180,6 +185,9 @@ struct GTFSRouteTimetableGridView: View {
         let stopVisits = group.trips.first?.stops ?? []
         let first = group.trips.first?.stops.first?.scheduledAt
         let last = group.trips.last?.stops.first?.scheduledAt
+        let departureIntervals = GTFSDepartureIntervalSummary(
+            departures: group.trips.compactMap { $0.stops.first?.scheduledAt }
+        )
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 3) {
@@ -188,6 +196,10 @@ struct GTFSRouteTimetableGridView: View {
                     Text("\(group.trips.count) courses · \(group.trips.first?.stops.count ?? 0) arrêts")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                    Text(intervalSummaryDescription(departureIntervals))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer()
                 if let first, let last {
@@ -240,6 +252,22 @@ struct GTFSRouteTimetableGridView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.background, in: RoundedRectangle(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(.quaternary, lineWidth: 1))
+    }
+
+    private func intervalSummaryDescription(_ summary: GTFSDepartureIntervalSummary) -> String {
+        guard let median = summary.medianIntervalSeconds,
+              let maximum = summary.maximumIntervalSeconds else {
+            return summary.departureCount == 1
+                ? "Espacement non calculable · un seul premier départ renseigné"
+                : "Espacement non calculable · moins de deux départs renseignés"
+        }
+        return "Espacements · médiane \(formattedInterval(median)) · maximum \(formattedInterval(maximum)) · \(summary.intervalCount) intervalles"
+    }
+
+    private func formattedInterval(_ interval: TimeInterval) -> String {
+        let roundedMinutes = Int((interval / 60).rounded())
+        guard roundedMinutes >= 60 else { return "\(roundedMinutes) min" }
+        return "\(roundedMinutes / 60) h \(String(format: "%02d", roundedMinutes % 60))"
     }
 
     private func serviceTime(_ date: Date) -> String {
