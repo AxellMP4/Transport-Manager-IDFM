@@ -2,6 +2,8 @@
 
 Le fichier `bords-de-marne-depot-roster.csv` est une base de travail datée pour la DSP 45. `service_start` et `service_end` décrivent la période du réseau DSP45; les colonnes `legacy_contract_center_valid_from` et `legacy_contract_center_valid_through` bornent séparément les anciens rattachements ligne–centre tirés du contrat IDFM–RATP.
 
+Le runtime du jeu lit aussi [`bords-de-marne-depot-roster-rows.csv`](bords-de-marne-depot-roster-rows.csv) pour les libellés et notes du catalogue, [`bords-de-marne-depot-roster-claims.csv`](bords-de-marne-depot-roster-claims.csv) pour les affirmations typées et leurs périodes, et [`bords-de-marne-depot-roster-documents.csv`](bords-de-marne-depot-roster-documents.csv) pour les liens avec leurs titres, validités et annotations. Les 32 fiches, 152 preuves et 69 documents sont enregistrés en CSV et contrôlés ensemble au chargement; un site ou libellé de centre ne devient pas automatiquement une affectation confirmée.
+
 ## Règles de lecture
 
 - `candidate_depot_id` désigne un candidat d’après les répartitions historiques publiées, pas une affectation actuelle confirmée au COB physique.

@@ -45,6 +45,9 @@
 		030000000000000000000040 /* BusIllustrationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000039 /* BusIllustrationView.swift */; };
 		030000000000000000000041 /* DepotLineRosterManifest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000041 /* DepotLineRosterManifest.swift */; };
 		030000000000000000000042 /* docs/data/bords-de-marne-depot-roster.csv in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000042 /* docs/data/bords-de-marne-depot-roster.csv */; };
+		030000000000000000000200 /* docs/data/bords-de-marne-depot-roster-rows.csv in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000200 /* docs/data/bords-de-marne-depot-roster-rows.csv */; };
+		030000000000000000000201 /* docs/data/bords-de-marne-depot-roster-claims.csv in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000201 /* docs/data/bords-de-marne-depot-roster-claims.csv */; };
+		030000000000000000000202 /* docs/data/bords-de-marne-depot-roster-documents.csv in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000202 /* docs/data/bords-de-marne-depot-roster-documents.csv */; };
 		030000000000000000000043 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-00.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000043 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-00.bin */; };
 		030000000000000000000044 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-01.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000044 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-01.bin */; };
 		030000000000000000000100 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-02.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000100 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-02.bin */; };
@@ -120,6 +123,9 @@
 		020000000000000000000039 /* BusIllustrationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BusIllustrationView.swift; sourceTree = "<group>"; };
 		020000000000000000000041 /* DepotLineRosterManifest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DepotLineRosterManifest.swift; sourceTree = "<group>"; };
 		020000000000000000000042 /* docs/data/bords-de-marne-depot-roster.csv */ = {isa = PBXFileReference; lastKnownFileType = text; path = "docs/data/bords-de-marne-depot-roster.csv"; sourceTree = SOURCE_ROOT; };
+		020000000000000000000200 /* docs/data/bords-de-marne-depot-roster-rows.csv */ = {isa = PBXFileReference; lastKnownFileType = text; path = "docs/data/bords-de-marne-depot-roster-rows.csv"; sourceTree = SOURCE_ROOT; };
+		020000000000000000000201 /* docs/data/bords-de-marne-depot-roster-claims.csv */ = {isa = PBXFileReference; lastKnownFileType = text; path = "docs/data/bords-de-marne-depot-roster-claims.csv"; sourceTree = SOURCE_ROOT; };
+		020000000000000000000202 /* docs/data/bords-de-marne-depot-roster-documents.csv */ = {isa = PBXFileReference; lastKnownFileType = text; path = "docs/data/bords-de-marne-depot-roster-documents.csv"; sourceTree = SOURCE_ROOT; };
 		020000000000000000000043 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-00.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "docs/data/gtfs/idfm-gtfs-2026-10-30-part-00.bin"; sourceTree = SOURCE_ROOT; };
 		020000000000000000000044 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-01.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "docs/data/gtfs/idfm-gtfs-2026-10-30-part-01.bin"; sourceTree = SOURCE_ROOT; };
 		020000000000000000000100 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-02.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "docs/data/gtfs/idfm-gtfs-2026-10-30-part-02.bin"; sourceTree = SOURCE_ROOT; };
@@ -292,6 +298,9 @@
 				020000000000000000000029 /* idfm-contract-contours-2026-10-20.geojson */,
 				020000000000000000000030 /* README.md */,
 				020000000000000000000042 /* docs/data/bords-de-marne-depot-roster.csv */,
+				020000000000000000000200 /* docs/data/bords-de-marne-depot-roster-rows.csv */,
+				020000000000000000000201 /* docs/data/bords-de-marne-depot-roster-claims.csv */,
+				020000000000000000000202 /* docs/data/bords-de-marne-depot-roster-documents.csv */,
 			);
 			path = IDFMSnapshots;
 			sourceTree = "<group>";
@@ -378,6 +387,9 @@
 				030000000000000000000115 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-17.bin in Resources */,
 				030000000000000000000039 /* docs/data/geometries/idfm-route-geometries-2026-10-20.zip in Resources */,
 				030000000000000000000042 /* docs/data/bords-de-marne-depot-roster.csv in Resources */,
+				030000000000000000000200 /* docs/data/bords-de-marne-depot-roster-rows.csv in Resources */,
+				030000000000000000000201 /* docs/data/bords-de-marne-depot-roster-claims.csv in Resources */,
+				030000000000000000000202 /* docs/data/bords-de-marne-depot-roster-documents.csv in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -48,5 +48,5 @@ La logique et les scripts de validation couvrent le moteur des voyageurs, des va
 
 - [Suivi d’implémentation et vérifications datées](docs/IMPLEMENTATION_STATUS.md)
 - [Provenance et audits des snapshots GTFS](docs/data/gtfs/README.md)
-- [Registre Bords de Marne](docs/data/bords-de-marne-depot-roster.csv) et [notes sur ses preuves et sources](docs/data/bords-de-marne-depot-roster-notes.md)
+- [Registre Bords de Marne](docs/data/bords-de-marne-depot-roster.csv), ses [fiches runtime](docs/data/bords-de-marne-depot-roster-rows.csv), [preuves datées](docs/data/bords-de-marne-depot-roster-claims.csv), [documents annotés](docs/data/bords-de-marne-depot-roster-documents.csv) et [notes sur leurs sources](docs/data/bords-de-marne-depot-roster-notes.md)
 - [Cahier des charges](docs/Plan_recreation_Transport_Manager_IDFM.md)
