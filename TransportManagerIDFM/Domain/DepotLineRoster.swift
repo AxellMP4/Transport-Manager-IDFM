@@ -67,6 +67,7 @@ struct DepotLineRosterSite: Identifiable, Hashable, Sendable {
     let documentedAddress: String?
     let evidenceTitle: String?
     let idfmBusContractID: String?
+    let operatorName: String?
     let additionalEvidenceTitle: String?
     let additionalEvidenceURL: URL?
     let supportingEvidence: [DepotSiteEvidenceLink]
@@ -106,6 +107,7 @@ struct DepotLineRosterSite: Identifiable, Hashable, Sendable {
         documentedAddress: String? = nil,
         evidenceTitle: String? = nil,
         idfmBusContractID: String? = nil,
+        operatorName: String? = nil,
         additionalEvidenceTitle: String? = nil,
         additionalEvidenceURL: URL? = nil,
         supportingEvidence: [DepotSiteEvidenceLink] = [],
@@ -123,12 +125,109 @@ struct DepotLineRosterSite: Identifiable, Hashable, Sendable {
         self.documentedAddress = documentedAddress
         self.evidenceTitle = evidenceTitle
         self.idfmBusContractID = idfmBusContractID
+        self.operatorName = operatorName
         self.additionalEvidenceTitle = additionalEvidenceTitle
         self.additionalEvidenceURL = additionalEvidenceURL
         self.supportingEvidence = supportingEvidence
         self.fleetObservation = fleetObservation
         self.facilityObservations = facilityObservations
         self.chargingInfrastructureObservation = chargingInfrastructureObservation
+    }
+}
+
+enum DepotDirectoryAvailabilityFilter: String, CaseIterable, Hashable, Identifiable, Sendable {
+    case all
+    case operational
+    case currentStatusUnverified
+    case planned
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .all: "Tous les statuts"
+        case .operational: "En activité"
+        case .currentStatusUnverified: "À vérifier"
+        case .planned: "Projets"
+        }
+    }
+
+    func includes(_ site: DepotLineRosterSite) -> Bool {
+        switch self {
+        case .all: true
+        case .operational: site.availability == .operational
+        case .currentStatusUnverified: site.availability == .currentStatusUnverified
+        case .planned: site.availability == .planned
+        }
+    }
+}
+
+enum DepotDirectoryQualityFilter: String, CaseIterable, Hashable, Identifiable, Sendable {
+    case all
+    case documentedAddress
+    case identifiedContract
+    case observedFleet
+    case evidenceLinks
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .all: "Toutes les données"
+        case .documentedAddress: "Adresse publiée"
+        case .identifiedContract: "Contrat identifié"
+        case .observedFleet: "Parc observé"
+        case .evidenceLinks: "Avec source publiée"
+        }
+    }
+
+    func includes(_ site: DepotLineRosterSite) -> Bool {
+        switch self {
+        case .all: true
+        case .documentedAddress:
+            site.documentedAddress?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+        case .identifiedContract:
+            site.idfmBusContractID?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+        case .observedFleet:
+            site.fleetObservation != nil
+        case .evidenceLinks:
+            !site.evidenceLinks.isEmpty
+        }
+    }
+}
+
+struct DepotDirectorySiteFilter: Hashable, Sendable {
+    var availability: DepotDirectoryAvailabilityFilter
+    var operatorName: String?
+    var contractID: String?
+    var quality: DepotDirectoryQualityFilter
+
+    init(
+        availability: DepotDirectoryAvailabilityFilter = .all,
+        operatorName: String? = nil,
+        contractID: String? = nil,
+        quality: DepotDirectoryQualityFilter = .all
+    ) {
+        self.availability = availability
+        self.operatorName = operatorName
+        self.contractID = contractID
+        self.quality = quality
+    }
+
+    func applying(to sites: [DepotLineRosterSite]) -> [DepotLineRosterSite] {
+        sites.filter { site in
+            availability.includes(site)
+                && (operatorName == nil || normalized(site.operatorName) == normalized(operatorName))
+                && (contractID == nil || LineReferenceMatcher.canonicalIdentifier(site.idfmBusContractID ?? "")
+                    == LineReferenceMatcher.canonicalIdentifier(contractID ?? ""))
+                && quality.includes(site)
+        }
+    }
+
+    private func normalized(_ value: String?) -> String? {
+        guard let value else { return nil }
+        let cleaned = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return cleaned.isEmpty ? nil : cleaned.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
     }
 }
 
@@ -566,7 +665,7 @@ enum DepotLineRoster {
         contractSite("la-trentaine-2", "La Trentaine 2", "Chelles", dsp: "DSP 9", operatorName: "Keolis", serviceFrom: "1er novembre 2025", sourceTitle: "IDFM · attribution DSP 9 Marne et Brie", sourceURL: awardEvidenceURL),
         contractSite("bussy", "Bussy-Saint-Martin", "Bussy-Saint-Martin", dsp: "DSP 9", operatorName: "Keolis", serviceFrom: "1er novembre 2025", sourceTitle: "IDFM · attribution DSP 9 Marne et Brie", sourceURL: awardEvidenceURL),
         contractSite("pontault-combault", "Pontault-Combault", "Pontault-Combault", dsp: "DSP 9", operatorName: "Keolis", serviceFrom: "1er novembre 2025", sourceTitle: "IDFM · attribution DSP 9 Marne et Brie", sourceURL: awardEvidenceURL),
-        contractSite("le-mesnil-amelot", "Le Mesnil-Amelot", "Le Mesnil-Amelot", dsp: "DSP 39", operatorName: "Exploitant à vérifier", serviceFrom: "1er mars 2026", sourceTitle: "IDFM · calendrier des centres DSP du 22 mai 2024", sourceURL: idfmDepotSchedule2024URL),
+        contractSite("le-mesnil-amelot", "Le Mesnil-Amelot", "Le Mesnil-Amelot", dsp: "DSP 39", operatorName: nil, serviceFrom: "1er mars 2026", sourceTitle: "IDFM · calendrier des centres DSP du 22 mai 2024", sourceURL: idfmDepotSchedule2024URL),
         contractSite("nanterre", "Nanterre", "Nanterre", dsp: "DSP 41", operatorName: "RATP Cap", serviceFrom: "1er mai 2026", sourceTitle: "IDFM · attribution des DSP 41–47", sourceURL: idfmDSP41To47URL),
         contractSite("charlebourg", "Charlebourg", "La Garenne-Colombes", dsp: "DSP 41", operatorName: "RATP Cap", serviceFrom: "1er mai 2026", sourceTitle: "IDFM · attribution des DSP 41–47", sourceURL: idfmDSP41To47URL),
         contractSite("les-guilleraies", "Les Guilleraies", "Nanterre", dsp: "DSP 41", operatorName: "RATP Cap", serviceFrom: "1er mai 2026", sourceTitle: "IDFM · attribution des DSP 41–47", sourceURL: idfmDSP41To47URL),
@@ -780,19 +879,20 @@ enum DepotLineRoster {
         _ name: String,
         _ locality: String,
         dsp: String,
-        operatorName: String,
+        operatorName: String?,
         serviceFrom: String?,
         sourceTitle: String,
         sourceURL: URL,
         isPlanned: Bool = false
     ) -> DepotLineRosterSite {
+        let operatorLabel = operatorName ?? "exploitant à vérifier"
         let status = isPlanned
-            ? "Site annoncé pour \(dsp) · \(operatorName)"
-            : "COB nommé pour \(dsp) · \(operatorName)"
+            ? "Site annoncé pour \(dsp) · \(operatorLabel)"
+            : "COB nommé pour \(dsp) · \(operatorLabel)"
         let timing = serviceFrom.map { " · mise en service du lot annoncée le \($0)" } ?? ""
         let note = isPlanned
             ? "IDFM cite ce site dans le cadre de \(dsp). Il reste annoncé comme futur/projet et n’est pas traité comme un dépôt opérationnel. Aucune ligne ne lui est affectée dans le jeu."
-            : "IDFM nomme ce COB dans le périmètre de \(dsp) pour \(operatorName)\(timing). Cette source confirme le centre dans le lot, mais ne répartit pas les lignes du contrat entre les différents COB."
+            : "IDFM nomme ce COB dans le périmètre de \(dsp) pour \(operatorLabel)\(timing). Cette source confirme le centre dans le lot, mais ne répartit pas les lignes du contrat entre les différents COB."
         return DepotLineRosterSite(
             id: id,
             name: name,
@@ -802,7 +902,8 @@ enum DepotLineRoster {
             evidenceNote: note,
             sourceURL: sourceURL,
             evidenceTitle: sourceTitle,
-            idfmBusContractID: String(dsp.dropFirst(4))
+            idfmBusContractID: String(dsp.dropFirst(4)),
+            operatorName: operatorName
         )
     }
 
@@ -918,6 +1019,9 @@ enum DepotLineRoster {
             documentedAddress: preferred.documentedAddress ?? supplemental.documentedAddress,
             evidenceTitle: preferred.evidenceTitle ?? supplemental.evidenceTitle,
             idfmBusContractID: preferred.idfmBusContractID ?? supplemental.idfmBusContractID,
+            operatorName: preferred.operatorName == supplemental.operatorName
+                ? preferred.operatorName
+                : (preferred.operatorName == nil ? supplemental.operatorName : supplemental.operatorName == nil ? preferred.operatorName : nil),
             additionalEvidenceTitle: additionalEvidenceTitle,
             additionalEvidenceURL: additionalEvidenceURL,
             supportingEvidence: supportingEvidence,
