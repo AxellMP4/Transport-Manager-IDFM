@@ -13,6 +13,8 @@ Jeu de gestion en SwiftUI et MapKit, avec une application macOS et une cible iPh
 
 Depuis l’onglet **Incidents**, le gestionnaire peut déclarer manuellement un accident ou une autre perturbation sur une ligne exploitée. Le préparateur demande un segment GTFS voisin, un itinéraire automobile alternatif calculé par Apple Plans, une fenêtre d’application, un retard de jeu et un message voyageurs facultatif. La cause est enregistrée séparément des pannes de bus et des observations PRIM; aucun accident réel n’est annoncé et aucun accident aléatoire n’est généré dans cette version. Le tracé et le retard sont des estimations Apple Plans / jeu, pas des géométries opérationnelles IDFM.
 
+Le moteur peut aussi produire une congestion fictive lors de l’affectation d’une course. Sa fréquence (désactivée, réduite, standard ou élevée) est réglable dans les options de carrière; la graine de sauvegarde rend le résultat reproductible. L’événement touche un segment et ajoute de 4 à 14 minutes aux horaires des courses affectées si elles démarrent dans les 45 minutes. La route conserve sa géométrie disponible; il s’agit d’un ralentissement de jeu, sans observation PRIM ni accident routier affirmé.
+
 ## Archive macOS conservée localement
 
 Le paquet jouable local est `build/Debug/TransportManagerIDFM-Playable.zip`; une copie est également disponible à la racine sous `TransportManagerIDFM-Playable.zip`. Son empreinte se trouve dans `build/Debug/TransportManagerIDFM-Playable.zip.sha256`, hors de l’app afin que sa valeur ne s’invalide pas elle-même puisque ce README est embarqué comme ressource.
