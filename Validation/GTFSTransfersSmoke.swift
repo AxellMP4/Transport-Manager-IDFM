@@ -60,18 +60,23 @@ struct GTFSTransfersSmoke {
         }
         precondition(sourceExchange.estimatedTransferPassengerCount == 2)
         precondition(sourceExchange.connectingTripID == "TRIP-TO-EARLY")
+        precondition(sourceExchange.connectingTripAttemptCount == 0)
+        precondition(sourceExchange.connectingTripBoardedCount == 0)
         precondition(sourceExchange.transferReadyAt == start.addingTimeInterval(120))
         precondition(sourceExchange.connectingStopID == "TO")
 
         SimulationEngine.applyVehicleEvent(resolvedSource, to: &session)
         SimulationEngine.applyVehicleEvent(resolvedSource, to: &session)
         precondition(session.passengerTransferQueueEntries?.count == 1, "Replaying an exchange must not duplicate its transfer queue entry.")
+        precondition(session.passengerTransferQueueEntries?.first?.targetVehicleID == earlyTarget.vehicleID)
         precondition(session.passengerQueuesByRouteStopKey?["R2|TO"] == 2, "Transferred passengers belong to the target stop queue.")
 
         guard let resolvedEarlyTarget = SimulationEngine.resolvePassengerDemand(earlyEvent, in: session),
               case let .passengersExchanged(earlyExchange) = resolvedEarlyTarget.kind else {
             preconditionFailure("The early target trip should resolve with the transfer still waiting.")
         }
+        precondition(earlyExchange.connectingTripAttemptCount == 2)
+        precondition(earlyExchange.connectingTripBoardedCount == 0)
         precondition(earlyExchange.missedConnectionCount == 2)
         SimulationEngine.applyVehicleEvent(resolvedEarlyTarget, to: &session)
         precondition(session.passengerQueuesByRouteStopKey?["R2|TO"] == 2, "A missed transfer stays at the distinct target stop.")
@@ -88,6 +93,8 @@ struct GTFSTransfersSmoke {
         ), case let .passengersExchanged(laterExchange) = resolvedLaterTarget.kind else {
             preconditionFailure("The retained transfer should be available to the later target trip.")
         }
+        precondition(laterExchange.connectingTripAttemptCount == 0)
+        precondition(laterExchange.connectingTripBoardedCount == 0)
         precondition(laterExchange.estimatedTransferBoardedCount == 2)
         SimulationEngine.applyVehicleEvent(resolvedLaterTarget, to: &session)
         precondition(session.passengerQueuesByRouteStopKey?["R2|TO"] == 0)
@@ -314,6 +321,7 @@ struct GTFSTransfersSmoke {
 
         let legacyQueueJSON = #"{"sourceTripID":"old-source","targetRouteID":"old-route","intendedTripID":"old-target","stopID":"old-stop","passengerCount":1,"readyAt":1798000300}"#
         let entry = try! JSONDecoder().decode(PassengerTransferQueueEntry.self, from: Data(legacyQueueJSON.utf8))
+        precondition(entry.targetVehicleID == nil)
         precondition(entry.lastMissedTripID == nil)
         precondition(entry.sourceEventSequence == nil)
         precondition(entry.passengerCount == 1)

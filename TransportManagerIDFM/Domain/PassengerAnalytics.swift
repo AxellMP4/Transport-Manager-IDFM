@@ -56,6 +56,46 @@ enum PassengerAnalyticsGrouping: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
+struct PassengerAccessSatisfaction: Hashable, Sendable {
+    let score: Int?
+    let boardedArrivals: Int
+    let leftBehindArrivals: Int
+    let sampleCount: Int
+
+    var observedArrivalCount: Int { boardedArrivals + leftBehindArrivals }
+}
+
+struct PassengerComfortSatisfaction: Hashable, Sendable {
+    let score: Int?
+    let sampleCount: Int
+    let estimatedCapacitySampleCount: Int
+}
+
+struct PassengerConnectionSatisfaction: Hashable, Sendable {
+    let score: Int?
+    let attemptedPassengerCount: Int
+    let boardedPassengerCount: Int
+    let missedPassengerCount: Int
+    let pendingGroupCount: Int
+    let pendingPassengerCount: Int
+}
+
+struct PassengerSatisfactionSummary: Hashable, Sendable {
+    let access: PassengerAccessSatisfaction
+    let comfort: PassengerComfortSatisfaction
+    let connections: PassengerConnectionSatisfaction
+
+    var coveredComponentCount: Int {
+        [access.score, comfort.score, connections.score].compactMap { $0 }.count
+    }
+
+    var score: Int? {
+        let scores = [access.score, comfort.score, connections.score].compactMap { $0 }
+        guard !scores.isEmpty else { return nil }
+        return Int((Double(scores.reduce(0, +)) / Double(scores.count)).rounded())
+    }
+}
+
 struct PassengerAnalyticsTotals: Hashable, Sendable {
     private(set) var boardings = 0
     private(set) var validationDataBoardings = 0
@@ -69,10 +109,53 @@ struct PassengerAnalyticsTotals: Hashable, Sendable {
     private(set) var redirectedPassengerCount = 0
     private(set) var leftBehindPassengerCount = 0
     private(set) var displacedPassengerCount = 0
+    private(set) var satisfactionAccessBoardedArrivals = 0
+    private(set) var satisfactionAccessLeftBehindArrivals = 0
+    private(set) var satisfactionAccessSampleCount = 0
+    private(set) var satisfactionComfortPointTotal = 0
+    private(set) var satisfactionComfortSampleCount = 0
+    private(set) var satisfactionEstimatedCapacitySampleCount = 0
+    private(set) var satisfactionConnectionAttemptCount = 0
+    private(set) var satisfactionConnectionBoardedCount = 0
+    private(set) var satisfactionConnectionMissedCount = 0
+    private(set) var satisfactionPendingConnectionGroupCount = 0
+    private(set) var satisfactionPendingConnectionPassengerCount = 0
 
     var validationRate: Double? {
         guard validationDataBoardings > 0 else { return nil }
         return Double(validations) / Double(validationDataBoardings)
+    }
+
+    var satisfaction: PassengerSatisfactionSummary {
+        let accessDenominator = satisfactionAccessBoardedArrivals + satisfactionAccessLeftBehindArrivals
+        let access = PassengerAccessSatisfaction(
+            score: Self.percentage(
+                numerator: satisfactionAccessBoardedArrivals,
+                denominator: accessDenominator
+            ),
+            boardedArrivals: satisfactionAccessBoardedArrivals,
+            leftBehindArrivals: satisfactionAccessLeftBehindArrivals,
+            sampleCount: satisfactionAccessSampleCount
+        )
+        let comfort = PassengerComfortSatisfaction(
+            score: satisfactionComfortSampleCount > 0
+                ? Int((Double(satisfactionComfortPointTotal) / Double(satisfactionComfortSampleCount)).rounded())
+                : nil,
+            sampleCount: satisfactionComfortSampleCount,
+            estimatedCapacitySampleCount: satisfactionEstimatedCapacitySampleCount
+        )
+        let connections = PassengerConnectionSatisfaction(
+            score: Self.percentage(
+                numerator: satisfactionConnectionBoardedCount,
+                denominator: satisfactionConnectionAttemptCount
+            ),
+            attemptedPassengerCount: satisfactionConnectionAttemptCount,
+            boardedPassengerCount: satisfactionConnectionBoardedCount,
+            missedPassengerCount: satisfactionConnectionMissedCount,
+            pendingGroupCount: satisfactionPendingConnectionGroupCount,
+            pendingPassengerCount: satisfactionPendingConnectionPassengerCount
+        )
+        return PassengerSatisfactionSummary(access: access, comfort: comfort, connections: connections)
     }
 
     func validationCount(for type: PassengerValidationType) -> Int {
@@ -105,6 +188,43 @@ struct PassengerAnalyticsTotals: Hashable, Sendable {
         maximumOccupancyPercent = max(maximumOccupancyPercent ?? 0, occupancyPercent)
         redirectedPassengerCount += max(0, exchange.redirectedPassengerCount ?? 0)
         leftBehindPassengerCount += max(0, exchange.newlyLeftBehindCount ?? exchange.leftBehindCount)
+
+        if exchange.accessBoardingSampleEligible == true,
+           let boardedArrivals = exchange.newlyBoardedArrivalsCount,
+           let leftBehindArrivals = exchange.newlyLeftBehindCount {
+            satisfactionAccessBoardedArrivals += max(0, boardedArrivals)
+            satisfactionAccessLeftBehindArrivals += max(0, leftBehindArrivals)
+            satisfactionAccessSampleCount += 1
+        }
+
+        if exchange.stopWasClosed != true,
+           (exchange.onboardAfterExchange > 0 || exchange.boardedCount > 0) {
+            let occupancy = PassengerLoadPresentation(
+                passengerCount: exchange.onboardAfterExchange,
+                capacity: exchange.capacity,
+                capacityIsEstimated: exchange.capacityIsEstimated
+            ).occupancyPercent
+            satisfactionComfortPointTotal += occupancy >= 100 ? 0 : (occupancy >= 80 ? 50 : 100)
+            satisfactionComfortSampleCount += 1
+            if exchange.capacityIsEstimated {
+                satisfactionEstimatedCapacitySampleCount += 1
+            }
+        }
+
+        if let attempts = exchange.connectingTripAttemptCount,
+           let boarded = exchange.connectingTripBoardedCount {
+            let safeAttempts = max(0, attempts)
+            let safeBoarded = min(safeAttempts, max(0, boarded))
+            satisfactionConnectionAttemptCount += safeAttempts
+            satisfactionConnectionBoardedCount += safeBoarded
+            satisfactionConnectionMissedCount += safeAttempts - safeBoarded
+        }
+    }
+
+    fileprivate mutating func includePendingConnection(_ transfer: PassengerTransferQueueEntry) {
+        guard transfer.intendedTripID != nil, transfer.passengerCount > 0 else { return }
+        satisfactionPendingConnectionGroupCount += 1
+        satisfactionPendingConnectionPassengerCount += transfer.passengerCount
     }
 
     fileprivate mutating func includeDisplaced(_ passengerCount: Int) {
@@ -113,6 +233,12 @@ struct PassengerAnalyticsTotals: Hashable, Sendable {
 
     fileprivate mutating func includeRedirected(_ passengerCount: Int) {
         redirectedPassengerCount += max(0, passengerCount)
+    }
+
+    private static func percentage(numerator: Int, denominator: Int) -> Int? {
+        guard denominator > 0 else { return nil }
+        let boundedNumerator = min(denominator, max(0, numerator))
+        return Int((Double(boundedNumerator) / Double(denominator) * 100).rounded())
     }
 }
 
@@ -135,6 +261,7 @@ struct PassengerAnalyticsSnapshot: Hashable, Sendable {
     var redirectedPassengerCount: Int { totals.redirectedPassengerCount }
     var leftBehindPassengerCount: Int { totals.leftBehindPassengerCount }
     var displacedPassengerCount: Int { totals.displacedPassengerCount }
+    var satisfaction: PassengerSatisfactionSummary { totals.satisfaction }
 
     func validationCount(for type: PassengerValidationType) -> Int {
         totals.validationCount(for: type)
@@ -146,6 +273,7 @@ enum PassengerAnalytics {
         exchanges: [PassengerStopExchange],
         incidents: [VehicleIncident] = [],
         events: [SimulationEvent] = [],
+        pendingTransfers: [PassengerTransferQueueEntry] = [],
         filter: PassengerAnalyticsFilter = PassengerAnalyticsFilter(),
         grouping: PassengerAnalyticsGrouping
     ) -> PassengerAnalyticsSnapshot {
@@ -223,6 +351,30 @@ enum PassengerAnalytics {
             var bucket = buckets[group.id] ?? Bucket(label: group.label)
             bucket.totals.includeDisplaced(disruption.displaced)
             bucket.totals.includeRedirected(disruption.redirected)
+            buckets[group.id] = bucket
+        }
+
+        for transfer in pendingTransfers {
+            guard let targetTripID = transfer.intendedTripID,
+                  transfer.passengerCount > 0,
+                  filter.vehicleID == nil || transfer.targetVehicleID == filter.vehicleID,
+                  filter.includes(
+                      date: transfer.readyAt,
+                      routeID: transfer.targetRouteID,
+                      vehicleID: transfer.targetVehicleID ?? "non attribué"
+                  ) else { continue }
+            totals.includePendingConnection(transfer)
+            let group = groupIdentity(
+                grouping: grouping,
+                routeID: transfer.targetRouteID,
+                vehicleID: transfer.targetVehicleID ?? "non attribué",
+                tripID: targetTripID,
+                stopID: transfer.stopID,
+                stopName: "Arrêt \(transfer.stopID)",
+                occurredAt: transfer.readyAt
+            )
+            var bucket = buckets[group.id] ?? Bucket(label: group.label)
+            bucket.totals.includePendingConnection(transfer)
             buckets[group.id] = bucket
         }
 

@@ -45,6 +45,7 @@ struct PassengerOperationsReportView: View {
             exchanges: (session.passengerExchangeRecords ?? []).map(\.exchange),
             incidents: session.vehicleIncidents ?? [],
             events: session.eventHistory,
+            pendingTransfers: session.passengerTransferQueueEntries ?? [],
             filter: analyticsFilter,
             grouping: grouping
         )
@@ -60,6 +61,8 @@ struct PassengerOperationsReportView: View {
                         .fixedSize(horizontal: false, vertical: true)
 
                     filters
+
+                    satisfactionSection
 
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 145), alignment: .leading)], alignment: .leading, spacing: 10) {
                         metric("Montées estimées", value: snapshot.boardings.formatted(), symbol: "person.2.fill", color: .teal)
@@ -151,6 +154,84 @@ struct PassengerOperationsReportView: View {
         }
     }
 
+    private var satisfactionSection: some View {
+        let satisfaction = snapshot.satisfaction
+        return GroupBox("Satisfaction voyageurs · estimation") {
+            VStack(alignment: .leading, spacing: 12) {
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .firstTextBaseline, spacing: 12) {
+                        satisfactionScore(satisfaction.score)
+                        Text(satisfactionCoverage(satisfaction.coveredComponentCount))
+                            .foregroundStyle(.secondary)
+                    }
+                    VStack(alignment: .leading, spacing: 3) {
+                        satisfactionScore(satisfaction.score)
+                        Text(satisfactionCoverage(satisfaction.coveredComponentCount))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                satisfactionComponentRow(
+                    title: "Accès à bord",
+                    score: satisfaction.access.score,
+                    detail: "\(satisfaction.access.boardedArrivals.formatted()) montées / \(satisfaction.access.observedArrivalCount.formatted()) arrivées documentées · \(satisfaction.access.sampleCount.formatted()) arrêts · montées ÷ (montées + laissés à quai)"
+                )
+                satisfactionComponentRow(
+                    title: "Confort de charge",
+                    score: satisfaction.comfort.score,
+                    detail: "\(satisfaction.comfort.sampleCount.formatted()) échanges · \(satisfaction.comfort.estimatedCapacitySampleCount.formatted()) capacités estimées · normal 100, chargé 50, complet 0"
+                )
+                satisfactionComponentRow(
+                    title: "Correspondances",
+                    score: satisfaction.connections.score,
+                    detail: "\(satisfaction.connections.boardedPassengerCount.formatted()) / \(satisfaction.connections.attemptedPassengerCount.formatted()) voyageurs montés sur la course visée · \(satisfaction.connections.missedPassengerCount.formatted()) manqués · \(satisfaction.connections.pendingGroupCount.formatted()) groupes (\(satisfaction.connections.pendingPassengerCount.formatted()) voyageurs) en attente, exclus du score"
+                )
+
+                if satisfaction.coveredComponentCount == 0 {
+                    Text("L’indice apparaîtra après des échanges voyageurs et des correspondances ciblées. Les données manquantes des anciennes sauvegardes ne sont pas reconstituées.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    Text("Estimation de la simulation, pas enquête de satisfaction réelle. Les échanges historiques sans mesure précise restent hors des composantes concernées.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .padding(.top, 5)
+            .accessibilityElement(children: .contain)
+        }
+    }
+
+    private func satisfactionScore(_ score: Int?) -> some View {
+        Text(score.map { "\($0) / 100" } ?? "Indisponible")
+            .font(.title2.monospacedDigit().weight(.semibold))
+            .accessibilityLabel(score.map { "Indice moyen estimé, \($0) sur 100" } ?? "Indice moyen estimé indisponible")
+    }
+
+    private func satisfactionComponentRow(title: String, score: Int?, detail: String) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                Spacer(minLength: 4)
+                Text(score.map { "\($0) / 100" } ?? "Indisponible")
+                    .font(.subheadline.monospacedDigit().weight(.medium))
+            }
+            Text(detail)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title), \(score.map { "\($0) sur 100" } ?? "indisponible"), \(detail)")
+    }
+
+    private func satisfactionCoverage(_ componentCount: Int) -> String {
+        "\(componentCount) composante\(componentCount == 1 ? "" : "s") sur 3 · données \(componentCount == 3 ? "complètes" : "partielles")"
+    }
+
     @ViewBuilder
     private var filterControls: some View {
         DatePicker("Du", selection: $startDate, displayedComponents: .date)
@@ -215,6 +296,12 @@ struct PassengerOperationsReportView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+                if let satisfaction = compactSatisfaction(row.totals.satisfaction) {
+                    Text(satisfaction)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             Spacer(minLength: 8)
             if let occupancy = row.totals.maximumOccupancyPercent {
@@ -224,6 +311,17 @@ struct PassengerOperationsReportView: View {
             }
         }
         .padding(.vertical, 10)
+    }
+
+    private func compactSatisfaction(_ satisfaction: PassengerSatisfactionSummary) -> String? {
+        let components: [String] = [
+            satisfaction.access.score.map { "accès \($0) %" },
+            satisfaction.comfort.score.map { "confort \($0) %" },
+            satisfaction.connections.score.map { "correspondances \($0) %" }
+        ].compactMap { $0 }
+        guard !components.isEmpty else { return nil }
+        let score = satisfaction.score.map { "\($0) / 100" } ?? "partiel"
+        return "Satisfaction estimée \(score) · \(components.joined(separator: " · "))"
     }
 
     private func metric(_ title: String, value: String, symbol: String, color: Color) -> some View {

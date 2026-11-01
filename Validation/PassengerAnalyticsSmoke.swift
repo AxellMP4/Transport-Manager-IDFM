@@ -7,7 +7,8 @@ struct PassengerAnalyticsSmoke {
         appliesInclusiveDateRouteAndVehicleFilters()
         groupsWithSummedDenominators()
         attributesDisruptionEffectsWithoutChangingBoardingTotals()
-        print("PASS: passenger analytics aggregate validations and disruption effects without double-counting")
+        satisfactionUsesOnlyMeasuredAccessAndConnectionSamples()
+        print("PASS: passenger analytics and estimated satisfaction preserve partial coverage")
     }
 
     private static func aggregatesBoardingsValidationTitlesAndPeakOccupancy() {
@@ -130,6 +131,164 @@ struct PassengerAnalyticsSmoke {
         precondition(snapshot.displacedPassengerCount == 8)
     }
 
+    private static func satisfactionUsesOnlyMeasuredAccessAndConnectionSamples() {
+        var first = makeExchange(
+            tripID: "trip-1",
+            routeID: "route-1",
+            vehicleID: "bus-1",
+            stopID: "stop-a",
+            stopName: "Arrêt A",
+            at: fixtureDate(0),
+            boarded: 3,
+            onboard: 8,
+            capacity: 10,
+            leftBehind: 1,
+            redirected: nil,
+            breakdown: nil
+        )
+        first.newlyBoardedArrivalsCount = 3
+        first.accessBoardingSampleEligible = true
+        first.connectingTripAttemptCount = 4
+        first.connectingTripBoardedCount = 3
+
+        var second = makeExchange(
+            tripID: "trip-2",
+            routeID: "route-1",
+            vehicleID: "bus-1",
+            stopID: "stop-b",
+            stopName: "Arrêt B",
+            at: fixtureDate(3_600),
+            boarded: 1,
+            onboard: 10,
+            capacity: 10,
+            leftBehind: 0,
+            redirected: nil,
+            breakdown: nil
+        )
+        second.newlyBoardedArrivalsCount = 1
+        second.accessBoardingSampleEligible = true
+        second.connectingTripAttemptCount = 0
+        second.connectingTripBoardedCount = 0
+
+        let legacy = makeExchange(
+            tripID: "trip-3",
+            routeID: "route-2",
+            vehicleID: "bus-2",
+            stopID: "stop-c",
+            stopName: "Arrêt C",
+            at: fixtureDate(3_601),
+            boarded: 0,
+            onboard: 5,
+            capacity: 10,
+            leftBehind: 0,
+            redirected: nil,
+            breakdown: nil,
+            capacityIsEstimated: true
+        )
+
+        var closed = makeExchange(
+            tripID: "trip-4",
+            routeID: "route-1",
+            vehicleID: "bus-1",
+            stopID: "stop-closed",
+            stopName: "Arrêt fermé",
+            at: fixtureDate(3_602),
+            boarded: 0,
+            onboard: 9,
+            capacity: 10,
+            leftBehind: 5,
+            redirected: nil,
+            breakdown: nil
+        )
+        closed.stopWasClosed = true
+        closed.newlyBoardedArrivalsCount = 0
+        closed.accessBoardingSampleEligible = false
+        closed.connectingTripAttemptCount = 0
+        closed.connectingTripBoardedCount = 0
+
+        let pending = PassengerTransferQueueEntry(
+            sourceTripID: "source-trip",
+            targetRouteID: "route-1",
+            targetVehicleID: "bus-1",
+            intendedTripID: "target-trip",
+            stopID: "stop-b",
+            passengerCount: 5,
+            readyAt: fixtureDate(3_600)
+        )
+        let snapshot = PassengerAnalytics.snapshot(
+            exchanges: [first, second, legacy, closed],
+            pendingTransfers: [pending],
+            grouping: .line
+        )
+
+        let satisfaction = snapshot.satisfaction
+        precondition(satisfaction.score == 68)
+        precondition(satisfaction.coveredComponentCount == 3)
+        precondition(satisfaction.access.score == 80)
+        precondition(satisfaction.access.boardedArrivals == 4)
+        precondition(satisfaction.access.leftBehindArrivals == 1)
+        precondition(satisfaction.comfort.score == 50)
+        precondition(satisfaction.comfort.sampleCount == 3)
+        precondition(satisfaction.comfort.estimatedCapacitySampleCount == 1)
+        precondition(satisfaction.connections.score == 75)
+        precondition(satisfaction.connections.attemptedPassengerCount == 4)
+        precondition(satisfaction.connections.boardedPassengerCount == 3)
+        precondition(satisfaction.connections.missedPassengerCount == 1)
+        precondition(satisfaction.connections.pendingGroupCount == 1)
+        precondition(satisfaction.connections.pendingPassengerCount == 5)
+
+        let courseFiltered = PassengerAnalytics.snapshot(
+            exchanges: [first, second, legacy, closed],
+            pendingTransfers: [pending],
+            filter: PassengerAnalyticsFilter(routeID: "route-1", vehicleID: "bus-1"),
+            grouping: .course
+        )
+        precondition(courseFiltered.satisfaction.access.score == 80)
+        precondition(courseFiltered.satisfaction.comfort.score == 25)
+        precondition(courseFiltered.satisfaction.connections.score == 75)
+        precondition(courseFiltered.satisfaction.score == 60)
+        let pendingCourse = courseFiltered.rows.first { $0.label.contains("target-trip") }
+        precondition(pendingCourse?.totals.satisfaction.connections.pendingGroupCount == 1)
+        precondition(pendingCourse?.totals.satisfaction.connections.attemptedPassengerCount == 0)
+
+        let dateFiltered = PassengerAnalytics.snapshot(
+            exchanges: [first, second, legacy, closed],
+            pendingTransfers: [pending],
+            filter: PassengerAnalyticsFilter(
+                startAt: fixtureDate(0),
+                endAt: fixtureDate(0),
+                routeID: "route-1",
+                vehicleID: "bus-1"
+            ),
+            grouping: .course
+        )
+        precondition(dateFiltered.satisfaction.score == 67)
+        precondition(dateFiltered.satisfaction.connections.pendingGroupCount == 0)
+
+        let legacyOnly = PassengerAnalytics.snapshot(exchanges: [legacy], grouping: .line)
+        precondition(legacyOnly.satisfaction.score == 100)
+        precondition(legacyOnly.satisfaction.coveredComponentCount == 1)
+        precondition(legacyOnly.satisfaction.access.score == nil)
+        precondition(legacyOnly.satisfaction.connections.score == nil)
+
+        var encoded = try! JSONEncoder().encode(legacy)
+        var legacyObject = try! JSONSerialization.jsonObject(with: encoded) as! [String: Any]
+        for key in [
+            "newlyBoardedArrivalsCount",
+            "accessBoardingSampleEligible",
+            "connectingTripAttemptCount",
+            "connectingTripBoardedCount"
+        ] {
+            legacyObject.removeValue(forKey: key)
+        }
+        encoded = try! JSONSerialization.data(withJSONObject: legacyObject)
+        let decoded = try! JSONDecoder().decode(PassengerStopExchange.self, from: encoded)
+        precondition(decoded.newlyBoardedArrivalsCount == nil)
+        precondition(decoded.accessBoardingSampleEligible == nil)
+        precondition(decoded.connectingTripAttemptCount == nil)
+        precondition(decoded.connectingTripBoardedCount == nil)
+    }
+
     private static func fixtureExchanges() -> [PassengerStopExchange] {
         [
             makeExchange(
@@ -201,7 +360,8 @@ struct PassengerAnalyticsSmoke {
         capacity: Int,
         leftBehind: Int,
         redirected: Int?,
-        breakdown: PassengerValidationBreakdown?
+        breakdown: PassengerValidationBreakdown?,
+        capacityIsEstimated: Bool = false
     ) -> PassengerStopExchange {
         PassengerStopExchange(
             tripID: tripID,
@@ -215,7 +375,7 @@ struct PassengerAnalyticsSmoke {
             leftBehindCount: leftBehind,
             onboardAfterExchange: onboard,
             capacity: capacity,
-            capacityIsEstimated: false,
+            capacityIsEstimated: capacityIsEstimated,
             estimatedArrivalsCount: boarded + leftBehind,
             waitingBeforeCount: 0,
             waitingAfterCount: leftBehind,

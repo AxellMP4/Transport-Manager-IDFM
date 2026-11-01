@@ -1,6 +1,6 @@
 # Satisfaction voyageurs estimée
 
-**État :** proposition en attente de revue et d’accord utilisateur. Aucun changement de comportement produit n’est autorisé par ce document tant qu’il n’est pas approuvé.
+**État :** implémentée comme estimation de rapport dans « Voyageurs ». Elle n’agit ni sur la trésorerie, ni sur les contrats, ni sur les objectifs de carrière.
 
 ## Intention
 
@@ -27,7 +27,7 @@ Pour les arrivées dont le résultat est connu :
 
 La demande d’arrivée est celle déjà déterminée par la simulation après les effets d’information et d’événement local. Les passagers déjà en attente et les voyageurs en correspondance ne sont pas comptés une deuxième fois comme de nouvelles arrivées. Les arrêts terminaux sans possibilité de montée et les arrivées prises en charge par un itinéraire de remplacement sont hors de ce dénominateur; le rapport continue de montrer séparément les voyageurs redirigés. Une fermeture sans solution de remplacement reste un échec d’accès.
 
-Le moteur calcule déjà le nombre de nouveaux passagers montés pendant la résolution d’une demande; il faut le persister sur `PassengerStopExchange` plutôt que le reconstruire depuis les montées totales. Le décompte de nouveaux arrivants laissés à quai est déjà conservé pour les événements récents. Les anciennes sauvegardes où le nombre de montées de nouveaux arrivants est absent ne contribuent pas à cette composante.
+Le moteur persiste le nombre de nouveaux passagers montés et l’éligibilité de l’échange dans `PassengerStopExchange`. Le décompte de nouveaux arrivants laissés à quai existant complète la mesure. Les anciennes sauvegardes où ces nouveaux champs sont absents ne contribuent pas à cette composante.
 
 ### Confort de charge
 
@@ -41,11 +41,11 @@ Une tentative compte quand des voyageurs sont rattachés à une course cible pr�
 
 `100 × tentatives réussies / (tentatives réussies + tentatives manquées)`
 
-Les entrées de correspondance portent déjà une référence à l’événement source, mais le total de montées de correspondance actuel ne distingue pas systématiquement les voyageurs affectés à la course cible de ceux des autres groupes. Pour les nouveaux échanges, le moteur doit enregistrer un total de montées pour la course visée, y compris zéro; cela permet aussi de distinguer une valeur mesurée d’un ancien événement sans donnée. Les anciennes sauvegardes dépourvues de ce marqueur sont exclues de la composante.
+Pour chaque nouvel échange, le moteur enregistre le nombre de voyageurs tentant la course visée et le nombre de ceux qui y montent, y compris zéro. La file de correspondance conserve la course cible et son bus quand ils sont connus. Les anciennes sauvegardes dépourvues de ces champs sont exclues de la composante.
 
 ## Interface et accessibilité
 
-Ajouter en tête du rapport « Voyageurs » un groupe « Satisfaction voyageurs · estimation », sans remplacer les métriques existantes.
+Le rapport « Voyageurs » affiche en tête un groupe « Satisfaction voyageurs · estimation », sans remplacer les métriques existantes.
 
 - En premier : le score général, ou « Indisponible », et la couverture, par exemple « 2 composantes sur 3 · données partielles ».
 - En dessous : trois lignes de composante avec nom, score, formule courte et volume observé.
@@ -53,7 +53,7 @@ Ajouter en tête du rapport « Voyageurs » un groupe « Satisfaction voyageurs 
 - Pour les correspondances : montrer les réussites, les échecs et les tentatives encore exclues car non résolues.
 - Réutiliser les filtres existants de dates, ligne et bus; les détails par ligne, bus, course ou arrêt suivent le regroupement déjà sélectionné.
 - Utiliser du texte et des nombres en plus des couleurs. L’annonce VoiceOver nomme le score, le nombre de composantes disponibles et les données couvertes. La mise en page reste adaptable à une fenêtre étroite et large.
-- Quand aucune donnée n’est disponible, expliquer qu’il faut laisser circuler des bus et résoudre des correspondances pour alimenter l’indice.
+- Quand aucune donnée n’est disponible, le rapport explique qu’il faut laisser circuler des bus et résoudre des correspondances pour alimenter l’indice.
 
 ## Sauvegardes et données historiques
 
@@ -61,9 +61,9 @@ Les nouveaux champs d’`PassengerStopExchange` sont optionnels et décodables e
 
 La composante confort peut être calculée à partir des échanges anciens qui comportent déjà charge et capacité, avec une couverture clairement signalée. L’accès à bord et les correspondances n’incluent que les enregistrements disposant des champs de précision nécessaires.
 
-## Effet sur le jeu — décision utilisateur requise
+## Effet sur le jeu — règle retenue
 
-**Recommandation de conception :** commencer par un indicateur de rapport, sans modifier les recettes, les bonus/malus, la trésorerie ou le règlement des contrats. Les annexes DSP45 disponibles dans le projet ne fournissent pas de barème d’exécution permettant de relier ce score aux paiements. Une incidence éventuelle sur les objectifs non financiers ou la progression doit être décidée séparément; aucun effet n’est inventé en leur nom.
+L’indice reste un indicateur de rapport. Il ne modifie pas les recettes, les bonus/malus, la trésorerie, les objectifs ni le règlement des contrats. Les annexes DSP45 disponibles ne fournissent aucun barème permettant de relier ce score aux paiements; aucun effet de jeu n’est donc inventé.
 
 ## Hors périmètre
 
@@ -84,12 +84,12 @@ La composante confort peut être calculée à partir des échanges anciens qui c
 7. Le rapport ne présente jamais l’indice comme une enquête réelle et n’en tire aucun effet financier.
 8. VoiceOver peut lire le score et la couverture sans dépendre de la couleur; les libellés restent lisibles en fenêtre étroite.
 
-## Points à confirmer avant planification
+## Choix de cette version
 
-- Effet recherché lorsque l’indice baisse : rapport de diagnostic seulement (recommandé ici), incidence non financière sur les objectifs de carrière, ou conséquence contractuelle/financière définie comme règle de jeu.
-- Barème proposé pour la charge : 100 / 50 / 0 points pour les trois états existants.
-- Les voyageurs dirigés vers un arrêt de remplacement restent à part et ne reçoivent pas de points dans « Accès à bord ».
+- L’indice reste consultatif et sans effet sur les objectifs de carrière ou les finances.
+- Le confort utilise le barème proposé de 100 / 50 / 0 points.
+- Les voyageurs pris en charge par un arrêt de remplacement sont exclus de l’accès à bord et comptés dans la métrique de redirection existante.
 
 ## Revue de conception
 
-Le builder check confirme que ces trois décisions changent le plan et doivent être tranchées par l’utilisateur. Il confirme aussi que la composante de confort doit omettre les échanges fermés et les échanges vides; la règle d’échantillonnage ci-dessus les exclut sans supposer qu’un échange à zéro passager était nécessairement terminal.
+La revue de conception a conduit à omettre les échanges vides et fermés du confort. La validation couvre les trois scores, l’exclusion des transferts en attente du dénominateur, l’attribution aux courses visées, les données historiques absentes et la compatibilité de l’ancien JSON. La disposition et VoiceOver restent à vérifier dans l’application; le contrôle statique et le build ne remplacent pas cette revue visuelle.

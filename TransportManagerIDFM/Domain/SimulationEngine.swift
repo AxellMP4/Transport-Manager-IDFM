@@ -1175,6 +1175,7 @@ struct PassengerStopDemand: Codable, Hashable, Sendable {
 struct PassengerTransferQueueEntry: Codable, Hashable, Sendable {
     let sourceTripID: String
     let targetRouteID: String
+    var targetVehicleID: String? = nil
     var intendedTripID: String?
     let stopID: String
     var passengerCount: Int
@@ -1405,6 +1406,8 @@ struct PassengerStopExchange: Codable, Hashable, Sendable {
     let waitingBeforeCount: Int?
     let waitingAfterCount: Int?
     let newlyLeftBehindCount: Int?
+    var newlyBoardedArrivalsCount: Int? = nil
+    var accessBoardingSampleEligible: Bool? = nil
     var stopWasClosed: Bool? = nil
     var redirectedPassengerCount: Int? = nil
     var replacementStopID: String? = nil
@@ -1416,7 +1419,10 @@ struct PassengerStopExchange: Codable, Hashable, Sendable {
     var stopSequence: Int? = nil
     var validationBreakdown: PassengerValidationBreakdown? = nil
     var connectingRouteID: String? = nil
+    var connectingVehicleID: String? = nil
     var connectingTripID: String? = nil
+    var connectingTripAttemptCount: Int? = nil
+    var connectingTripBoardedCount: Int? = nil
     var connectingStopID: String? = nil
     var estimatedTransferPassengerCount: Int? = nil
     var transferReadyAt: Date? = nil
@@ -7050,6 +7056,8 @@ final class SimulationEngine: ObservableObject {
             waitingBeforeCount: waitingBefore,
             waitingAfterCount: queueAfter,
             newlyLeftBehindCount: newlyLeftBehind,
+            newlyBoardedArrivalsCount: newlyBoarded,
+            accessBoardingSampleEligible: !demand.isTerminal && !(stopWasClosed && passengerCanFollowReplacement),
             stopWasClosed: stopWasClosed,
             redirectedPassengerCount: passengerCanFollowReplacement ? waitingIncludingArrivals : nil,
             replacementStopID: passengerCanFollowReplacement ? replacementGuide?.replacementStopID : nil,
@@ -7063,7 +7071,10 @@ final class SimulationEngine: ObservableObject {
             stopSequence: demand.stopSequence,
             validationBreakdown: validationBreakdown,
             connectingRouteID: estimatedTransferPassengerCount > 0 ? nextConnection?.demand.routeID : nil,
+            connectingVehicleID: estimatedTransferPassengerCount > 0 ? nextConnection?.demand.vehicleID : nil,
             connectingTripID: estimatedTransferPassengerCount > 0 ? nextConnection?.demand.tripID : nil,
+            connectingTripAttemptCount: totalTransfersIntendedForThisTrip,
+            connectingTripBoardedCount: min(readyTransfersIntendedForThisTrip, estimatedTransferBoarded),
             connectingStopID: estimatedTransferPassengerCount > 0 ? nextConnection?.demand.stopID : nil,
             estimatedTransferPassengerCount: estimatedTransferPassengerCount > 0
                 ? estimatedTransferPassengerCount
@@ -9386,6 +9397,7 @@ final class SimulationEngine: ObservableObject {
                 let newEntry = PassengerTransferQueueEntry(
                     sourceTripID: exchange.tripID,
                     targetRouteID: targetRouteID,
+                    targetVehicleID: exchange.connectingVehicleID,
                     intendedTripID: targetTripID,
                     stopID: targetStopID,
                     passengerCount: passengerCount,
