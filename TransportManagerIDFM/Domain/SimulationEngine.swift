@@ -11,6 +11,9 @@ enum SimulationEngineError: LocalizedError {
     case depotEnergyInfrastructureUnavailable
     case scheduledDepartureUnavailable
     case vehicleUnavailable
+    case invalidSpecialTransport
+    case specialTransportUnavailable
+    case specialTransportVehicleConflict
     case vehicleCannotBeSold
     case vehicleSaleEstimateChanged
     case vehicleNotAtTripStart
@@ -91,6 +94,12 @@ enum SimulationEngineError: LocalizedError {
             "Ce départ GTFS n’est plus disponible pour une affectation."
         case .vehicleUnavailable:
             "Ce bus n’est pas disponible pour une nouvelle course."
+        case .invalidSpecialTransport:
+            "Vérifiez le client, le motif, l’horaire, la distance, le nombre de passagers et le devis du transport spécial."
+        case .specialTransportUnavailable:
+            "Ce transport spécial ne peut plus être modifié ou annulé."
+        case .specialTransportVehicleConflict:
+            "Ce bus est déjà affecté à un service pendant tout ou partie de ce créneau."
         case .vehicleCannotBeSold:
             "La cession est possible quand le bus est immobile au dépôt ou au terminus, hors course, livraison et entretien."
         case .vehicleSaleEstimateChanged:
@@ -662,6 +671,8 @@ struct RouteDetourEventDetails: Codable, Hashable, Sendable {
 
 enum SimulationEventKind: Codable, Hashable, Sendable {
     case serviceDeparture(tripID: String)
+    case specialTransportStarted(orderID: String)
+    case specialTransportCompleted(orderID: String)
     case scheduledServiceDeparture(tripID: String, routeID: String, serviceDateKey: Int)
     case missedServiceDeparture(tripID: String, routeID: String)
     case routeServiceSuspended(tripID: String, routeID: String, closureID: String)
@@ -730,6 +741,10 @@ struct SimulationEvent: Codable, Hashable, Identifiable, Sendable {
         switch kind {
         case let .serviceDeparture(tripID):
             "Départ de course \(tripID)"
+        case let .specialTransportStarted(orderID):
+            "Début du transport spécial · commande \(orderID)"
+        case let .specialTransportCompleted(orderID):
+            "Fin du transport spécial · commande \(orderID)"
         case let .scheduledServiceDeparture(_, routeID, _):
             "Départ prévu de la ligne \(routeID)"
         case let .missedServiceDeparture(tripID, routeID):
@@ -1611,6 +1626,7 @@ struct SimulationSession: Codable, Hashable, Identifiable, Sendable {
     var loans: [SimulationLoan]? = nil
     var invoices: [SimulationInvoice]? = nil
     var advertisingCampaigns: [SimulatedAdvertisingCampaign]? = nil
+    var specialTransportOrders: [SimulationSpecialTransportOrder]? = nil
     var careerProgression: CareerProgressionState? = nil
 
     var effectiveManagedDepotIDs: Set<String> {
@@ -1887,8 +1903,15 @@ final class SimulationEngine: ObservableObject {
     private var clockTask: Task<Void, Never>?
     private var lastTickUptime: TimeInterval?
     private var lastAutosaveUptime: TimeInterval?
+    private var persistsSession = true
     private let tickIntervalNanoseconds: UInt64 = 200_000_000
     private let autosaveInterval: TimeInterval = 30
+
+    init(initialSession: SimulationSession) {
+        session = initialSession
+        lastSavedAt = initialSession.updatedAt
+        persistsSession = false
+    }
 
     init() {
         do {
@@ -2164,6 +2187,7 @@ final class SimulationEngine: ObservableObject {
             loans: [],
             invoices: [],
             advertisingCampaigns: [],
+            specialTransportOrders: [],
             careerProgression: CareerProgressionState()
         )
         try SimulationSaveStore.save(newSession)
@@ -3220,6 +3244,249 @@ final class SimulationEngine: ObservableObject {
         save()
     }
 
+    func availableMachinistsForSpecialTransport(
+        vehicleID: String,
+        startsAt: Date,
+        durationMinutes: Int
+    ) -> [Machinist] {
+        guard let activeSession = session,
+              startsAt.timeIntervalSince1970.isFinite,
+              durationMinutes >= 15,
+              durationMinutes <= 12 * 60,
+              startsAt >= activeSession.simulatedAt,
+              startsAt <= activeSession.simulatedAt.addingTimeInterval(365 * 24 * 60 * 60),
+              let endsAt = Calendar(identifier: .gregorian).date(
+                byAdding: .minute,
+                value: durationMinutes,
+                to: startsAt
+              ),
+              endsAt > startsAt,
+              let bus = activeSession.ownedBuses?.first(where: { $0.id == vehicleID }),
+              let model = VehicleMarketCatalog.model(id: bus.modelID) else {
+            return []
+        }
+
+        return (activeSession.machinists ?? []).filter { machinist in
+            guard (machinist.depotID ?? activeSession.depotID) == bus.depotID,
+                  machinist.hiredAt <= startsAt,
+                  machinist.qualification.canDrive(model.vehicleClass) else {
+                return false
+            }
+            return Self.machinistDutyBlockAssignmentPlan(
+                machinist.id,
+                from: startsAt,
+                to: endsAt,
+                assignments: activeSession.machinistServiceAssignments ?? [],
+                dutyBlocks: activeSession.machinistDutyBlocks ?? [],
+                breaks: activeSession.machinistBreaks ?? [],
+                absences: activeSession.machinistAbsences ?? [],
+                trainings: activeSession.machinistTrainings ?? [],
+                allowReopeningSettledBlocks: true
+            ) != nil
+        }
+    }
+
+    @discardableResult
+    func scheduleSpecialTransport(
+        clientName: String,
+        purpose: String,
+        startsAt: Date,
+        durationMinutes: Int,
+        plannedDistanceKilometers: Double,
+        passengerCount: Int,
+        vehicleID: String,
+        machinistID: String,
+        quotedAmountEuro: Int
+    ) throws -> SimulationSpecialTransportOrder {
+        guard var activeSession = session,
+              activeSession.cashBalance != nil,
+              startsAt.timeIntervalSince1970.isFinite,
+              durationMinutes >= 15,
+              durationMinutes <= 12 * 60,
+              plannedDistanceKilometers.isFinite,
+              plannedDistanceKilometers > 0,
+              plannedDistanceKilometers <= 500,
+              passengerCount > 0,
+              quotedAmountEuro > 0,
+              quotedAmountEuro <= 1_000_000 else {
+            throw SimulationEngineError.invalidSpecialTransport
+        }
+
+        let normalizedClient = clientName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedPurpose = purpose.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedClient.isEmpty,
+              normalizedClient.count <= 100,
+              !normalizedPurpose.isEmpty,
+              normalizedPurpose.count <= 140,
+              startsAt >= activeSession.simulatedAt,
+              startsAt <= activeSession.simulatedAt.addingTimeInterval(365 * 24 * 60 * 60),
+              let endsAt = Calendar(identifier: .gregorian).date(
+                byAdding: .minute,
+                value: durationMinutes,
+                to: startsAt
+              ),
+              endsAt > startsAt,
+              let dateKey = GTFSServiceDate.key(for: startsAt, timeZone: GTFSServiceDate.parisTimeZone),
+              let bus = activeSession.ownedBuses?.first(where: { $0.id == vehicleID }),
+              let model = VehicleMarketCatalog.model(id: bus.modelID),
+              let machinist = activeSession.machinists?.first(where: { $0.id == machinistID }) else {
+            throw SimulationEngineError.invalidSpecialTransport
+        }
+
+        let capacity = VehicleMarketCatalog.passengerCapacity(for: model)
+        guard passengerCount <= capacity,
+              (bus.status == .atDepot || bus.status == .atStop),
+              bus.currentTripID == nil,
+              bus.reservedTripKey == nil,
+              bus.rechargePlanID == nil else {
+            throw SimulationEngineError.vehicleUnavailable
+        }
+        guard (machinist.depotID ?? activeSession.depotID) == bus.depotID,
+              machinist.hiredAt <= startsAt else {
+            throw SimulationEngineError.machinistUnavailable
+        }
+        guard machinist.qualification.canDrive(model.vehicleClass) else {
+            throw SimulationEngineError.machinistNotQualified
+        }
+
+        let distanceMeters = plannedDistanceKilometers * 1_000
+        if activeSession.energySimulationVersion != nil,
+           model.energy == .electric,
+           let capacityKWh = bus.batteryCapacityKWh,
+           let chargeKWh = bus.batteryChargeKWh {
+            let energyUnits = distanceMeters / 100_000
+                * VehicleMarketCatalog.energyEstimate(for: model).quantityPer100Kilometers
+            guard chargeKWh - energyUnits >= capacityKWh * 0.15 else {
+                throw SimulationEngineError.insufficientBatteryReserve
+            }
+        }
+
+        let assignments = activeSession.machinistServiceAssignments ?? []
+        guard !assignments.contains(where: { assignment in
+            guard assignment.vehicleID == vehicleID else { return false }
+            let assignmentEnd = assignment.actualEndAt ?? assignment.plannedEndAt
+            return Self.periodsOverlap(startsAt, endsAt, assignment.plannedStartAt, assignmentEnd)
+        }),
+        !(activeSession.specialTransportOrders ?? []).contains(where: { order in
+            order.vehicleID == vehicleID
+                && (order.status == .scheduled || order.status == .inProgress)
+                && Self.periodsOverlap(startsAt, endsAt, order.startsAt, order.endsAt)
+        }) else {
+            throw SimulationEngineError.specialTransportVehicleConflict
+        }
+
+        guard Self.machinistDutyBlockAssignmentPlan(
+            machinistID,
+            from: startsAt,
+            to: endsAt,
+            assignments: assignments,
+            dutyBlocks: activeSession.machinistDutyBlocks ?? [],
+            breaks: activeSession.machinistBreaks ?? [],
+            absences: activeSession.machinistAbsences ?? [],
+            trainings: activeSession.machinistTrainings ?? [],
+            allowReopeningSettledBlocks: true
+        ) != nil else {
+            throw SimulationEngineError.machinistUnavailable
+        }
+
+        let orderID = "special-transport-\(UUID().uuidString)"
+        let order = SimulationSpecialTransportOrder(
+            id: orderID,
+            clientName: normalizedClient,
+            purpose: normalizedPurpose,
+            startsAt: startsAt,
+            endsAt: endsAt,
+            plannedDistanceKilometers: plannedDistanceKilometers,
+            passengerCount: passengerCount,
+            vehicleID: vehicleID,
+            machinistID: machinistID,
+            quotedAmountEuro: quotedAmountEuro,
+            createdAt: activeSession.simulatedAt,
+            status: .scheduled
+        )
+
+        var orders = activeSession.specialTransportOrders ?? []
+        orders.append(order)
+        activeSession.specialTransportOrders = orders
+        var updatedAssignments = assignments
+        updatedAssignments.append(MachinistServiceAssignment(
+            id: "assignment-\(orderID)",
+            machinistID: machinist.id,
+            vehicleID: bus.id,
+            vehicleModelID: bus.modelID,
+            tripID: orderID,
+            routeID: "TRANSPORT-SPECIAL",
+            serviceDateKey: dateKey,
+            plannedStartAt: startsAt,
+            plannedEndAt: endsAt
+        ))
+        activeSession.machinistServiceAssignments = updatedAssignments
+
+        activeSession.pendingEvents.append(SimulationEvent(
+            sequence: activeSession.nextEventSequence,
+            simulatedAt: startsAt,
+            kind: .specialTransportStarted(orderID: orderID)
+        ))
+        activeSession.nextEventSequence &+= 1
+        activeSession.pendingEvents.append(SimulationEvent(
+            sequence: activeSession.nextEventSequence,
+            simulatedAt: endsAt,
+            kind: .specialTransportCompleted(orderID: orderID)
+        ))
+        activeSession.nextEventSequence &+= 1
+
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = GTFSServiceDate.parisTimeZone
+        let completionDay = calendar.startOfDay(for: endsAt)
+        if let nextMidnight = calendar.date(byAdding: .day, value: 1, to: completionDay),
+           let settlementDateKey = GTFSServiceDate.key(
+            for: nextMidnight.addingTimeInterval(-1),
+            timeZone: calendar.timeZone
+           ),
+           !activeSession.pendingEvents.contains(where: { event in
+               if case let .dailySettlement(existingDateKey) = event.kind {
+                   return existingDateKey == settlementDateKey
+               }
+               return false
+           }) {
+            activeSession.pendingEvents.append(contentsOf: Self.dailySettlementEvents(
+                from: completionDay,
+                through: nextMidnight,
+                nextSequence: &activeSession.nextEventSequence
+            ))
+        }
+        activeSession.pendingEvents.sort(by: Self.eventOrder)
+        activeSession.updatedAt = Date.now
+        session = activeSession
+        save()
+        return order
+    }
+
+    func cancelSpecialTransport(orderID: String) throws {
+        guard var activeSession = session,
+              var orders = activeSession.specialTransportOrders,
+              let orderIndex = orders.firstIndex(where: { $0.id == orderID }),
+              orders[orderIndex].status == .scheduled,
+              activeSession.simulatedAt < orders[orderIndex].startsAt else {
+            throw SimulationEngineError.specialTransportUnavailable
+        }
+
+        orders[orderIndex].status = .cancelled
+        activeSession.specialTransportOrders = orders
+        activeSession.pendingEvents.removeAll { event in
+            switch event.kind {
+            case let .specialTransportStarted(id), let .specialTransportCompleted(id):
+                id == orderID
+            default:
+                false
+            }
+        }
+        activeSession.machinistServiceAssignments?.removeAll { $0.tripID == orderID }
+        activeSession.updatedAt = Date.now
+        session = activeSession
+        save()
+    }
+
     @discardableResult
     func takeGameLoan(principalEuro: Int, termMonths: Int) throws -> SimulationLoan {
         guard var activeSession = session,
@@ -3361,6 +3628,10 @@ final class SimulationEngine: ObservableObject {
             throw SimulationEngineError.marketUnavailable
         }
         guard let vehicleIndex = ownedBuses.firstIndex(where: { $0.id == vehicleID }),
+              !(activeSession.specialTransportOrders ?? []).contains(where: {
+                  $0.vehicleID == vehicleID
+                      && ($0.status == .scheduled || $0.status == .inProgress)
+              }),
               ownedBuses[vehicleIndex].canBeSold else {
             throw SimulationEngineError.vehicleCannotBeSold
         }
@@ -3412,6 +3683,13 @@ final class SimulationEngine: ObservableObject {
         guard missing > 0 else { throw SimulationEngineError.rechargeUnavailable }
         let power = activeSession.installedChargingPowerKilowatts(for: buses[index].depotID) / Double(chargingPointCount)
         let completeAt = activeSession.simulatedAt.addingTimeInterval(missing / power * 3_600)
+        guard !(activeSession.specialTransportOrders ?? []).contains(where: { order in
+            order.vehicleID == vehicleID
+                && (order.status == .scheduled || order.status == .inProgress)
+                && Self.periodsOverlap(activeSession.simulatedAt, completeAt, order.startsAt, order.endsAt)
+        }) else {
+            throw SimulationEngineError.rechargeUnavailable
+        }
         let planID = UUID().uuidString
         buses[index].rechargePlanID = planID
         activeSession.ownedBuses = buses
@@ -3709,6 +3987,13 @@ final class SimulationEngine: ObservableObject {
             workshopStartedAt = activeSession.simulatedAt
         }
         let completionAt = workshopStartedAt.addingTimeInterval(VehicleMarketCatalog.preventiveMaintenanceDuration)
+        guard !(activeSession.specialTransportOrders ?? []).contains(where: { order in
+            order.vehicleID == vehicleID
+                && (order.status == .scheduled || order.status == .inProgress)
+                && Self.periodsOverlap(activeSession.simulatedAt, completionAt, order.startsAt, order.endsAt)
+        }) else {
+            throw SimulationEngineError.vehicleUnavailable
+        }
         maintenanceRecords.append(VehicleMaintenanceRecord(
             id: maintenanceID,
             vehicleID: vehicleID,
@@ -5093,6 +5378,13 @@ final class SimulationEngine: ObservableObject {
         let dutyStartAt = deadheadPlan.map {
             serviceStartAt.addingTimeInterval(-$0.expectedTravelSeconds)
         } ?? serviceStartAt
+        guard !(activeSession.specialTransportOrders ?? []).contains(where: { order in
+            order.vehicleID == vehicleID
+                && (order.status == .scheduled || order.status == .inProgress)
+                && Self.periodsOverlap(dutyStartAt, serviceEndAt, order.startsAt, order.endsAt)
+        }) else {
+            throw SimulationEngineError.specialTransportVehicleConflict
+        }
         let machinistAssignments = activeSession.machinistServiceAssignments ?? []
         let machinistDutyPlan = Self.machinistDutyBlockAssignmentPlan(
             machinistID,
@@ -5382,6 +5674,12 @@ final class SimulationEngine: ObservableObject {
         let now = Date()
         CareerProgressionCatalog.reconcile(session: &activeSession)
         activeSession.updatedAt = now
+        guard persistsSession else {
+            session = activeSession
+            lastSavedAt = now
+            errorMessage = nil
+            return
+        }
         do {
             try SimulationSaveStore.save(activeSession)
             session = activeSession
@@ -6261,6 +6559,7 @@ final class SimulationEngine: ObservableObject {
         let isServiceDistance: Bool
         let distanceContext: String
         let serviceGeometrySource: ServiceMovementGeometrySource?
+        var specialTransportOrder: SimulationSpecialTransportOrder? = nil
         switch event.kind {
         case let .busAtStop(id, vehicle, _, _, _, _, _):
             guard let leg = session.ownedBuses?.first(where: { $0.id == vehicle })?.activeMovementLeg else { return }
@@ -6298,6 +6597,20 @@ final class SimulationEngine: ObservableObject {
             isServiceDistance = false
             distanceContext = "retour à vide au dépôt"
             serviceGeometrySource = nil
+        case let .specialTransportCompleted(orderID):
+            guard let order = session.specialTransportOrders?.first(where: {
+                $0.id == orderID && $0.status == .inProgress
+            }),
+            session.ownedBuses?.contains(where: {
+                $0.id == order.vehicleID && $0.currentTripID == order.id && $0.status == .inService
+            }) == true else { return }
+            tripID = order.id
+            vehicleID = order.vehicleID
+            meters = order.plannedDistanceMeters
+            isServiceDistance = true
+            distanceContext = "transport spécial · distance déclarée dans la commande, estimation de jeu"
+            serviceGeometrySource = nil
+            specialTransportOrder = order
         default:
             return
         }
@@ -6327,7 +6640,7 @@ final class SimulationEngine: ObservableObject {
         let rate = VehicleMarketCatalog.estimatedServiceRevenuePerVehicleKilometerEuro
         let previousServiceRevenue = Int((previousTripDistanceMeters / 1_000 * rate).rounded())
         let accumulatedServiceRevenue = Int(((previousTripDistanceMeters + meters) / 1_000 * rate).rounded())
-        let serviceRevenue = (!isServiceDistance || session.cashBalance == nil)
+        let serviceRevenue = (!isServiceDistance || specialTransportOrder != nil || session.cashBalance == nil)
             ? nil
             : max(0, accumulatedServiceRevenue - previousServiceRevenue)
         let activeAdvertisingCampaign = session.advertisingCampaigns?.last(where: {
@@ -6413,6 +6726,18 @@ final class SimulationEngine: ObservableObject {
                 category: "Contribution contractuelle estimée (jeu)",
                 description: "Course \(tripID) · \((meters / 1_000).formatted(.number.precision(.fractionLength(1)))) véhicule-km\(serviceGeometrySource == .stopCoordinateEstimate ? " · distance estimée entre coordonnées d’arrêts" : serviceGeometrySource == .temporaryRouteDetour ? " · détour MapKit temporaire, estimation de jeu" : "") · hypothèse de jeu \(rate.formatted(.currency(code: "EUR").precision(.fractionLength(2))))/km",
                 amount: serviceRevenue,
+                cashDeltaEuro: 0
+            ))
+        }
+        if let specialTransportOrder,
+           specialTransportOrder.quotedAmountEuro > 0,
+           session.cashBalance != nil {
+            ledgerEntries.append(SimulationLedgerEntry(
+                id: "special-transport-revenue-\(event.sequence)",
+                occurredAt: event.simulatedAt,
+                category: "Recette transport spécial estimée (jeu)",
+                description: "\(specialTransportOrder.clientName) · \(specialTransportOrder.purpose) · \(specialTransportOrder.plannedDistanceKilometers.formatted(.number.precision(.fractionLength(1)))) km · devis saisi dans le jeu",
+                amount: specialTransportOrder.quotedAmountEuro,
                 cashDeltaEuro: 0
             ))
         }
@@ -6519,7 +6844,11 @@ final class SimulationEngine: ObservableObject {
                 && GTFSServiceDate.key(for: entry.occurredAt, timeZone: GTFSServiceDate.parisTimeZone) == dateKey
         }
         let contractEntries = newAccruals.filter { contractCategories.contains($0.category) }
-        let accessoryEntries = newAccruals.filter { $0.category == "Recette publicitaire estimée (jeu)" }
+        let accessoryCategories: Set<String> = [
+            "Recette publicitaire estimée (jeu)",
+            "Recette transport spécial estimée (jeu)"
+        ]
+        let accessoryEntries = newAccruals.filter { accessoryCategories.contains($0.category) }
         let energyEntries = newAccruals.filter { $0.category == "Énergie estimée" }
         let payrollEntries = newAccruals.filter { $0.category == "Rémunération machinistes" }
         let workshopCategories: Set<String> = [
@@ -6564,7 +6893,7 @@ final class SimulationEngine: ObservableObject {
             newInvoices.append(SimulationInvoice(
                 id: accessoryInvoiceID,
                 title: "Recettes accessoires",
-                counterparty: "Partenaires publicitaires · estimation de jeu",
+                counterparty: "Clients et partenaires accessoires · estimation de jeu",
                 direction: .receivable,
                 issuedAt: issuedAt,
                 dueAt: SimulationInvoiceRules.dueDate(for: issuedAt),
@@ -6764,7 +7093,8 @@ final class SimulationEngine: ObservableObject {
         }
         let accessoryRevenue = session.ledgerEntries.map { entries in
             entries.reduce(into: 0) { total, entry in
-                if entry.category == "Recette publicitaire estimée (jeu)",
+                if entry.category == "Recette publicitaire estimée (jeu)"
+                    || entry.category == "Recette transport spécial estimée (jeu)",
                    entry.amount > 0,
                    GTFSServiceDate.key(for: entry.occurredAt, timeZone: GTFSServiceDate.parisTimeZone) == dateKey {
                     total += entry.amount
@@ -6940,6 +7270,10 @@ final class SimulationEngine: ObservableObject {
         case let .busServiceCompleted(id, vehicle, _, _, _, _):
             tripID = id
             vehicleID = vehicle
+        case let .specialTransportCompleted(orderID):
+            guard let order = session.specialTransportOrders?.first(where: { $0.id == orderID }) else { return }
+            tripID = order.id
+            vehicleID = order.vehicleID
         case let .busDepotReturnArrivedWithMachinist(id, vehicle, _, _, _, _, _):
             tripID = id
             vehicleID = vehicle
@@ -7087,6 +7421,9 @@ final class SimulationEngine: ObservableObject {
         let routeDescription: String
         if case .vehicleBreakdown = event.kind {
             routeDescription = "ligne \(assignment.routeID) · course interrompue par panne"
+        } else if case .specialTransportCompleted = event.kind,
+                  let order = session.specialTransportOrders?.first(where: { $0.id == tripID }) {
+            routeDescription = "transport spécial · \(order.clientName) · \(order.purpose)"
         } else if case let .machinistRelieved(_, _, _, _, _, stopName) = event.kind {
             routeDescription = "ligne \(assignment.routeID) · relève à \(stopName)"
         } else {
@@ -8052,6 +8389,61 @@ final class SimulationEngine: ObservableObject {
     }
 
     static func applyVehicleEvent(_ event: SimulationEvent, to session: inout SimulationSession) {
+        if case let .specialTransportStarted(orderID) = event.kind {
+            guard var orders = session.specialTransportOrders,
+                  let orderIndex = orders.firstIndex(where: {
+                      $0.id == orderID && $0.status == .scheduled && $0.startsAt == event.simulatedAt
+                  }),
+                  var buses = session.ownedBuses,
+                  let busIndex = buses.firstIndex(where: { $0.id == orders[orderIndex].vehicleID }),
+                  buses[busIndex].status == .atDepot || buses[busIndex].status == .atStop,
+                  buses[busIndex].currentTripID == nil,
+                  buses[busIndex].reservedTripKey == nil,
+                  buses[busIndex].rechargePlanID == nil else {
+                if var orders = session.specialTransportOrders,
+                   let failedIndex = orders.firstIndex(where: { $0.id == orderID && $0.status == .scheduled }) {
+                    orders[failedIndex].status = .cancelled
+                    session.specialTransportOrders = orders
+                    session.machinistServiceAssignments?.removeAll { $0.tripID == orderID }
+                }
+                return
+            }
+            let order = orders[orderIndex]
+            orders[orderIndex].status = .inProgress
+            orders[orderIndex].startedAt = event.simulatedAt
+            orders[orderIndex].vehicleWasAtDepot = buses[busIndex].status == .atDepot
+            buses[busIndex].status = .inService
+            buses[busIndex].currentTripID = order.id
+            buses[busIndex].reservedTripKey = "special|\(order.id)"
+            buses[busIndex].reservedUntil = order.endsAt
+            session.specialTransportOrders = orders
+            session.ownedBuses = buses
+            return
+        }
+        if case let .specialTransportCompleted(orderID) = event.kind {
+            guard var orders = session.specialTransportOrders,
+                  let orderIndex = orders.firstIndex(where: {
+                      $0.id == orderID && $0.status == .inProgress && $0.endsAt == event.simulatedAt
+                  }) else { return }
+            let order = orders[orderIndex]
+            orders[orderIndex].status = .completed
+            orders[orderIndex].completedAt = event.simulatedAt
+            session.specialTransportOrders = orders
+            if var buses = session.ownedBuses,
+               let busIndex = buses.firstIndex(where: { $0.id == order.vehicleID }),
+               buses[busIndex].currentTripID == order.id {
+                buses[busIndex].status = order.vehicleWasAtDepot == true ? .atDepot : .atStop
+                buses[busIndex].currentTripID = nil
+                buses[busIndex].reservedTripKey = nil
+                buses[busIndex].reservedUntil = nil
+                session.ownedBuses = buses
+            } else {
+                orders[orderIndex].status = .cancelled
+                orders[orderIndex].completedAt = nil
+                session.specialTransportOrders = orders
+            }
+            return
+        }
         if case let .batteryRechargeCompleted(planID, vehicleID, chargeKWh) = event.kind {
             guard var buses = session.ownedBuses,
                   let index = buses.firstIndex(where: { $0.id == vehicleID }),
