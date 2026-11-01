@@ -44,6 +44,7 @@ enum SimulationEngineError: LocalizedError {
     case invalidTripSchedule
     case invalidImportedSave
     case noSessionToExport
+    case savedCareerNotFound
     case maintenanceNotRequired
     case recoveryTeamMaintenanceNotRequired
     case recoveryTeamAlreadyInMaintenance
@@ -164,6 +165,8 @@ enum SimulationEngineError: LocalizedError {
             "Le fichier JSON ne contient pas une sauvegarde de carrière valide pour ce jeu."
         case .noSessionToExport:
             "Aucune carrière active à exporter."
+        case .savedCareerNotFound:
+            "Cette carrière n’est plus disponible dans les sauvegardes locales. Actualisez la liste puis réessayez."
         case .maintenanceNotRequired:
             "Ce véhicule est déjà à 100 % d’état et ne nécessite pas cet entretien."
         case .recoveryTeamMaintenanceNotRequired:
@@ -1597,7 +1600,7 @@ struct DailyOperationsReport: Codable, Hashable, Identifiable, Sendable {
 }
 
 struct SimulationSession: Codable, Hashable, Identifiable, Sendable {
-    let id: String
+    var id: String
     var scenarioID: String
     let depotID: String
     var managedDepotIDs: [String]? = nil
@@ -1941,6 +1944,54 @@ private enum SimulationSaveStore {
         return try decoder.decode(SimulationSession.self, from: data)
     }
 
+    static func listSummaries() throws -> (careers: [SavedCareerSummary], unreadableFileNames: [String]) {
+        let directory = try savesDirectory()
+        guard FileManager.default.fileExists(atPath: directory.path) else { return ([], []) }
+        let urls = try FileManager.default.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: [.contentModificationDateKey],
+            options: [.skipsHiddenFiles]
+        )
+        let saveURLs = urls.filter { $0.pathExtension.lowercased() == "json" }.sorted { left, right in
+            let leftDate = (try? left.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+            let rightDate = (try? right.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+            return leftDate > rightDate
+        }
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        var careers: [SavedCareerSummary] = []
+        var unreadableFileNames: [String] = []
+        for url in saveURLs {
+            do {
+                let summary = try decoder.decode(SavedCareerSummary.self, from: Data(contentsOf: url))
+                guard summary.id == url.deletingPathExtension().lastPathComponent else {
+                    unreadableFileNames.append(url.lastPathComponent)
+                    continue
+                }
+                careers.append(summary)
+            } catch {
+                unreadableFileNames.append(url.lastPathComponent)
+            }
+        }
+        return (GameLaunchMenuFlow.newestFirst(careers), unreadableFileNames)
+    }
+
+    static func load(id: String) throws -> SimulationSession? {
+        guard !id.isEmpty, !id.contains("/"), !id.contains("\\"), id != ".", id != ".." else { return nil }
+        let url = try savesDirectory().appending(path: "\(id).json")
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        let session = try decode(Data(contentsOf: url))
+        guard session.id == id else { return nil }
+        return session
+    }
+
+    static func contains(id: String) throws -> Bool {
+        guard !id.isEmpty, !id.contains("/"), !id.contains("\\"), id != ".", id != ".." else { return false }
+        let url = try savesDirectory().appending(path: "\(id).json")
+        return FileManager.default.fileExists(atPath: url.path)
+    }
+
     static func loadMostRecent() throws -> LoadedMostRecentSave? {
         let directory = try savesDirectory()
         guard FileManager.default.fileExists(atPath: directory.path) else { return nil }
@@ -1984,6 +2035,8 @@ final class SimulationEngine: ObservableObject {
     @Published private(set) var lastSavedAt: Date?
     @Published private(set) var errorMessage: String?
     @Published private(set) var recoveryNotice: String?
+    @Published private(set) var savedCareers: [SavedCareerSummary] = []
+    @Published private(set) var savedCareerNotice: String?
 
     private static var cachedTransferRuleIndexVersionID: String?
     private static var cachedTransferRuleIndex: GTFSServiceTransferIndex?
@@ -2028,6 +2081,41 @@ final class SimulationEngine: ObservableObject {
         } catch {
             errorMessage = "La dernière sauvegarde de partie n’a pas pu être lue : \(error.localizedDescription)"
         }
+        refreshSavedCareers()
+    }
+
+    func refreshSavedCareers() {
+        do {
+            let listing = try SimulationSaveStore.listSummaries()
+            savedCareers = listing.careers
+            savedCareerNotice = listing.unreadableFileNames.isEmpty
+                ? nil
+                : "\(listing.unreadableFileNames.count) sauvegarde(s) illisible(s) masquée(s). Les autres carrières restent disponibles."
+        } catch {
+            savedCareers = []
+            savedCareerNotice = "La liste des sauvegardes locales n’a pas pu être lue : \(error.localizedDescription)"
+        }
+    }
+
+    func loadSavedCareer(id: String) throws {
+        pauseAndSave()
+        guard var restoredSession = try SimulationSaveStore.load(id: id) else {
+            throw SimulationEngineError.savedCareerNotFound
+        }
+        let savedProgression = restoredSession.careerProgression
+        CareerProgressionCatalog.reconcile(session: &restoredSession)
+        if restoredSession.speed != .paused {
+            restoredSession.resumeSpeed = restoredSession.speed
+            restoredSession.speed = .paused
+        }
+        let progressionChanged = savedProgression != restoredSession.careerProgression
+        session = restoredSession
+        lastSavedAt = restoredSession.updatedAt
+        errorMessage = nil
+        if progressionChanged || restoredSession.speed == .paused {
+            save()
+        }
+        refreshSavedCareers()
     }
 
     func setActiveDepot(_ depotID: String) {
@@ -2190,6 +2278,7 @@ final class SimulationEngine: ObservableObject {
         guard !pinnedRouteIDs.isEmpty else {
             throw SimulationEngineError.noOperatedRoutes
         }
+        pauseAndSave()
         let now = Date()
         var gameCalendar = Calendar(identifier: .gregorian)
         gameCalendar.timeZone = GTFSServiceDate.parisTimeZone
@@ -2283,6 +2372,7 @@ final class SimulationEngine: ObservableObject {
         session = newSession
         lastSavedAt = now
         errorMessage = nil
+        updateSavedCareerList(with: newSession)
         startClockLoop()
     }
 
@@ -5812,7 +5902,7 @@ final class SimulationEngine: ObservableObject {
 
     @discardableResult
     func advanceToNextEvent() -> Bool {
-        pause()
+        pauseAndSave()
         guard var activeSession = session,
               let nextEvent = activeSession.pendingEvents.first(where: {
                   !Self.requiresRepairResponseBeforeProcessing($0, in: activeSession)
@@ -5832,6 +5922,7 @@ final class SimulationEngine: ObservableObject {
             session = activeSession
             lastSavedAt = now
             errorMessage = nil
+            updateSavedCareerList(with: activeSession)
             return
         }
         do {
@@ -5839,6 +5930,7 @@ final class SimulationEngine: ObservableObject {
             session = activeSession
             lastSavedAt = now
             errorMessage = nil
+            updateSavedCareerList(with: activeSession)
         } catch {
             errorMessage = "La partie continue, mais sa sauvegarde a échoué : \(error.localizedDescription)"
         }
@@ -5857,7 +5949,8 @@ final class SimulationEngine: ObservableObject {
         return try SimulationSaveStore.encodedData(for: exportSession)
     }
 
-    func importSaveData(_ data: Data) throws {
+    @discardableResult
+    func importSaveData(_ data: Data, replacingExistingCareer: Bool = false) throws -> CareerImportResult {
         var importedSession = try SimulationSaveStore.decode(data)
         let pendingSequences = importedSession.pendingEvents.map(\.sequence)
         guard !importedSession.id.isEmpty,
@@ -5872,7 +5965,12 @@ final class SimulationEngine: ObservableObject {
             throw SimulationEngineError.invalidImportedSave
         }
 
-        pause()
+        pauseAndSave()
+        let sourceID = importedSession.id
+        let alreadyExists = try SimulationSaveStore.contains(id: sourceID)
+        let existingIDs: Set<String> = alreadyExists && !replacingExistingCareer ? [sourceID] : []
+        let identity = GameLaunchMenuFlow.importIdentity(sourceID: sourceID, existingIDs: existingIDs)
+        importedSession.id = identity.id
         let now = Date()
         let savedResumeSpeed = importedSession.speed == .paused
             ? importedSession.resumeSpeed
@@ -5885,6 +5983,28 @@ final class SimulationEngine: ObservableObject {
         session = importedSession
         lastSavedAt = now
         errorMessage = nil
+        updateSavedCareerList(with: importedSession)
+        refreshSavedCareers()
+        return CareerImportResult(
+            importedID: identity.id,
+            sourceID: identity.sourceID,
+            createdCopy: identity.wasCopied
+        )
+    }
+
+    private func updateSavedCareerList(with session: SimulationSession) {
+        let summary = SavedCareerSummary(
+            id: session.id,
+            scenarioID: session.scenarioID,
+            depotID: session.depotID,
+            createdAt: session.createdAt,
+            updatedAt: session.updatedAt,
+            simulatedAt: session.simulatedAt,
+            cashBalance: session.cashBalance
+        )
+        savedCareers = GameLaunchMenuFlow.newestFirst(
+            [summary] + savedCareers.filter { $0.id != summary.id }
+        )
     }
 
     func clearError() {
