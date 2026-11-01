@@ -34,7 +34,7 @@ struct RoadIncidentHistorySection: View {
                 .help("Déclarer une perturbation de jeu. Aucun accident réel n’est signalé.")
             }
 
-            Text("Déclaration manuelle : choisis ensuite le segment, un détour routier, la durée, le retard et le message voyageurs. Les événements aléatoires ne sont pas activés.")
+            Text("Les déclarations manuelles choisissent un segment et un détour routier. Le moteur peut aussi générer des congestions fictives selon l’option de carrière; elles ne proviennent ni de PRIM ni d’accidents réels.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -77,6 +77,9 @@ struct RoadIncidentHistorySection: View {
             }
             Text("Ligne \(detour.routeID) · \(detour.fromStopName) → \(detour.toStopName)")
                 .font(.callout)
+            Text(detour.effectiveOrigin.title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
             Text("\(detour.startsAt.formatted(date: .abbreviated, time: .shortened)) – \(detour.scheduledEndAt.formatted(date: .abbreviated, time: .shortened)) · +\(Int((detour.additionalTravelSeconds / 60).rounded())) min estimées")
                 .font(.caption)
                 .foregroundStyle(.secondary)
