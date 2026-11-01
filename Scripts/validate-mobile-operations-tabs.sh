@@ -24,6 +24,7 @@ dashboard_source="$project_root/TransportManagerIDFM/Features/OperationsDashboar
 playback_accessory_source="$project_root/TransportManagerIDFM/Features/MobileSimulationPlaybackAccessory.swift"
 depot_inspector_source="$project_root/TransportManagerIDFM/Features/DepotInspectorView.swift"
 network_coverage_source="$project_root/TransportManagerIDFM/Features/NetworkCoverageAuditView.swift"
+dispatch_source="$dashboard_source"
 
 if ! rg -Uq '#if os\(iOS\)[\r\n]+[[:space:]]*OperationsDashboardView\(\)' "$app_source"; then
     echo "The iOS app root must use OperationsDashboardView." >&2
@@ -182,5 +183,34 @@ if ! rg -Fq '.platformSheetFrame(minWidth: 860, minHeight: 620)' "$network_cover
     || ! rg -Fq '.platformSheetFrame(minWidth: 760, minHeight: 620)' "$network_coverage_source" \
     || ! rg -Fq 'func platformSheetFrame(minWidth: CGFloat, minHeight: CGFloat)' "$dashboard_source"; then
     echo "Network and trip-review sheets must use the adaptive platform frame." >&2
+    exit 1
+fi
+
+if ! rg -Fq '@Environment(\.horizontalSizeClass) private var horizontalSizeClass' "$dispatch_source" \
+    || ! rg -Fq 'if horizontalSizeClass == .compact {' "$dispatch_source" \
+    || ! rg -Fq '.navigationDestination(isPresented: $isCompactDispatchDetailPresented)' "$dispatch_source" \
+    || ! rg -Fq 'isCompactDispatchDetailPresented = true' "$dispatch_source" \
+    || ! rg -Fq '.safeAreaInset(edge: .bottom)' "$dispatch_source"; then
+    echo "Compact course assignment must navigate from the departure list to a full-width detail with a reachable assign action." >&2
+    exit 1
+fi
+
+if ! python3 - "$dispatch_source" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+source = Path(sys.argv[1]).read_text()
+dispatch = source.split("private struct TripDispatchView: View {", 1)[1]
+dispatch = dispatch.split("private var departureList:", 1)[0]
+guarded_inline_titles = re.findall(
+    r"(?m)^\s*#if os\(iOS\)\s*\n\s*\.navigationBarTitleDisplayMode\(\.inline\)\s*\n\s*#endif\s*$",
+    dispatch,
+)
+if len(guarded_inline_titles) != 2:
+    raise SystemExit("Both compact dispatch title modifiers must be compiled only on iOS.")
+PY
+then
+    echo "Compact dispatch must guard iOS-only navigation title APIs from the macOS build." >&2
     exit 1
 fi
