@@ -58,10 +58,11 @@
 - `selectedWorkspaceTab == .network` remains the sole selection state for the map.
 - A compact line-list sheet reuses `depotLineSidebar`; selecting a line closes the sheet and updates the same map layers.
 
-- [ ] Add failing smoke coverage for map selection, line-panel access, and preservation of all map-layer controls.
-- [ ] On iPhone, present the map at full width and expose the line list as a dismissible sheet; retain the current split map/sidebar on macOS and wide iPad.
-- [ ] Adapt map legends, closure/detour notices, empty-fleet actions, and bus/stop details to avoid covering the compact map.
-- [ ] Verify selection, camera fitting, layers, and details with the navigation smoke and a compact-width UI run.
+- [x] Add failing smoke coverage for map selection, line-panel access, dismissal, camera fitting, and preservation of all map-layer controls; confirm RED before the detail correction and GREEN afterward.
+- [x] On iPhone, present the map at full width and expose the line list as a dismissible sheet; retain the current split map/sidebar on macOS and wide iPad.
+- [x] Keep legends and disruption notices in dismissible sheets; make compact empty-fleet controls 44 points and bus/stop details scrollable with an explicit close action.
+- [x] Verify workspace selection, line selection, camera fitting, and layer controls with the navigation smoke.
+- [ ] Run a compact-width visual UI pass on a simulator or iPhone; CoreSimulator is unavailable in this session.
 
 ### Task 3: Adapt all existing workspaces and simulation controls
 
@@ -75,10 +76,14 @@
 - Existing `workspaceBody` views remain the content for fleet, staff, depots, reports, incidents, line data, course motifs, and sources.
 - iOS-specific frames use available width; macOS-specific minimum dimensions remain unchanged.
 
-- [ ] Add failing coverage for workspace reachability and playback actions in the new mobile navigation.
-- [ ] Add the iOS 26 Liquid Glass tab accessory for pause/resume, speed, simulated time, and next event; provide the same controls on iOS 17–25.
-- [ ] Fit existing sheets and detail presentations to iPhone width without reducing their available game actions.
-- [ ] Run targeted smoke scripts and build for iOS and macOS.
+- [x] Add failing smoke coverage for all workspace mappings, playback controls, and compact hit targets; confirm RED before the 44-point and depot-navigation corrections.
+- [x] Verify the iOS 26 Liquid Glass tab accessory for pause/resume, speed, simulated time, and next event; keep equivalent 44-point controls on iOS 17–25.
+- [x] Adapt vehicle, staff, depot, line/timetable, and GTFS audit detail sheets to iPhone width while retaining their macOS minimum sizes and actions.
+- [x] Make pending GTFS departures navigate to a full-width assignment detail on compact iPhone; keep the fixed two-column departure/detail layout on macOS and wide iPad.
+- [x] Keep a persistent 44-point assignment action in the compact detail and return to the departure list after a successful assignment.
+- [x] Run the targeted mobile, vehicle, timetable, depot-directory, roster, career-restore, and guide smokes; add a regression check for iOS-only navigation APIs in the shared dispatch view.
+- [x] Build the current macOS Debug target universally (`x86_64 arm64`) from a temporary copy with the required data resources; verify the executable architectures and Info.plist.
+- [x] Build the current Debug iPhoneOS target for arm64 after the compact dispatch source correction; verify its Info.plist and iOS 17.0 minimum.
 
 ### Task 4: Remove the divergent mobile implementation and document delivery
 
@@ -87,9 +92,13 @@
 - Modify: `README.md`
 - Modify: `docs/IMPLEMENTATION_STATUS.md`
 
-- [ ] Remove the now-unused simplified mobile screens only after shared dashboard parity is verified.
+- [x] Verify that the shared dashboard covers the active career/menu, GTFS dispatch, fleet/staff/workshop, reports/finances, guide, JSON transfer, and cloud restore paths; remove the now-unused 1,538-line simplified iPhone implementation and its duplicate screens.
+- [x] Require explicit confirmation before a JSON import replaces the active career view, preserving the paused local career in the save list.
+- [x] Move the first iCloud-restore gate into `CareerRestorePresentation`, consumed by the shared launch menu, and retarget the restore smoke to that active flow.
 - [x] Document the five-tab mapping, full mobile workflows, CloudKit entitlement and team requirements for cross-device sync.
-- [x] Run the focused existing UI/data validation scripts, `git diff --check`, and iOS/macOS builds.
+- [x] Run the focused mobile-tab, career-restore, and career-guide smokes plus Swift and shell syntax checks for the changed files.
+- [ ] Run `git diff --check` across all pre-existing tracked changes; the path-filtered check for the four files changed in this continuation passes. The worktree scheme still hits the Xcode operation-group hang, though both platform builds pass from a temporary copy.
+- [ ] Run the compact iPhone UI visually in Simulator or on a connected iPhone; CoreSimulator remains unavailable.
 - [ ] Install and launch on a connected iPhone when Apple Development signing and CoreDevice are available.
 
 ## Execution Note
