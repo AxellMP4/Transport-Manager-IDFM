@@ -286,11 +286,20 @@ final class CloudCareerSyncManager: ObservableObject {
     private static let syncDebounceNanoseconds: UInt64 = 10_000_000_000
     private static let minimumUploadInterval: TimeInterval = 120
 
-    private let container = CKContainer(identifier: containerIdentifier)
+    private lazy var container = CKContainer(identifier: Self.containerIdentifier)
     private let syncRequestCoalescer = CloudSyncRequestCoalescer()
     private let throttleRetryScheduler = CloudSyncRetryScheduler()
     private var scheduledSync: Task<Void, Never>?
     private var lastUploadAttemptAt: Date?
+    private var isCloudSyncDisabledForLocalInspection: Bool {
+        #if LOCAL_ONLY_SIGNING
+        true
+        #elseif DEBUG
+        ProcessInfo.processInfo.arguments.contains("--disable-cloud-sync-for-inspection")
+        #else
+        false
+        #endif
+    }
     private var deviceID: String {
         let key = "transportManager.cloud.deviceID"
         if let existing = UserDefaults.standard.string(forKey: key) { return existing }
@@ -341,6 +350,15 @@ final class CloudCareerSyncManager: ObservableObject {
         library: NetworkLibrary,
         resolution: SyncResolution
     ) async {
+        guard !isCloudSyncDisabledForLocalInspection else {
+            #if LOCAL_ONLY_SIGNING
+            statusMessage = "Sauvegarde locale active; iCloud indisponible avec cette équipe Apple"
+            #else
+            statusMessage = "iCloud désactivé pour cette session d’inspection"
+            #endif
+            return
+        }
+
         statusMessage = "Synchronisation iCloud…"
 
         do {
