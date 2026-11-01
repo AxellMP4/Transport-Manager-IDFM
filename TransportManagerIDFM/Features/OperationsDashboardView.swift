@@ -754,7 +754,21 @@ struct OperationsDashboardView: View {
                     onImportCareer: presentCareerImporterFromMenu,
                     onExportCareer: prepareSaveExport,
                     onSaveCareer: { simulation.pauseAndSave() },
-                    onSynchronize: { Task { await cloudSync.synchronize(with: simulation, library: library) } }
+                    onSynchronize: { Task { await cloudSync.synchronize(with: simulation, library: library) } },
+                    onOpenGuideDestination: { destination in
+                        switch destination {
+                        case .network, .operations:
+                            selectedWorkspaceTab = .network
+                        case .dispatch:
+                            selectedWorkspaceTab = .assignments
+                        case .incidents:
+                            selectedWorkspaceTab = .incidents
+                        case .reports:
+                            selectedWorkspaceTab = .reports
+                            reportWorkspaceSection = .finances
+                        }
+                        isLaunchMenuPresented = false
+                    }
                 )
                 .zIndex(1)
             }
