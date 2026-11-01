@@ -2,7 +2,7 @@ import Foundation
 
 @main
 struct PublishedGTFSFeedSmoke {
-    static func main() throws {
+    static func main() async throws {
         let expectedURL = URL(string: "https://eu.ftp.opendatasoft.com/stif/GTFS/IDFM-gtfs.zip")!
         precondition(PublicGTFSFeed.downloadURL == expectedURL, "Le miroir GTFS public doit viser le ZIP officiel.")
 
@@ -59,28 +59,65 @@ struct PublishedGTFSFeedSmoke {
             fatalError("Un assemblage avec un indice manquant aurait dû échouer.")
         } catch PublicGTFSFeedError.missingFragment("feed-part-01.bin") { }
 
-        guard CommandLine.arguments.count == 3 else {
-            fatalError("Le smoke attend un ZIP GTFS valide et un ZIP incomplet.")
+        guard CommandLine.arguments.count == 4 else {
+            fatalError("Le smoke attend un ZIP GTFS valide, un ZIP incomplet et un ZIP aux tables invalides.")
         }
         let validArchive = URL(fileURLWithPath: CommandLine.arguments[1])
         let incompleteArchive = URL(fileURLWithPath: CommandLine.arguments[2])
-        try PublicGTFSFeed.validateDownloadedArchive(at: validArchive, response: httpResponse(status: 200))
+        let invalidTablesArchive = URL(fileURLWithPath: CommandLine.arguments[3])
+        _ = try await PublicGTFSFeed.validateDownloadedArchive(at: validArchive, response: httpResponse(status: 200))
 
-        try expectRejected(status: 404, archive: validArchive, expected: .httpStatus(404))
+        try await expectRejected(status: 404, archive: validArchive, expected: .httpStatus(404))
 
-        try expectRejected(
+        try await expectRejected(
             status: 200,
             archive: incompleteArchive,
             expected: .missingRequiredFile("trips.txt")
         )
 
+        var invalidTablesWereRejectedByInspection = false
+        do {
+            _ = try await PublicGTFSFeed.validateDownloadedArchive(at: invalidTablesArchive, response: httpResponse(status: 200))
+        } catch let error as GTFSFeedImportError {
+            if case .invalidRoutesTable = error {
+                invalidTablesWereRejectedByInspection = true
+            }
+        }
+        precondition(
+            invalidTablesWereRejectedByInspection,
+            "Un ZIP avec les fichiers attendus mais une table routes invalide doit échouer à l’inspection GTFS avant d’être accepté."
+        )
+
+        var dataHubAttempts = 0
+        var mirrorAttempts = 0
+        let selectedArchive = try await PublicGTFSFeed.withDataHubFallback(
+            dataHub: {
+                dataHubAttempts += 1
+                return try await PublicGTFSFeed.validateDownloadedArchive(
+                    at: invalidTablesArchive,
+                    response: httpResponse(status: 200)
+                )
+            },
+            publicMirror: {
+                mirrorAttempts += 1
+                return try await PublicGTFSFeed.validateDownloadedArchive(
+                    at: validArchive,
+                    response: httpResponse(status: 200)
+                )
+            }
+        )
+        precondition(dataHubAttempts == 1, "Le fichier Datahub doit être inspecté avant de le retenir.")
+        precondition(mirrorAttempts == 1, "Un échec d’inspection Datahub doit déclencher exactement un essai PAN.")
+        precondition(selectedArchive.provenance == .publicMirror, "Après l’échec Datahub, la provenance retenue doit être PAN.")
+        precondition(selectedArchive.value.busRouteCount == 1, "Le repli PAN doit retourner l’inspection GTFS exploitable.")
+
         let emptyArchive = temporaryDirectory.appending(path: "empty.zip")
         try Data().write(to: emptyArchive)
-        try expectRejected(status: 200, archive: emptyArchive, expected: .emptyArchive)
+        try await expectRejected(status: 200, archive: emptyArchive, expected: .emptyArchive)
 
         let malformedArchive = temporaryDirectory.appending(path: "truncated.zip")
         try Data([0x50, 0x4B, 0x03, 0x04, 0x01]).write(to: malformedArchive)
-        try expectRejected(status: 200, archive: malformedArchive, expected: .invalidArchive)
+        try await expectRejected(status: 200, archive: malformedArchive, expected: .invalidArchive)
 
         let htmlResponse = URLResponse(
             url: PublicGTFSFeed.downloadURL,
@@ -88,13 +125,13 @@ struct PublishedGTFSFeedSmoke {
             expectedContentLength: 5,
             textEncodingName: "utf-8"
         )
-        try expectRejected(archive: validArchive, response: htmlResponse, expected: .nonHTTPResponse)
+        try await expectRejected(archive: validArchive, response: htmlResponse, expected: .nonHTTPResponse)
 
         let htmlArchive = temporaryDirectory.appending(path: "error.html")
         try Data("<html>".utf8).write(to: htmlArchive)
-        try expectRejected(status: 200, archive: htmlArchive, expected: .invalidArchive)
+        try await expectRejected(status: 200, archive: htmlArchive, expected: .invalidArchive)
 
-        print("PASS: public GTFS HTTP status, ZIP structure, and required tables")
+        print("PASS: public GTFS ZIP and table validation with Datahub-to-PAN fallback")
     }
 
     private static func httpResponse(status: Int) -> URLResponse {
@@ -110,17 +147,17 @@ struct PublishedGTFSFeedSmoke {
         status: Int,
         archive: URL,
         expected: PublicGTFSFeedError
-    ) throws {
-        try expectRejected(archive: archive, response: httpResponse(status: status), expected: expected)
+    ) async throws {
+        try await expectRejected(archive: archive, response: httpResponse(status: status), expected: expected)
     }
 
     private static func expectRejected(
         archive: URL,
         response: URLResponse,
         expected: PublicGTFSFeedError
-    ) throws {
+    ) async throws {
         do {
-            try PublicGTFSFeed.validateDownloadedArchive(at: archive, response: response)
+            _ = try await PublicGTFSFeed.validateDownloadedArchive(at: archive, response: response)
             fatalError("Le téléchargement aurait dû échouer avec \(expected).")
         } catch let error as PublicGTFSFeedError {
             precondition(error == expected, "Erreur inattendue : \(error), attendue : \(expected).")

@@ -1430,9 +1430,10 @@ enum NetworkVersionStore {
     static func importGTFS(
         from sourceURL: URL,
         provenance: GTFSImportProvenance = .unverifiedManual,
+        prevalidatedInspection: GTFSFeedInspection? = nil,
         progress: ((GTFSFeedInspectionProgress) -> Void)? = nil
     ) throws -> NetworkCatalog {
-        let inspection = try GTFSFeedInspector.inspect(sourceURL, progress: progress)
+        let inspection = try prevalidatedInspection ?? GTFSFeedInspector.inspect(sourceURL, progress: progress)
         progress?(GTFSFeedInspectionProgress(stage: .saving))
         let sha256 = try digest(of: sourceURL)
         let versionFolderName = String(sha256.prefix(20))

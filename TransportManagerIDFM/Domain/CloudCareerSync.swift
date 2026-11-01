@@ -31,6 +31,19 @@ enum CloudCareerSyncPolicy {
     static func remoteIsNewer(remoteUpdatedAt: Date, localUpdatedAt: Date) -> Bool {
         remoteUpdatedAt > localUpdatedAt
     }
+
+    @MainActor
+    static func resolvePreferCloudChoice(
+        localSessionID: String,
+        remoteSessionID: String,
+        preserveLocal: @MainActor () async throws -> Void,
+        downloadCloud: @MainActor () async throws -> Void
+    ) async throws {
+        if localSessionID != remoteSessionID {
+            try await preserveLocal()
+        }
+        try await downloadCloud()
+    }
 }
 
 private struct CloudCareerArchiveManifest: Codable, Sendable {
@@ -355,7 +368,16 @@ final class CloudCareerSyncManager: ObservableObject {
             let remoteEnvelope = try decodeEnvelope(from: remoteRecord)
             let checkpoint = loadCheckpoint(for: localSession.id)
             if resolution == .preferCloud {
-                try await download(remoteRecord, into: engine, library: library)
+                try await CloudCareerSyncPolicy.resolvePreferCloudChoice(
+                    localSessionID: localSession.id,
+                    remoteSessionID: remoteEnvelope.sessionID,
+                    preserveLocal: {
+                        try await self.preserveConflict(localSession: localSession, engine: engine, library: library)
+                    },
+                    downloadCloud: {
+                        try await self.download(remoteRecord, into: engine, library: library)
+                    }
+                )
                 return
             }
             if resolution == .preferDevice {

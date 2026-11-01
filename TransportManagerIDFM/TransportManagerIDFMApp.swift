@@ -7,6 +7,7 @@ import UIKit
 typealias PlatformColor = UIColor
 #endif
 
+#if !MOBILE_CLOUD_RESTORE_SMOKE
 @main
 struct TransportManagerIDFMApp: App {
     var body: some Scene {
@@ -23,6 +24,19 @@ struct TransportManagerIDFMApp: App {
         #if os(macOS)
         .defaultSize(width: 1_420, height: 900)
         #endif
+    }
+}
+#endif
+
+struct MobileCloudRestorePresentation: Equatable {
+    let statusMessage: String
+    let statusSymbol: String
+    let isRetryEnabled: Bool
+
+    init(statusMessage: String, isSyncing: Bool, hasConflict: Bool) {
+        self.statusMessage = statusMessage
+        statusSymbol = hasConflict ? "exclamationmark.icloud" : "icloud"
+        isRetryEnabled = !isSyncing
     }
 }
 
@@ -201,6 +215,21 @@ private struct MobileOperationsView: View {
 
     private var newCareerOverview: some View {
         List {
+            Section("Synchronisation iCloud") {
+                Label(cloudRestorePresentation.statusMessage, systemImage: cloudRestorePresentation.statusSymbol)
+                    .font(.footnote)
+                    .foregroundStyle(cloudSync.hasConflict ? .orange : .secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Button {
+                    Task { await cloudSync.synchronize(with: simulation, library: library) }
+                } label: {
+                    Label("Réessayer la récupération iCloud", systemImage: "arrow.triangle.2.circlepath.icloud")
+                        .frame(minHeight: 44, alignment: .leading)
+                }
+                .disabled(!cloudRestorePresentation.isRetryEnabled)
+            }
+
             Section {
                 Label("Nouvelle carrière", systemImage: "bus.doubledecker")
                     .font(.title3.weight(.semibold))
@@ -322,6 +351,14 @@ private struct MobileOperationsView: View {
             }
         }
         .platformInsetListStyle()
+    }
+
+    private var cloudRestorePresentation: MobileCloudRestorePresentation {
+        MobileCloudRestorePresentation(
+            statusMessage: cloudSync.statusMessage,
+            isSyncing: cloudSync.isSyncing,
+            hasConflict: cloudSync.hasConflict
+        )
     }
 
     private var playableDepots: [DepotReference] {

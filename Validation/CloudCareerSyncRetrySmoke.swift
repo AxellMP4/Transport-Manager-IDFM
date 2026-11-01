@@ -4,11 +4,33 @@ import Foundation
 struct CloudCareerSyncRetrySmoke {
     @MainActor
     static func main() async {
+        await choosingCloudPreservesDifferentLocalCareerBeforeDownload()
         await throttledUploadRetriesWithoutFurtherInput()
         await aNewerSuccessfulSyncCancelsTheRetry()
         await deallocationCancelsTheRetry()
         await aNewerRequestRunsAfterTheActiveSync()
         print("PASS: throttled retries and in-flight synchronization coalescing are deterministic")
+    }
+
+    @MainActor
+    private static func choosingCloudPreservesDifferentLocalCareerBeforeDownload() async {
+        var operations: [String] = []
+
+        do {
+            try await CloudCareerSyncPolicy.resolvePreferCloudChoice(
+                localSessionID: "local-career",
+                remoteSessionID: "cloud-career",
+                preserveLocal: { operations.append("preserve-local") },
+                downloadCloud: { operations.append("download-cloud") }
+            )
+        } catch {
+            preconditionFailure("A successful conflict backup and download should complete: \(error)")
+        }
+
+        precondition(
+            operations == ["preserve-local", "download-cloud"],
+            "Choosing a different iCloud career must preserve the local career before downloading the replacement."
+        )
     }
 
     @MainActor

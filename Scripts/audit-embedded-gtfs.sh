@@ -22,6 +22,7 @@ unzip -tq "$temporary_directory/idfm-gtfs-2026-10-30.zip"
 mkdir -p "$temporary_directory/swift-modules" "$temporary_directory/clang-modules" "$temporary_directory/domain"
 cp "$project_root"/TransportManagerIDFM/Domain/*.swift "$temporary_directory/domain/"
 swiftc \
+    -O \
     -swift-version 6 \
     -module-cache-path "$temporary_directory/swift-modules" \
     -Xcc "-fmodules-cache-path=$temporary_directory/clang-modules" \

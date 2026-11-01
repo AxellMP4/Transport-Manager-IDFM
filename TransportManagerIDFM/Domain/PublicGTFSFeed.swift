@@ -9,6 +9,7 @@ enum PublicGTFSFeedError: LocalizedError, Equatable {
     case noFragments(String)
     case missingFragment(String)
     case invalidCatalogResponse
+    case bothPublicSourcesFailed(dataHub: String, mirror: String)
 
     var errorDescription: String? {
         switch self {
@@ -28,6 +29,8 @@ enum PublicGTFSFeedError: LocalizedError, Equatable {
             "Le fragment GTFS \(name) est manquant."
         case .invalidCatalogResponse:
             "Le catalogue GTFS public IDFM a renvoyé une fiche fichier invalide."
+        case let .bothPublicSourcesFailed(dataHub, mirror):
+            "IDFM Datahub : \(dataHub)\nMiroir PAN : \(mirror)"
         }
     }
 }
@@ -42,6 +45,25 @@ enum PublicGTFSFeed {
         configuration.timeoutIntervalForRequest = 45
         configuration.timeoutIntervalForResource = 300
         return URLSession(configuration: configuration)
+    }
+
+    @MainActor
+    static func withDataHubFallback<Value>(
+        dataHub: () async throws -> Value,
+        publicMirror: () async throws -> Value
+    ) async throws -> (value: Value, provenance: GTFSImportProvenance) {
+        do {
+            return (try await dataHub(), .publicDataHub)
+        } catch let dataHubError {
+            do {
+                return (try await publicMirror(), .publicMirror)
+            } catch let mirrorError {
+                throw PublicGTFSFeedError.bothPublicSourcesFailed(
+                    dataHub: dataHubError.localizedDescription,
+                    mirror: mirrorError.localizedDescription
+                )
+            }
+        }
     }
 
     static func resolveLatestDownloadURL(from data: Data) throws -> URL {
@@ -82,7 +104,11 @@ enum PublicGTFSFeed {
         return fragments.map(\.url)
     }
 
-    static func validateDownloadedArchive(at url: URL, response: URLResponse) throws {
+    static func validateDownloadedArchive(
+        at url: URL,
+        response: URLResponse,
+        progress: (@Sendable (GTFSFeedInspectionProgress) -> Void)? = nil
+    ) async throws -> GTFSFeedInspection {
         guard let httpResponse = response as? HTTPURLResponse else {
             throw PublicGTFSFeedError.nonHTTPResponse
         }
@@ -113,5 +139,9 @@ enum PublicGTFSFeed {
         for filename in requiredTableFiles where archive.entry(named: filename) == nil {
             throw PublicGTFSFeedError.missingRequiredFile(filename)
         }
+
+        return try await Task.detached(priority: .userInitiated) {
+            try GTFSFeedInspector.inspect(url, progress: progress)
+        }.value
     }
 }

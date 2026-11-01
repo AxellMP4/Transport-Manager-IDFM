@@ -1041,6 +1041,7 @@ struct PassengerStopDemand: Codable, Hashable, Sendable {
     let stopID: String
     let stopName: String
     var occurredAt: Date
+    var departureAt: Date? = nil
     let estimatedArrivalsCount: Int
     let alightingShare: Double
     let isTerminal: Bool
@@ -1080,11 +1081,12 @@ enum PassengerConnectionRules {
         in session: SimulationSession,
         transferRuleIndex: GTFSServiceTransferIndex?
     ) -> PassengerConnectionCandidate? {
+        let connectionAvailableAt = demand.departureAt ?? demand.occurredAt
         return session.pendingEvents.compactMap { event -> PassengerConnectionCandidate? in
             guard case let .passengerDemand(candidate) = event.kind,
                   candidate.tripID != demand.tripID,
                   !candidate.isTerminal,
-                  candidate.occurredAt >= demand.occurredAt,
+                  (candidate.departureAt ?? candidate.occurredAt) >= connectionAvailableAt,
                   session.stopClosures?.contains(where: {
                       $0.affects(stopID: candidate.stopID, routeID: candidate.routeID, at: candidate.occurredAt)
                   }) != true,
@@ -1094,14 +1096,16 @@ enum PassengerConnectionRules {
                       using: transferRuleIndex,
                       in: session
                   ),
-                  candidate.occurredAt <= demand.occurredAt.addingTimeInterval(
+                  (candidate.departureAt ?? candidate.occurredAt) <= connectionAvailableAt.addingTimeInterval(
                       minimumTransferTime + maximumConnectionWait
                   ) else { return nil }
             return PassengerConnectionCandidate(demand: candidate, minimumTransferTime: minimumTransferTime)
         }
         .sorted {
-            if $0.demand.occurredAt != $1.demand.occurredAt {
-                return $0.demand.occurredAt < $1.demand.occurredAt
+            let leftDepartureAt = $0.demand.departureAt ?? $0.demand.occurredAt
+            let rightDepartureAt = $1.demand.departureAt ?? $1.demand.occurredAt
+            if leftDepartureAt != rightDepartureAt {
+                return leftDepartureAt < rightDepartureAt
             }
             if $0.demand.routeID != $1.demand.routeID { return $0.demand.routeID < $1.demand.routeID }
             return $0.demand.tripID < $1.demand.tripID
@@ -5693,7 +5697,7 @@ final class SimulationEngine: ObservableObject {
         demandEventSequencesByStopSequence[firstStop.stopSequence] = activeSession.nextEventSequence
         activeSession.pendingEvents.append(SimulationEvent(
             sequence: activeSession.nextEventSequence,
-            simulatedAt: passengerDemands[0].occurredAt,
+            simulatedAt: passengerDemands[0].departureAt ?? passengerDemands[0].occurredAt,
             kind: .passengerDemand(passengerDemands[0])
         ))
         activeSession.nextEventSequence &+= 1
@@ -5730,7 +5734,7 @@ final class SimulationEngine: ObservableObject {
             demandEventSequencesByStopSequence[visit.stopSequence] = activeSession.nextEventSequence
             activeSession.pendingEvents.append(SimulationEvent(
                 sequence: activeSession.nextEventSequence,
-                simulatedAt: demand.occurredAt,
+                simulatedAt: demand.departureAt ?? demand.occurredAt,
                 kind: .passengerDemand(demand)
             ))
             activeSession.nextEventSequence &+= 1
@@ -6501,6 +6505,7 @@ final class SimulationEngine: ObservableObject {
                 stopID: visit.stopID,
                 stopName: visit.stopName,
                 occurredAt: visit.scheduledAt,
+                departureAt: visit.departureAt,
                 estimatedArrivalsCount: estimatedWaiting,
                 alightingShare: isFirstStop ? 0 : alightingShare,
                 isTerminal: isTerminal,
@@ -6518,21 +6523,22 @@ final class SimulationEngine: ObservableObject {
     ) -> SimulationEvent? {
         guard case let .passengerDemand(demand) = event.kind,
               let bus = session.ownedBuses?.first(where: { $0.id == demand.vehicleID }) else { return nil }
+        let boardingAt = demand.departureAt ?? demand.occurredAt
         let queueKey = passengerQueueKey(routeID: demand.routeID, stopID: demand.stopID)
         let waitingBefore = max(0, session.passengerQueuesByRouteStopKey?[queueKey] ?? 0)
         let transferEntriesAtStop = (session.passengerTransferQueueEntries ?? []).filter {
             $0.targetRouteID == demand.routeID && $0.stopID == demand.stopID && $0.passengerCount > 0
         }
         let unreadyTransferCount = transferEntriesAtStop
-            .filter { $0.readyAt > demand.occurredAt }
+            .filter { $0.readyAt > boardingAt }
             .reduce(0) { $0 + $1.passengerCount }
         let readyTransferCount = transferEntriesAtStop
-            .filter { $0.readyAt <= demand.occurredAt }
+            .filter { $0.readyAt <= boardingAt }
             .reduce(0) { $0 + $1.passengerCount }
         let transfersIntendedForThisTrip = transferEntriesAtStop
             .filter { $0.intendedTripID == demand.tripID }
         let readyTransfersIntendedForThisTrip = transfersIntendedForThisTrip
-            .filter { $0.readyAt <= demand.occurredAt }
+            .filter { $0.readyAt <= boardingAt }
             .reduce(0) { $0 + $1.passengerCount }
         let totalTransfersIntendedForThisTrip = transfersIntendedForThisTrip
             .reduce(0) { $0 + $1.passengerCount }
@@ -6628,7 +6634,7 @@ final class SimulationEngine: ObservableObject {
             routeID: demand.routeID,
             stopID: demand.stopID,
             stopName: demand.stopName,
-            occurredAt: demand.occurredAt,
+            occurredAt: boardingAt,
             boardedCount: boarded,
             alightedCount: alighted,
             leftBehindCount: queueAfter,
@@ -6658,7 +6664,7 @@ final class SimulationEngine: ObservableObject {
                 ? estimatedTransferPassengerCount
                 : nil,
             transferReadyAt: estimatedTransferPassengerCount > 0
-                ? demand.occurredAt.addingTimeInterval(nextConnection?.minimumTransferTime ?? 0)
+                ? boardingAt.addingTimeInterval(nextConnection?.minimumTransferTime ?? 0)
                 : nil,
             estimatedTransferBoardedCount: estimatedTransferBoarded > 0 ? estimatedTransferBoarded : nil,
             missedConnectionCount: missedConnectionCount > 0 ? missedConnectionCount : nil,
@@ -8140,10 +8146,11 @@ final class SimulationEngine: ObservableObject {
                 guard let demand = newDemandsBySequence[stopSequence],
                       let eventIndex = pendingEvents.firstIndex(where: { $0.sequence == sequence }),
                       case .passengerDemand = pendingEvents[eventIndex].kind else { continue }
-                guard demand.occurredAt >= session.simulatedAt else { return false }
+                let demandEventAt = demand.departureAt ?? demand.occurredAt
+                guard demandEventAt >= session.simulatedAt else { return false }
                 pendingEvents[eventIndex] = SimulationEvent(
                     sequence: sequence,
-                    simulatedAt: demand.occurredAt,
+                    simulatedAt: demandEventAt,
                     kind: .passengerDemand(demand)
                 )
             }
@@ -8448,6 +8455,7 @@ final class SimulationEngine: ObservableObject {
             switch event.kind {
             case var .passengerDemand(demand):
                 demand.occurredAt = demand.occurredAt.addingTimeInterval(interval)
+                demand.departureAt = demand.departureAt?.addingTimeInterval(interval)
                 shiftedKind = .passengerDemand(demand)
             case let .busMovementStarted(vehicleID, leg):
                 shiftedKind = .busMovementStarted(

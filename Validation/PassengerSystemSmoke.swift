@@ -8,6 +8,7 @@ struct PassengerSystemSmoke {
         fullAndTerminalStopsCreateNoValidations()
         try liveSimulationMovesBusThroughValidatedPassengerExchangeAndSave()
         missedTransfersRemainQueuedAfterAnImpossibleConnection()
+        transfersReadyDuringConnectionStopDwellCanBoard()
         legacyExchangesDecodeWithoutValidationFields()
         careerJSONRoundTripPreservesValidationBreakdowns()
         print("PASS: passenger exchanges store deterministic validations and remain save-compatible")
@@ -147,6 +148,7 @@ struct PassengerSystemSmoke {
     private static func liveSimulationMovesBusThroughValidatedPassengerExchangeAndSave() throws {
         let start = Date(timeIntervalSince1970: 1_798_000_000)
         let stopAt = start.addingTimeInterval(60)
+        let stopDepartureAt = stopAt.addingTimeInterval(30)
         let finalStopAt = start.addingTimeInterval(120)
         let visits = [
             ScheduledTripStopVisit(
@@ -170,7 +172,7 @@ struct PassengerSystemSmoke {
                 latitude: 48.810,
                 longitude: 2.460,
                 scheduledAt: stopAt,
-                departureAt: stopAt,
+                departureAt: stopDepartureAt,
                 movementToNext: [
                     BusMovementCoordinate(latitude: 48.810, longitude: 2.460),
                     BusMovementCoordinate(latitude: 48.820, longitude: 2.470)
@@ -236,6 +238,11 @@ struct PassengerSystemSmoke {
         precondition(generatedDemands.count == visits.count)
         precondition(generatedDemands.map(\.stopSequence) == [10, 20, 30])
         precondition(generatedDemands.allSatisfy { $0.capacity == modelCapacity })
+        let intermediateDemandEvent = (engine.session?.pendingEvents ?? []).first { event in
+            guard case let .passengerDemand(demand) = event.kind else { return false }
+            return demand.stopSequence == 20
+        }
+        precondition(intermediateDemandEvent?.simulatedAt == stopDepartureAt)
 
         precondition(engine.advanceToNextEvent())
         guard let firstExchange = engine.session?.passengerExchangeRecords?.first?.exchange,
@@ -254,6 +261,9 @@ struct PassengerSystemSmoke {
 
         precondition(engine.advanceToNextEvent())
         precondition(engine.session?.simulatedAt == stopAt)
+        precondition(engine.session?.passengerExchangeRecords?.count == 1)
+        precondition(engine.advanceToNextEvent())
+        precondition(engine.session?.simulatedAt == stopDepartureAt)
         guard let liveSession = engine.session,
               let exchange = liveSession.passengerExchangeRecords?.last?.exchange,
               let validations = exchange.validationBreakdown,
@@ -261,6 +271,7 @@ struct PassengerSystemSmoke {
             preconditionFailure("The stop event should save a passenger exchange and its validation breakdown.")
         }
         precondition(exchange.tripID == "trip-live")
+        precondition(exchange.occurredAt == stopDepartureAt)
         precondition(validations.boardedCount == exchange.boardedCount)
         precondition(validations.validatedCount + validations.unvalidatedCount == exchange.boardedCount)
         precondition(updatedBus.onboardPassengerCount == exchange.onboardAfterExchange)
@@ -383,6 +394,63 @@ struct PassengerSystemSmoke {
         SimulationEngine.applyVehicleEvent(resolvedLaterConnection, to: &session)
         precondition(session.passengerQueuesByRouteStopKey?["route-210|stop-2"] == 0)
         precondition(session.passengerTransferQueueEntries?.isEmpty == true)
+    }
+
+    private static func transfersReadyDuringConnectionStopDwellCanBoard() {
+        let at = Date(timeIntervalSince1970: 1_798_100_000)
+        let sourceDemand = PassengerStopDemand(
+            tripID: "source-trip-dwell",
+            vehicleID: "bus-1",
+            routeID: "route-113",
+            stopID: "stop-2",
+            stopName: "Mairie",
+            occurredAt: at,
+            estimatedArrivalsCount: 0,
+            alightingShare: 0.5,
+            isTerminal: false,
+            capacity: 40,
+            capacityIsEstimated: false,
+            stopSequence: 2
+        )
+        let connectionArrival = at.addingTimeInterval(180)
+        let connectionDeparture = at.addingTimeInterval(360)
+        let connectionDemandData = try! JSONSerialization.data(withJSONObject: [
+            "tripID": "target-trip-dwell",
+            "vehicleID": "bus-1",
+            "routeID": "route-210",
+            "stopID": "stop-2",
+            "stopName": "Mairie",
+            "occurredAt": connectionArrival.timeIntervalSinceReferenceDate,
+            "departureAt": connectionDeparture.timeIntervalSinceReferenceDate,
+            "estimatedArrivalsCount": 0,
+            "alightingShare": 0.0,
+            "isTerminal": false,
+            "capacity": 40,
+            "capacityIsEstimated": false,
+            "stopSequence": 2
+        ])
+        let connectionDemand = try! JSONDecoder().decode(PassengerStopDemand.self, from: connectionDemandData)
+        let connectionEvent = SimulationEvent(
+            sequence: 41,
+            simulatedAt: connectionDeparture,
+            kind: .passengerDemand(connectionDemand)
+        )
+        var session = makeSession(at: at, onboardPassengerCount: 20, randomSeed: 42)
+        session.pendingEvents = [connectionEvent]
+        let sourceEvent = SimulationEvent(sequence: 40, simulatedAt: at, kind: .passengerDemand(sourceDemand))
+
+        guard let resolvedSource = SimulationEngine.resolvePassengerDemand(sourceEvent, in: session) else {
+            preconditionFailure("Source demand should resolve before the connection arrives.")
+        }
+        SimulationEngine.applyVehicleEvent(resolvedSource, to: &session)
+
+        guard let resolvedConnection = SimulationEngine.resolvePassengerDemand(connectionEvent, in: session),
+              case let .passengersExchanged(exchange) = resolvedConnection.kind else {
+            preconditionFailure("The connection demand should resolve at its stop.")
+        }
+        precondition(exchange.boardedCount == 2)
+        precondition(exchange.estimatedTransferBoardedCount == 2)
+        precondition(exchange.missedConnectionCount == nil)
     }
 
     private static func legacyExchangesDecodeWithoutValidationFields() {
