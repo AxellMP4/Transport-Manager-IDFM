@@ -80,12 +80,21 @@ struct PassengerOperationsReportView: View {
                     }
 
                     GroupBox("Effets voyageurs des perturbations") {
-                        HStack(spacing: 0) {
-                            metric("Redirigés", value: snapshot.redirectedPassengerCount.formatted(), symbol: "arrow.trianglehead.branch", color: .teal)
-                            Divider().frame(height: 48)
-                            metric("Laissés à quai", value: snapshot.leftBehindPassengerCount.formatted(), symbol: "person.crop.circle.badge.exclamationmark", color: .orange)
-                            Divider().frame(height: 48)
-                            metric("Déplacés / bloqués", value: snapshot.displacedPassengerCount.formatted(), symbol: "figure.walk.motion", color: .red)
+                        ViewThatFits(in: .horizontal) {
+                            HStack(spacing: 0) {
+                                metric("Redirigés", value: snapshot.redirectedPassengerCount.formatted(), symbol: "arrow.trianglehead.branch", color: .teal)
+                                Divider().frame(height: 48)
+                                metric("Laissés à quai", value: snapshot.leftBehindPassengerCount.formatted(), symbol: "person.crop.circle.badge.exclamationmark", color: .orange)
+                                Divider().frame(height: 48)
+                                metric("Déplacés / bloqués", value: snapshot.displacedPassengerCount.formatted(), symbol: "figure.walk.motion", color: .red)
+                            }
+                            VStack(alignment: .leading, spacing: 4) {
+                                metric("Redirigés", value: snapshot.redirectedPassengerCount.formatted(), symbol: "arrow.trianglehead.branch", color: .teal)
+                                Divider()
+                                metric("Laissés à quai", value: snapshot.leftBehindPassengerCount.formatted(), symbol: "person.crop.circle.badge.exclamationmark", color: .orange)
+                                Divider()
+                                metric("Déplacés / bloqués", value: snapshot.displacedPassengerCount.formatted(), symbol: "figure.walk.motion", color: .red)
+                            }
                         }
                         .padding(.top, 5)
                     }
@@ -163,18 +172,37 @@ struct PassengerOperationsReportView: View {
     private func titleRow(_ type: PassengerValidationType) -> some View {
         let count = snapshot.validationCount(for: type)
         let fraction = snapshot.validations > 0 ? Double(count) / Double(snapshot.validations) : 0
-        return HStack(spacing: 10) {
-            Text(type.title)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            ProgressView(value: fraction)
-                .frame(width: 90)
-                .tint(.accentColor)
-                .accessibilityHidden(true)
-            Text("\(count.formatted()) · \(percent(fraction))")
-                .font(.caption.monospacedDigit().weight(.semibold))
-                .frame(minWidth: 90, alignment: .trailing)
+        return ViewThatFits(in: .horizontal) {
+            HStack(spacing: 10) {
+                Text(type.title)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                ProgressView(value: fraction)
+                    .frame(width: 90)
+                    .tint(.accentColor)
+                    .accessibilityHidden(true)
+                titleDistributionValue(count: count, fraction: fraction)
+            }
+            VStack(alignment: .leading, spacing: 6) {
+                Text(type.title)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 10) {
+                    ProgressView(value: fraction)
+                        .frame(width: 90)
+                        .tint(.accentColor)
+                        .accessibilityHidden(true)
+                    Spacer(minLength: 4)
+                    titleDistributionValue(count: count, fraction: fraction)
+                }
+            }
         }
         .font(.subheadline)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func titleDistributionValue(count: Int, fraction: Double) -> some View {
+        Text("\(count.formatted()) · \(percent(fraction))")
+            .font(.caption.monospacedDigit().weight(.semibold))
+            .frame(minWidth: 90, alignment: .trailing)
     }
 
     private func rowView(_ row: PassengerAnalyticsRow) -> some View {
