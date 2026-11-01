@@ -492,11 +492,13 @@ private struct MobileOperationsView: View {
 
     private func importMobileSave(_ data: Data) {
         do {
-            try simulation.importSaveData(data)
+            let importResult = try simulation.importSaveData(data)
             if let activeDepotID = simulation.session?.effectiveActiveDepotID {
                 selectedDepotID = activeDepotID
             }
-            mobileSaveTransferMessage = "Carrière importée et mise en pause. Vérifie que ses archives réseau sont aussi présentes sur cet appareil."
+            mobileSaveTransferMessage = importResult.createdCopy
+                ? "Carrière importée comme une copie, car une sauvegarde locale porte déjà son identifiant. La carrière locale est conservée. Vérifie que ses archives réseau sont aussi présentes sur cet appareil."
+                : "Carrière importée et mise en pause. Vérifie que ses archives réseau sont aussi présentes sur cet appareil."
         } catch {
             mobileSaveTransferMessage = "Import impossible : \(error.localizedDescription)"
         }
