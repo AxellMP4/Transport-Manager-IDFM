@@ -41,6 +41,36 @@ struct MobileCloudRestorePresentation: Equatable {
     }
 }
 
+enum MobileOperationsTab: String, CaseIterable, Identifiable, Sendable {
+    case career
+    case courses
+    case network
+    case fleet
+    case finances
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .career: "Carrière"
+        case .courses: "Courses"
+        case .network: "Réseau"
+        case .fleet: "Parc"
+        case .finances: "Finances"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .career: "chart.line.uptrend.xyaxis"
+        case .courses: "tram.fill"
+        case .network: "point.topleft.down.to.point.bottomright.curvepath"
+        case .fleet: "bus"
+        case .finances: "chart.bar.fill"
+        }
+    }
+}
+
 enum PlatformColors {
     #if os(macOS)
     static let windowBackground = Color(platformColor: .windowBackgroundColor)
@@ -105,33 +135,11 @@ private struct MobileOperationsView: View {
     @State private var pendingSaveImportData: Data?
     @State private var isReplaceSaveConfirmationPresented = false
     @State private var selectedMobileDeparture: MobileDispatchableDeparture?
+    @State private var selectedTab: MobileOperationsTab = .career
+    @State private var isCareerGuidePresented = false
 
     var body: some View {
-        TabView {
-            NavigationStack {
-                careerOverview
-                    .navigationTitle("Carrière")
-            }
-            .tabItem { Label("Carrière", systemImage: "chart.line.uptrend.xyaxis") }
-
-            NavigationStack {
-                courseDispatchOverview
-                    .navigationTitle("Courses")
-            }
-            .tabItem { Label("Courses", systemImage: "tram.fill") }
-
-            NavigationStack {
-                networkOverview
-                    .navigationTitle("Réseau")
-            }
-            .tabItem { Label("Réseau", systemImage: "point.topleft.down.to.point.bottomright.curvepath") }
-
-            NavigationStack {
-                fleetOverview
-                    .navigationTitle("Parc")
-            }
-            .tabItem { Label("Parc", systemImage: "bus") }
-        }
+        tabsWithPlaybackAccessory
         .sheet(item: $selectedMobileDeparture) { departure in
             NavigationStack {
                 MobileScheduledDepartureAssignmentView(
@@ -226,6 +234,125 @@ private struct MobileOperationsView: View {
             }
         } message: {
             Text("L’import remplace la partie sur cet iPhone. Sa nouvelle sauvegarde pourra ensuite être synchronisée avec iCloud. Les archives réseau ne sont pas incluses dans le fichier.")
+        }
+    }
+
+    @ViewBuilder
+    private var tabsWithPlaybackAccessory: some View {
+        if #available(iOS 26.1, *) {
+            operationTabs
+                .tabBarMinimizeBehavior(.onScrollDown)
+                .tabViewBottomAccessory(isEnabled: simulation.session != nil) {
+                    if let session = simulation.session {
+                        playbackAccessory(for: session)
+                    }
+                }
+        } else if #available(iOS 26.0, *) {
+            if let session = simulation.session {
+                operationTabs
+                    .tabBarMinimizeBehavior(.onScrollDown)
+                    .tabViewBottomAccessory {
+                        playbackAccessory(for: session)
+                    }
+            } else {
+                operationTabs
+                    .tabBarMinimizeBehavior(.onScrollDown)
+            }
+        } else {
+            operationTabs
+        }
+    }
+
+    private var operationTabs: some View {
+        TabView(selection: $selectedTab) {
+            ForEach(MobileOperationsTab.allCases) { tab in
+                mobileTabContent(for: tab)
+                    .tabItem { Label(tab.title, systemImage: tab.systemImage) }
+                    .tag(tab)
+            }
+        }
+    }
+
+    @available(iOS 26.0, *)
+    private func playbackAccessory(for session: SimulationSession) -> some View {
+        MobileSimulationPlaybackAccessory(
+            simulatedAt: session.simulatedAt,
+            speed: session.speed,
+            isRunning: simulation.isRunning,
+            onTogglePlayback: {
+                if simulation.isRunning {
+                    simulation.pauseAndSave()
+                } else {
+                    simulation.resume()
+                }
+            },
+            onAdvanceToNextEvent: {
+                if simulation.isRunning { simulation.pause() }
+                _ = simulation.advanceToNextEvent()
+            },
+            onSetSpeed: simulation.setSpeed
+        )
+    }
+
+    @ViewBuilder
+    private func mobileTabContent(for tab: MobileOperationsTab) -> some View {
+        switch tab {
+        case .career:
+            NavigationStack {
+                careerOverview
+                    .navigationTitle(tab.title)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button {
+                                isCareerGuidePresented = true
+                            } label: {
+                                Label("Ouvrir le guide", systemImage: "book")
+                                    .labelStyle(.iconOnly)
+                            }
+                            .accessibilityLabel("Ouvrir le guide de carrière")
+                        }
+                    }
+                    .sheet(isPresented: $isCareerGuidePresented) {
+                        CareerGuideView(
+                            onClose: { isCareerGuidePresented = false },
+                            onOpenDestination: openMobileGuideDestination
+                        )
+                        .presentationDetents([.large])
+                    }
+            }
+        case .courses:
+            NavigationStack {
+                courseDispatchOverview
+                    .navigationTitle(tab.title)
+            }
+        case .network:
+            NavigationStack {
+                networkOverview
+                    .navigationTitle(tab.title)
+            }
+        case .fleet:
+            NavigationStack {
+                fleetOverview
+                    .navigationTitle(tab.title)
+            }
+        case .finances:
+            MobileFinancialReportView(simulation: simulation)
+        }
+    }
+
+    private func openMobileGuideDestination(_ destination: CareerGuideDestination) {
+        isCareerGuidePresented = false
+        switch destination {
+        case .network:
+            selectedTab = .network
+        case .dispatch:
+            selectedTab = .courses
+        case .operations:
+            selectedTab = .career
+        case .incidents:
+            selectedTab = .fleet
+        case .reports:
+            selectedTab = .finances
         }
     }
 
@@ -1130,5 +1257,339 @@ private struct MobileScheduledDepartureAssignmentView: View {
             dispatchError = error.localizedDescription
         }
     }
+}
+
+private struct MobileFinancialReportView: View {
+    @ObservedObject var simulation: SimulationEngine
+    @State private var selectedLoanPrincipalEuro = 100_000
+    @State private var selectedLoanTermMonths = 36
+    @State private var financialMessage: String?
+    @State private var advertisingMessage: String?
+
+    private var session: SimulationSession? { simulation.session }
+    private var loans: [SimulationLoan] { session?.loans ?? [] }
+    private var invoices: [SimulationInvoice] {
+        (session?.invoices ?? []).sorted {
+            if $0.isPaid != $1.isPaid { return !$0.isPaid }
+            if $0.dueAt != $1.dueAt { return $0.dueAt < $1.dueAt }
+            return $0.id < $1.id
+        }
+    }
+
+    private var outstandingDebtEuro: Int {
+        loans.reduce(0) { $0 + $1.outstandingPrincipalEuro }
+    }
+
+    private var roundedLoanCapacityEuro: Int {
+        let remaining = max(0, SimulationLoanRules.maximumOutstandingPrincipalEuro - outstandingDebtEuro)
+        return remaining / SimulationLoanRules.principalIncrementEuro * SimulationLoanRules.principalIncrementEuro
+    }
+
+    private var availableLoanPrincipalEuro: Int {
+        min(max(SimulationLoanRules.minimumPrincipalEuro, selectedLoanPrincipalEuro), roundedLoanCapacityEuro)
+    }
+
+    private var loanPreview: SimulationLoan? {
+        guard let simulatedAt = session?.simulatedAt,
+              roundedLoanCapacityEuro >= SimulationLoanRules.minimumPrincipalEuro else { return nil }
+        return SimulationLoanRules.loan(
+            id: "mobile-preview",
+            principalEuro: availableLoanPrincipalEuro,
+            termMonths: selectedLoanTermMonths,
+            issuedAt: simulatedAt
+        )
+    }
+
+    private var activeAdvertisingCampaign: SimulatedAdvertisingCampaign? {
+        guard let simulatedAt = session?.simulatedAt else { return nil }
+        return (session?.advertisingCampaigns ?? []).last(where: { $0.isActive(at: simulatedAt) })
+    }
+
+    private var monthlyReports: [MobileMonthlyFinancialSummary] {
+        guard let session else { return [] }
+        let entries = (session.ledgerEntries ?? []).sorted { $0.occurredAt < $1.occurredAt }
+        let datedEntries = entries.compactMap { entry -> (monthKey: Int, entry: SimulationLedgerEntry)? in
+            guard let monthKey = Self.monthKey(for: entry.occurredAt) else { return nil }
+            return (monthKey, entry)
+        }
+        let currentMonth = Self.monthKey(for: session.simulatedAt)
+        let monthKeys = Set(datedEntries.map { $0.monthKey }).union(currentMonth.map { [$0] } ?? [])
+        return monthKeys.sorted(by: >).map { monthKey in
+            let monthlyEntries = datedEntries.filter { $0.monthKey == monthKey }.map(\.entry)
+            let laterNet = datedEntries
+                .filter { $0.monthKey > monthKey }
+                .reduce(into: 0) { $0 += $1.entry.cashMovementEuro }
+            let closingBalance = session.cashBalance.map { $0 - laterNet }
+            let netChange = monthlyEntries.reduce(into: 0) { $0 += $1.cashMovementEuro }
+            return MobileMonthlyFinancialSummary(
+                monthKey: monthKey,
+                entries: monthlyEntries.sorted { $0.occurredAt > $1.occurredAt },
+                openingBalance: closingBalance.map { $0 - netChange },
+                closingBalance: closingBalance
+            )
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if let session {
+                    List {
+                        Section("Trésorerie") {
+                            LabeledContent("Solde actuel", value: Self.euro(session.cashBalance ?? 0))
+                            LabeledContent("Dette restante", value: Self.euro(outstandingDebtEuro))
+                        }
+
+                        financingSection
+                        advertisingSection
+                        invoiceSection
+
+                        ForEach(monthlyReports) { report in
+                            monthlySection(report)
+                        }
+                    }
+                    .listStyle(.insetGrouped)
+                } else {
+                    ContentUnavailableView(
+                        "Aucune carrière",
+                        systemImage: "chart.bar",
+                        description: Text("Crée une carrière ou importe une sauvegarde pour consulter ses finances.")
+                    )
+                }
+            }
+            .navigationTitle("Finances")
+        }
+        .environment(\.timeZone, GTFSServiceDate.parisTimeZone)
+    }
+
+    private var financingSection: some View {
+        Section("Financement de la flotte · règle de jeu") {
+            if roundedLoanCapacityEuro >= SimulationLoanRules.minimumPrincipalEuro {
+                Stepper(value: Binding(
+                    get: { availableLoanPrincipalEuro },
+                    set: { selectedLoanPrincipalEuro = $0 }
+                ),
+                        in: SimulationLoanRules.minimumPrincipalEuro...roundedLoanCapacityEuro,
+                        step: SimulationLoanRules.principalIncrementEuro) {
+                    LabeledContent("Capital", value: Self.euro(availableLoanPrincipalEuro))
+                }
+
+                Picker("Durée", selection: $selectedLoanTermMonths) {
+                    ForEach(SimulationLoanRules.termOptionsMonths, id: \.self) { months in
+                        Text("\(months) mois").tag(months)
+                    }
+                }
+
+                if let installment = loanPreview?.installments.first {
+                    LabeledContent("Première échéance estimée", value: Self.euro(installment.totalEuro))
+                }
+
+                Button {
+                    let nextCapacity = max(0, roundedLoanCapacityEuro - availableLoanPrincipalEuro)
+                    do {
+                        let loan = try simulation.takeGameLoan(
+                            principalEuro: availableLoanPrincipalEuro,
+                            termMonths: selectedLoanTermMonths
+                        )
+                        financialMessage = "Crédit versé : \(Self.euro(loan.principalEuro))."
+                        if nextCapacity >= SimulationLoanRules.minimumPrincipalEuro {
+                            selectedLoanPrincipalEuro = min(availableLoanPrincipalEuro, nextCapacity)
+                        }
+                    } catch {
+                        financialMessage = "Crédit impossible : \(error.localizedDescription)"
+                    }
+                } label: {
+                    Label("Recevoir le crédit", systemImage: "arrow.down.circle")
+                }
+                .disabled(loanPreview == nil)
+            } else {
+                Text("Plafond de dette atteint.")
+                    .foregroundStyle(.secondary)
+            }
+
+            if loans.isEmpty {
+                Text("Aucun crédit dans cette carrière.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(loans) { loan in
+                    LabeledContent("Crédit · \(loan.termMonths) mois", value: Self.euro(loan.outstandingPrincipalEuro))
+                }
+            }
+
+            if let financialMessage {
+                Text(financialMessage)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Text("Taux fixe de jeu : 6 % nominal annuel. Le capital, les intérêts et le plafond ne décrivent pas des conditions DSP 45 ou bancaires réelles.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var advertisingSection: some View {
+        Section("Publicité · recette simulée") {
+            if activeAdvertisingCampaign == nil {
+                Button {
+                    simulation.startAdvertisingCampaign()
+                    advertisingMessage = "Campagne publicitaire démarrée."
+                } label: {
+                    Label("Lancer une campagne", systemImage: "megaphone")
+                }
+                .disabled(session == nil)
+            } else {
+                LabeledContent("Campagne", value: "En cours")
+                Button(role: .destructive) {
+                    simulation.stopAdvertisingCampaign()
+                    advertisingMessage = "Campagne publicitaire arrêtée."
+                } label: {
+                    Label("Arrêter la campagne", systemImage: "stop.circle")
+                }
+            }
+            if let advertisingMessage {
+                Text(advertisingMessage)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var invoiceSection: some View {
+        Section("Factures") {
+            if invoices.isEmpty {
+                Text("Aucune facture émise.")
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(invoices) { invoice in
+                    VStack(alignment: .leading, spacing: 3) {
+                        HStack(alignment: .firstTextBaseline) {
+                            Text(invoice.title)
+                                .font(.subheadline.weight(.medium))
+                            Spacer(minLength: 8)
+                            Text(Self.euro(invoice.totalEuro))
+                                .font(.subheadline.monospacedDigit().weight(.semibold))
+                        }
+                        Text("\(invoice.counterparty) · \(invoice.isPaid ? "Réglée" : "Échéance \(invoice.dueAt.formatted(date: .abbreviated, time: .omitted))")")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 3)
+                }
+            }
+        }
+    }
+
+    private func monthlySection(_ report: MobileMonthlyFinancialSummary) -> some View {
+        Section(Self.monthTitle(report.monthKey)) {
+            LabeledContent("Recettes d’exploitation", value: Self.euro(report.income))
+            LabeledContent("Charges d’exploitation", value: Self.euro(report.expenses))
+            LabeledContent("Flux de financement", value: Self.signedEuro(report.financingFlow))
+            LabeledContent("Variation de trésorerie", value: Self.signedEuro(report.netChange))
+            if let openingBalance = report.openingBalance {
+                LabeledContent("Solde d’ouverture", value: Self.euro(openingBalance))
+            }
+            if let closingBalance = report.closingBalance {
+                LabeledContent("Solde de clôture", value: Self.euro(closingBalance))
+            }
+
+            if !report.entries.isEmpty {
+                DisclosureGroup("Écritures · \(report.entries.count)") {
+                    ForEach(report.entries) { entry in
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(entry.description)
+                                .font(.subheadline)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Text("\(entry.category) · \(entry.occurredAt.formatted(date: .abbreviated, time: .shortened))")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text(Self.ledgerAmount(entry))
+                                .font(.footnote.monospacedDigit().weight(.medium))
+                                .foregroundStyle(Self.ledgerColor(entry))
+                        }
+                        .padding(.vertical, 4)
+                    }
+                }
+            } else {
+                Text("Aucune écriture ce mois-ci.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private static func monthKey(for date: Date) -> Int? {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = GTFSServiceDate.parisTimeZone
+        let components = calendar.dateComponents([.year, .month], from: date)
+        guard let year = components.year,
+              let month = components.month else { return nil }
+        return year * 100 + month
+    }
+
+    private static func monthTitle(_ key: Int) -> String {
+        var components = DateComponents()
+        components.year = key / 100
+        components.month = key % 100
+        components.day = 1
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = GTFSServiceDate.parisTimeZone
+        guard let date = calendar.date(from: components) else { return "\(key)" }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "fr_FR")
+        formatter.timeZone = GTFSServiceDate.parisTimeZone
+        formatter.dateFormat = "LLLL yyyy"
+        return formatter.string(from: date).capitalized
+    }
+
+    private static func euro(_ amount: Int) -> String {
+        amount.formatted(.currency(code: "EUR").locale(Locale(identifier: "fr_FR")))
+    }
+
+    private static func signedEuro(_ amount: Int) -> String {
+        "\(amount >= 0 ? "+" : "−")\(euro(abs(amount)))"
+    }
+
+    private static func ledgerAmount(_ entry: SimulationLedgerEntry) -> String {
+        if entry.nature == .settlement {
+            return "Trésorerie \(signedEuro(entry.cashMovementEuro))"
+        }
+        guard entry.cashMovementEuro != entry.amount else { return signedEuro(entry.amount) }
+        return "\(signedEuro(entry.amount)) acquis · trésorerie \(signedEuro(entry.cashMovementEuro))"
+    }
+
+    private static func ledgerColor(_ entry: SimulationLedgerEntry) -> Color {
+        let amount = entry.nature == .settlement ? entry.cashMovementEuro : entry.amount
+        return amount >= 0 ? .green : .orange
+    }
+}
+
+private struct MobileMonthlyFinancialSummary: Identifiable {
+    let monthKey: Int
+    let entries: [SimulationLedgerEntry]
+    let openingBalance: Int?
+    let closingBalance: Int?
+
+    var id: Int { monthKey }
+    var income: Int {
+        entries.reduce(into: 0) {
+            if ($1.nature ?? .operating) == .operating, $1.amount > 0 { $0 += $1.amount }
+        }
+    }
+    var expenses: Int {
+        entries.reduce(into: 0) {
+            if ($1.nature ?? .operating) == .operating, $1.amount < 0 { $0 -= $1.amount }
+        }
+    }
+    var financingFlow: Int {
+        entries.reduce(into: 0) {
+            if $1.nature == .financing { $0 += $1.amount }
+        }
+    }
+    var netChange: Int { entries.reduce(into: 0) { $0 += $1.cashMovementEuro } }
 }
 #endif
