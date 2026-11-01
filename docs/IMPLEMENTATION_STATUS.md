@@ -2,7 +2,7 @@
 
 - La spécification de cadrage est publiée à `docs/superpowers/specs/2026-11-01-machinist-advanced-rest-design.md`. Elle sépare le comportement déjà codé des choix de portée encore ouverts (repos hebdomadaire ou jours consécutifs, fenêtre de calcul, blocage ou avertissement, traitement des corrections historiques).
 - Il s’agit d’un brouillon sans changement du moteur, de la paie ou de la disponibilité. Aucun nouveau seuil et aucune conformité réglementaire ne sont revendiqués; l’implémentation attend les décisions produit indiquées dans le document.
-- Le build macOS Debug de la copie de travail locale a réussi cette reprise (`x86_64 arm64`, Info.plist valide). La branche publique n’est pas réputée validée par ce résultat : des modifications de source du worktree restent à synchroniser et à compiler ensemble.
+- Le build macOS Debug du worktree local réussit (`x86_64 arm64`, Info.plist valide). Le parcours compact Courses et son smoke de garde iOS sont maintenant portés sur `main`; ce build local ne valide pas encore l’ensemble de la révision distante, car d’autres différences de source du worktree restent à synchroniser.
 - Objectif recommandé pour un agent : faire trancher les quatre décisions du cadrage; ensuite seulement, préparer le plan puis implémenter les règles approuvées avec compatibilité des sauvegardes et parité Mac/iPhone.
 
 # Reprise contrôles iPhone et feuilles compactes — 1er novembre 2026
