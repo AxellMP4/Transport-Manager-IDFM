@@ -104,6 +104,7 @@ private struct MobileOperationsView: View {
     @State private var saveExportDocument = SimulationSaveFile(data: Data())
     @State private var pendingSaveImportData: Data?
     @State private var isReplaceSaveConfirmationPresented = false
+    @State private var selectedMobileDeparture: MobileDispatchableDeparture?
 
     var body: some View {
         TabView {
@@ -112,6 +113,12 @@ private struct MobileOperationsView: View {
                     .navigationTitle("Carrière")
             }
             .tabItem { Label("Carrière", systemImage: "chart.line.uptrend.xyaxis") }
+
+            NavigationStack {
+                courseDispatchOverview
+                    .navigationTitle("Courses")
+            }
+            .tabItem { Label("Courses", systemImage: "tram.fill") }
 
             NavigationStack {
                 networkOverview
@@ -124,6 +131,19 @@ private struct MobileOperationsView: View {
                     .navigationTitle("Parc")
             }
             .tabItem { Label("Parc", systemImage: "bus") }
+        }
+        .sheet(item: $selectedMobileDeparture) { departure in
+            NavigationStack {
+                MobileScheduledDepartureAssignmentView(
+                    departure: departure,
+                    library: library,
+                    simulation: simulation
+                ) {
+                    mobileActionMessage = "Course affectée à un bus et à un machiniste."
+                    selectedMobileDeparture = nil
+                }
+            }
+            .presentationDetents([.large])
         }
         .task {
             await library.seedBundledIDFMSnapshotsIfNeeded()
@@ -672,6 +692,83 @@ private struct MobileOperationsView: View {
         }
     }
 
+    private var courseDispatchOverview: some View {
+        Group {
+            if simulation.session == nil {
+                ContentUnavailableView(
+                    "Aucune carrière en cours",
+                    systemImage: "tram",
+                    description: Text("Crée ou importe une carrière pour affecter des bus et des machinistes aux départs GTFS.")
+                )
+            } else if mobileDispatchDepartures.isEmpty {
+                ContentUnavailableView(
+                    "Aucun départ à affecter",
+                    systemImage: "calendar.badge.clock",
+                    description: Text("Les départs en attente des lignes exploitées ont été affectés ou ne sont pas présents dans l’horizon chargé.")
+                )
+            } else {
+                List {
+                    Section {
+                        Text("Choisis un départ théorique, puis affecte un bus disponible et un machiniste qualifié. Les contrôles de disponibilité et de service sont appliqués par le moteur de la carrière.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    Section("Départs à affecter · \(mobileDispatchDepartures.count)") {
+                        ForEach(mobileDispatchDepartures) { departure in
+                            Button {
+                                selectedMobileDeparture = departure
+                            } label: {
+                                HStack(spacing: 12) {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(library.busRoutes.first(where: { $0.routeID == departure.routeID })?.displayName ?? departure.routeID)
+                                            .font(.headline)
+                                        Text("\(departure.departureAt.formatted(date: .abbreviated, time: .shortened)) · course \(departure.tripID)")
+                                            .font(.footnote)
+                                            .foregroundStyle(.secondary)
+                                            .lineLimit(2)
+                                    }
+                                    Spacer(minLength: 4)
+                                    Image(systemName: "chevron.right")
+                                        .font(.footnote.weight(.semibold))
+                                        .foregroundStyle(.tertiary)
+                                }
+                                .frame(minHeight: 44)
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityHint("Ouvre le choix d’un bus et d’un machiniste pour ce départ.")
+                        }
+                    }
+                }
+                .platformInsetListStyle()
+            }
+        }
+    }
+
+    private var mobileDispatchDepartures: [MobileDispatchableDeparture] {
+        guard let session = simulation.session else { return [] }
+        let routeIDs = session.effectiveOperatedRouteIDs(for: session.effectiveActiveDepotID)
+        return session.pendingEvents.compactMap { event in
+            guard case let .scheduledServiceDeparture(tripID, routeID, serviceDateKey) = event.kind,
+                  routeIDs.contains(routeID) else { return nil }
+            return MobileDispatchableDeparture(
+                sequence: event.sequence,
+                tripID: tripID,
+                routeID: routeID,
+                serviceDateKey: serviceDateKey,
+                departureAt: event.simulatedAt
+            )
+        }
+        .sorted {
+            if $0.departureAt != $1.departureAt { return $0.departureAt < $1.departureAt }
+            return $0.sequence < $1.sequence
+        }
+        .prefix(160)
+        .map { $0 }
+    }
+
     private var fleetOverview: some View {
         Group {
             if let session = simulation.session {
@@ -734,6 +831,301 @@ private struct MobileOperationsView: View {
             } else {
                 ContentUnavailableView("Parc vide", systemImage: "bus")
             }
+        }
+    }
+}
+
+private struct MobileDispatchableDeparture: Identifiable, Hashable {
+    let sequence: UInt64
+    let tripID: String
+    let routeID: String
+    let serviceDateKey: Int
+    let departureAt: Date
+
+    var id: UInt64 { sequence }
+}
+
+@MainActor
+private struct MobileScheduledDepartureAssignmentView: View {
+    let departure: MobileDispatchableDeparture
+    @ObservedObject var library: NetworkLibrary
+    @ObservedObject var simulation: SimulationEngine
+    let onDispatched: () -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var stopVisits: [ScheduledTripStopVisit] = []
+    @State private var isLoadingSchedule = true
+    @State private var scheduleError: String?
+    @State private var selectedVehicleID: String?
+    @State private var selectedMachinistID: String?
+    @State private var deadheadPlan: VehicleDeadheadPlan?
+    @State private var deadheadError: String?
+    @State private var dispatchError: String?
+
+    private var eligibleBuses: [PurchasedBus] {
+        guard let session = simulation.session, let firstStopID = stopVisits.first?.stopID else { return [] }
+        return (session.ownedBuses ?? []).filter { bus in
+            guard bus.reservedTripKey == nil else { return false }
+            if bus.status == .atDepot { return bus.depotID == session.effectiveActiveDepotID }
+            return bus.status == .atStop && bus.currentStopID == firstStopID
+        }
+        .sorted { $0.acquiredAt < $1.acquiredAt }
+    }
+
+    private var selectedVehicle: PurchasedBus? {
+        eligibleBuses.first { $0.id == selectedVehicleID }
+    }
+
+    private var deadheadDepartureAt: Date? {
+        guard let firstStop = stopVisits.first, let deadheadPlan else { return nil }
+        return firstStop.scheduledAt.addingTimeInterval(-deadheadPlan.expectedTravelSeconds)
+    }
+
+    private var eligibleMachinists: [Machinist] {
+        guard let vehicle = selectedVehicle, let firstStop = stopVisits.first, let lastStop = stopVisits.last else { return [] }
+        let serviceStartAt: Date
+        if vehicle.status == .atDepot {
+            guard let deadheadDepartureAt else { return [] }
+            serviceStartAt = deadheadDepartureAt
+        } else {
+            serviceStartAt = firstStop.scheduledAt
+        }
+        return simulation.availableMachinists(
+            forVehicleID: vehicle.id,
+            serviceStartAt: serviceStartAt,
+            serviceEndAt: lastStop.scheduledAt
+        )
+    }
+
+    private var canDispatch: Bool {
+        guard selectedVehicle != nil,
+              eligibleMachinists.contains(where: { $0.id == selectedMachinistID }),
+              !isLoadingSchedule,
+              !stopVisits.isEmpty else { return false }
+        return selectedVehicle?.status != .atDepot || (
+            deadheadPlan != nil
+                && deadheadDepartureAt.map { $0 >= (simulation.session?.simulatedAt ?? .distantFuture) } == true
+        )
+    }
+
+    var body: some View {
+        lifecycleContent
+        .task(id: selectedVehicleID) { await calculateDeadheadRoute() }
+        .environment(\.timeZone, GTFSServiceDate.parisTimeZone)
+    }
+
+    private var lifecycleContent: some View {
+        navigationContent
+            .task { await loadSchedule() }
+            .onChange(of: eligibleMachinists.map(\.id)) { _, currentIDs in
+                updateSelectedMachinist(availableIDs: currentIDs)
+            }
+            .onChange(of: simulation.session?.simulatedAt) { _, _ in
+                refreshSelectedMachinist()
+            }
+            .alert("Affectation impossible", isPresented: dispatchErrorPresentation) {
+                Button("OK", role: .cancel) { dispatchError = nil }
+            } message: {
+                Text(dispatchError ?? "La course n’a pas pu être affectée.")
+            }
+    }
+
+    private var navigationContent: some View {
+        assignmentList
+            .platformInsetListStyle()
+            .navigationTitle("Affecter la course")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Fermer") { dismiss() }
+                }
+            }
+    }
+
+    private var assignmentList: some View {
+        List {
+            Section("Départ GTFS") {
+                Text(routeDisplayName)
+                LabeledContent("Date et heure", value: departure.departureAt.formatted(date: .complete, time: .shortened))
+                LabeledContent("Course", value: departure.tripID)
+            }
+            scheduleContent
+        }
+    }
+
+    private var dispatchErrorPresentation: Binding<Bool> {
+        Binding(
+            get: { dispatchError != nil },
+            set: { if !$0 { dispatchError = nil } }
+        )
+    }
+
+    private func updateSelectedMachinist(availableIDs: [String]) {
+        if let selectedMachinistID, availableIDs.contains(selectedMachinistID) { return }
+        selectedMachinistID = availableIDs.first
+    }
+
+    private func refreshSelectedMachinist() {
+        if let currentID = selectedMachinistID, !eligibleMachinists.contains(where: { $0.id == currentID }) {
+            selectedMachinistID = eligibleMachinists.first?.id
+        }
+    }
+
+    private var routeDisplayName: String {
+        library.busRoutes.first(where: { $0.routeID == departure.routeID })?.displayName ?? departure.routeID
+    }
+
+    @ViewBuilder
+    private var scheduleContent: some View {
+        if isLoadingSchedule {
+            Section { ProgressView("Chargement des arrêts…") }
+        } else if let scheduleError {
+            Section("Horaires indisponibles") { Text(scheduleError).foregroundStyle(.red) }
+        } else if let firstStop = stopVisits.first, let lastStop = stopVisits.last {
+            Section("Parcours") {
+                LabeledContent("Premier arrêt", value: firstStop.stopName)
+                LabeledContent("Dernier arrêt", value: lastStop.stopName)
+                LabeledContent("Arrêts", value: "\(stopVisits.count)")
+            }
+            busAssignmentSection
+            machinistAssignmentSection
+            dispatchButtonSection
+        }
+    }
+
+    private var busAssignmentSection: some View {
+        Section("Bus") {
+            if eligibleBuses.isEmpty {
+                Text("Aucun bus disponible au dépôt actif ou déjà au premier arrêt.")
+                    .foregroundStyle(.secondary)
+            } else {
+                Picker("Bus", selection: $selectedVehicleID) {
+                    Text("Choisir un bus").tag(String?.none)
+                    ForEach(eligibleBuses) { bus in
+                        Text(busChoiceTitle(bus)).tag(Optional(bus.id))
+                    }
+                }
+            }
+
+            if selectedVehicle?.status == .atDepot {
+                if let deadheadDepartureAt {
+                    LabeledContent("Départ du dépôt", value: deadheadDepartureAt.formatted(date: .omitted, time: .shortened))
+                    Text(deadheadPlan?.routingSourceTitle ?? "Calcul de l’itinéraire vers le premier arrêt…")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                } else if let deadheadError {
+                    Text(deadheadError)
+                        .font(.footnote)
+                        .foregroundStyle(.orange)
+                } else if selectedVehicle != nil {
+                    ProgressView("Calcul du trajet depuis le dépôt…")
+                }
+            }
+        }
+    }
+
+    private var machinistAssignmentSection: some View {
+        Section("Machiniste") {
+            if selectedVehicle == nil {
+                Text("Choisis d’abord un bus.").foregroundStyle(.secondary)
+            } else if eligibleMachinists.isEmpty {
+                Text("Aucun machiniste actuellement disponible et qualifié pour ce bus et cette course. Tu peux en recruter dans l’onglet Parc.")
+                    .foregroundStyle(.secondary)
+            } else {
+                Picker("Machiniste", selection: $selectedMachinistID) {
+                    Text("Choisir un machiniste").tag(String?.none)
+                    ForEach(eligibleMachinists) { machinist in
+                        Text("\(machinist.displayName) · \(machinist.qualification.title)")
+                            .tag(Optional(machinist.id))
+                    }
+                }
+            }
+        }
+    }
+
+    private var dispatchButtonSection: some View {
+        Section {
+            Button(action: dispatchSelectedDeparture) {
+                Label("Affecter bus et machiniste", systemImage: "checkmark.circle.fill")
+                    .frame(maxWidth: .infinity, minHeight: 44)
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(!canDispatch)
+        } footer: {
+            Text("La validation du moteur contrôle notamment la disponibilité, la qualification, les repos, les conflits de service et l’énergie du bus.")
+        }
+    }
+
+    private func busChoiceTitle(_ bus: PurchasedBus) -> String {
+        let model = VehicleMarketCatalog.model(id: bus.modelID)?.displayName ?? bus.modelID
+        return "\(model) · \(bus.coquilleNumber ?? bus.id)"
+    }
+
+    private func loadSchedule() async {
+        guard let gtfsVersionID = simulation.session?.networkVersions.gtfsID else {
+            scheduleError = "La version GTFS épinglée par cette carrière n’est pas disponible."
+            isLoadingSchedule = false
+            return
+        }
+        do {
+            let visits = try await library.loadScheduledTripStopVisits(
+                gtfsVersionID: gtfsVersionID,
+                tripID: departure.tripID,
+                serviceDateKey: departure.serviceDateKey
+            )
+            guard !Task.isCancelled else { return }
+            guard visits.count >= 2 else {
+                scheduleError = "Cette course ne contient pas assez d’arrêts utilisables pour lancer un service."
+                isLoadingSchedule = false
+                return
+            }
+            stopVisits = visits
+        } catch {
+            guard !Task.isCancelled else { return }
+            scheduleError = error.localizedDescription
+        }
+        isLoadingSchedule = false
+    }
+
+    private func calculateDeadheadRoute() async {
+        guard let vehicle = selectedVehicle,
+              vehicle.status == .atDepot,
+              let firstStop = stopVisits.first,
+              let session = simulation.session,
+              let depot = DepotCareerScope.depotReference(for: vehicle.depotID) else {
+            deadheadPlan = nil
+            deadheadError = nil
+            return
+        }
+        deadheadPlan = nil
+        deadheadError = nil
+        do {
+            let plan = try await VehicleDeadheadRouter.route(
+                from: depot,
+                to: firstStop,
+                serviceStartAt: firstStop.scheduledAt,
+                earliestDepartureAt: session.simulatedAt
+            )
+            guard !Task.isCancelled, selectedVehicleID == vehicle.id else { return }
+            deadheadPlan = plan
+        } catch {
+            guard !Task.isCancelled, selectedVehicleID == vehicle.id else { return }
+            deadheadError = error.localizedDescription
+        }
+    }
+
+    private func dispatchSelectedDeparture() {
+        guard let vehicleID = selectedVehicleID, let machinistID = selectedMachinistID else { return }
+        do {
+            try simulation.dispatchScheduledDeparture(
+                eventSequence: departure.sequence,
+                vehicleID: vehicleID,
+                machinistID: machinistID,
+                stopVisits: stopVisits,
+                deadheadPlan: selectedVehicle?.status == .atDepot ? deadheadPlan : nil
+            )
+            onDispatched()
+            dismiss()
+        } catch {
+            dispatchError = error.localizedDescription
         }
     }
 }
