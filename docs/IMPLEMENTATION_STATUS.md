@@ -1,3 +1,11 @@
+# Synchronisation sélective avec `main` — 1er novembre 2026
+
+- Le parcours compact **Courses** est publié : sur iPhone, la liste ouvre une fiche d’affectation pleine largeur avec action persistante « Affecter bus et machiniste », puis retourne à la liste après succès. Les deux titres de navigation sont compilés seulement sur iOS. Le smoke vérifie cette disposition et les gardes de plateforme.
+- La spécification brouillon du repos machiniste est également publiée. Elle ne change aucune règle du moteur et attend les décisions produit sur sa portée, sa période, l’application des violations et les corrections historiques.
+- Le build Debug macOS du worktree local réussit au code 0 (`x86_64 arm64`, Info.plist valide). Il ne valide pas la révision publique complète : les modifications ciblées Courses sont sur `main`, mais d’autres changements locaux restent à intégrer et à compiler ensemble.
+- Objectif recommandé pour un agent maintenant : comparer le worktree local à `main`, réintégrer ses différences utiles sans annuler les commits plus récents déjà publiés, puis compiler la révision fusionnée en Debug macOS et vérifier iPhoneOS avant de reprendre le reste du jeu.
+- Dernier audit macro disponible : 3/9 portes (33,3 % de ces neuf portes uniquement, pas un taux global du jeu). L’estimation historique demeure 25–45 jours d’ingénierie concentrée, hors dépendances externes, et n’a pas été réévaluée ici.
+
 # Cadrage du repos avancé des machinistes — 1er novembre 2026
 
 - La spécification de cadrage est publiée à `docs/superpowers/specs/2026-11-01-machinist-advanced-rest-design.md`. Elle sépare le comportement déjà codé des choix de portée encore ouverts (repos hebdomadaire ou jours consécutifs, fenêtre de calcul, blocage ou avertissement, traitement des corrections historiques).
