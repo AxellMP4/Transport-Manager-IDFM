@@ -81,6 +81,7 @@
 		030000000000000000000130 /* PassengerAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000130 /* PassengerAnalytics.swift */; };
 		030000000000000000000131 /* PassengerLoadGaugeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000131 /* PassengerLoadGaugeView.swift */; };
 		030000000000000000000132 /* PassengerOperationsReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000132 /* PassengerOperationsReportView.swift */; };
+		030000000000000000000133 /* GTFSDepartureIntervalSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000133 /* GTFSDepartureIntervalSummary.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -160,6 +161,7 @@
 		020000000000000000000130 /* PassengerAnalytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PassengerAnalytics.swift; sourceTree = "<group>"; };
 		020000000000000000000131 /* PassengerLoadGaugeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PassengerLoadGaugeView.swift; sourceTree = "<group>"; };
 		020000000000000000000132 /* PassengerOperationsReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PassengerOperationsReportView.swift; sourceTree = "<group>"; };
+		020000000000000000000133 /* GTFSDepartureIntervalSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GTFSDepartureIntervalSummary.swift; sourceTree = "<group>"; };
 		040000000000000000000001 /* TransportManagerIDFM.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TransportManagerIDFM.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -235,6 +237,7 @@
 				020000000000000000000120 /* PublishedServiceDiscrepancy.swift */,
 				020000000000000000000124 /* DepotChargingInfrastructureObservation.swift */,
 				020000000000000000000041 /* DepotLineRosterManifest.swift */,
+				020000000000000000000133 /* GTFSDepartureIntervalSummary.swift */,
 			);
 			path = Domain;
 			sourceTree = "<group>";
@@ -406,6 +409,7 @@
 				030000000000000000000004 /* OperationsDashboardView.swift in Sources */,
 				030000000000000000000131 /* PassengerLoadGaugeView.swift in Sources */,
 				030000000000000000000132 /* PassengerOperationsReportView.swift in Sources */,
+				030000000000000000000133 /* GTFSDepartureIntervalSummary.swift in Sources */,
 				030000000000000000000005 /* DepotInspectorView.swift in Sources */,
 				030000000000000000000006 /* GTFSFeedImporter.swift in Sources */,
 				030000000000000000000007 /* NetworkLibrary.swift in Sources */,
