@@ -1438,27 +1438,29 @@ struct GTFSTripQualityAuditSection: View {
         let routeNamesByID = routeNames
         let matchingIssues = filteredIssues
         VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 10) {
-                Picker("Vue", selection: $displayMode) {
-                    Text("Courses (\(issueCountLabel))")
-                        .tag(GTFSTripQualityDisplayMode.courses)
-                    Text("Motifs (\(motifCountLabel))").tag(GTFSTripQualityDisplayMode.motifs)
-                }
-                .pickerStyle(.segmented)
-                .fixedSize()
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 10) {
+                    displayModePicker(issueCountLabel: issueCountLabel)
+                        .fixedSize(horizontal: true, vertical: false)
 
-                if issues != nil {
-                    Picker("Type d’anomalie", selection: $selectedIssueKind) {
-                        Text("Tous les types").tag(Optional<GTFSImportTripIssueKind>.none)
-                        ForEach(GTFSImportTripIssueKind.allCases, id: \.self) { kind in
-                            Text(kind.displayName).tag(Optional(kind))
-                        }
+                    if issues != nil {
+                        issueKindPicker
                     }
-                    .pickerStyle(.menu)
+
+                    tripIssueSearchField(minimumWidth: 180)
                 }
 
-                TextField("Filtrer numéro ou nom de ligne, course, forme ou arrêt", text: $query)
-                    .textFieldStyle(.roundedBorder)
+                VStack(alignment: .leading, spacing: 8) {
+                    displayModePicker(issueCountLabel: issueCountLabel)
+                        .frame(maxWidth: .infinity)
+
+                    tripIssueSearchField()
+                        .frame(maxWidth: .infinity)
+
+                    if issues != nil {
+                        issueKindPicker
+                    }
+                }
             }
 
             if displayMode == .motifs {
@@ -1532,6 +1534,31 @@ struct GTFSTripQualityAuditSection: View {
                 }
             }
         }
+    }
+
+    private func displayModePicker(issueCountLabel: String) -> some View {
+        Picker("Vue", selection: $displayMode) {
+            Text("Courses (\(issueCountLabel))")
+                .tag(GTFSTripQualityDisplayMode.courses)
+            Text("Motifs (\(motifCountLabel))").tag(GTFSTripQualityDisplayMode.motifs)
+        }
+        .pickerStyle(.segmented)
+    }
+
+    private var issueKindPicker: some View {
+        Picker("Type d’anomalie", selection: $selectedIssueKind) {
+            Text("Tous les types").tag(Optional<GTFSImportTripIssueKind>.none)
+            ForEach(GTFSImportTripIssueKind.allCases, id: \.self) { kind in
+                Text(kind.displayName).tag(Optional(kind))
+            }
+        }
+        .pickerStyle(.menu)
+    }
+
+    private func tripIssueSearchField(minimumWidth: CGFloat? = nil) -> some View {
+        TextField("Filtrer numéro ou nom de ligne, course, forme ou arrêt", text: $query)
+            .textFieldStyle(.roundedBorder)
+            .frame(minWidth: minimumWidth)
     }
 
     private var routeNames: [String: String] {
