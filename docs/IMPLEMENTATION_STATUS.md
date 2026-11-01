@@ -1,3 +1,9 @@
+# Grille des horaires GTFS adaptée à l’iPhone — 1er novembre 2026
+
+- Nouveauté : la grille garde sa barre de titre en ligne sur macOS, mais adopte sur iPhone un en-tête en deux rangées avec date de service compacte et bouton Fermer. Les titres de groupes de courses, leurs espacements et les premiers/derniers départs s’empilent pour tenir dans la largeur disponible. La largeur minimale de 760 points est conservée uniquement sur macOS; les colonnes d’arrêts restent consultables par défilement horizontal.
+- Vérification : les builds Debug non signés terminent au code 0 avec `ONLY_ACTIVE_ARCH=NO` : macOS universel et iPhoneOS générique. Le produit macOS contient `x86_64 arm64`; le produit iOS contient `arm64`. La session CoreSimulator n’est pas disponible et le Mac reste verrouillé : aucun rendu visuel en simulateur ou sur iPhone n’est revendiqué.
+- Archive jouable locale actualisée depuis le build macOS : extraction ZIP, signature ad hoc, Info.plist, architectures et 18 fragments GTFS contrôlés. Taille 175 703 998 octets; SHA-256 `8a92bf93671a8db3d4f0527b359f422f3a2541daa1a42b49d62cc79265b8de7a`. Les deux copies locales, à la racine et dans `build/Debug`, ont la même empreinte. Le paquet n’est ni Developer ID signé ni notarié.
+
 # Reprise : validations iPhone/iCloud et offre Bords de Marne au 1er novembre — 1er novembre 2026
 
 ## Smokes ciblés de carrière, voyageurs et synchronisation — 1er novembre 2026
