@@ -297,6 +297,42 @@ enum VehicleIncidentFrequency: String, Codable, CaseIterable, Hashable, Identifi
     }
 }
 
+enum TrafficDisruptionFrequency: String, Codable, CaseIterable, Hashable, Identifiable, Sendable {
+    case disabled
+    case reduced
+    case standard
+    case increased
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .disabled: "Aucune"
+        case .reduced: "Réduite"
+        case .standard: "Standard"
+        case .increased: "Élevée"
+        }
+    }
+
+    var explanation: String {
+        switch self {
+        case .disabled: "Aucun ralentissement routier aléatoire de jeu."
+        case .reduced: "Risque divisé par deux · règle de jeu reproductible."
+        case .standard: "Risque de référence · congestion fictive, reproductible dans cette carrière."
+        case .increased: "Risque doublé · règle de jeu reproductible."
+        }
+    }
+
+    var hazardMultiplier: Double {
+        switch self {
+        case .disabled: 0
+        case .reduced: 0.5
+        case .standard: 1
+        case .increased: 2
+        }
+    }
+}
+
 enum VehicleIncidentSeverity: String, Codable, CaseIterable, Hashable, Identifiable, Sendable {
     case minor
     case major
@@ -686,11 +722,30 @@ struct SimulatedRouteDetour: Codable, Hashable, Identifiable, Sendable {
     let replacementCoordinates: [BusMovementCoordinate]
     let additionalTravelSeconds: TimeInterval
     var cause: RouteDetourCause? = nil
+    var origin: RouteDetourOrigin? = nil
     var sourceObservation: PRIMTrafficObservation? = nil
     var passengerInformationMessage: String? = nil
 
+    var effectiveOrigin: RouteDetourOrigin {
+        origin ?? (sourceObservation == nil ? .player : .prim)
+    }
+
     func isActive(at date: Date) -> Bool {
         endedAt == nil && startsAt <= date && date < scheduledEndAt
+    }
+}
+
+enum RouteDetourOrigin: String, Codable, Hashable, Sendable {
+    case player
+    case simulation
+    case prim
+
+    var title: String {
+        switch self {
+        case .player: "Déclarée par le gestionnaire"
+        case .simulation: "Générée par le jeu"
+        case .prim: "Préparée à partir d’une observation PRIM"
+        }
     }
 }
 
@@ -720,6 +775,7 @@ struct RouteDetourEventDetails: Codable, Hashable, Sendable {
     let toStopName: String
     let scheduledEndAt: Date
     let cause: RouteDetourCause?
+    let origin: RouteDetourOrigin?
 
     init(_ detour: SimulatedRouteDetour) {
         detourID = detour.id
@@ -728,6 +784,12 @@ struct RouteDetourEventDetails: Codable, Hashable, Sendable {
         toStopName = detour.toStopName
         scheduledEndAt = detour.scheduledEndAt
         cause = detour.cause
+        origin = detour.effectiveOrigin
+    }
+
+    var eventTitle: String {
+        if origin == .simulation, cause == .congestion { return "Congestion simulée" }
+        return cause?.title ?? "Déviation"
     }
 }
 
@@ -895,17 +957,17 @@ struct SimulationEvent: Codable, Hashable, Identifiable, Sendable {
         case let .routeClosureEnded(_, _, routeName):
             "Reprise des départs · ligne \(routeName)"
         case let .routeDetourScheduled(details, startsAt):
-            "\(details.cause.map { "\($0.title) · " } ?? "")déviation planifiée · ligne \(details.routeID), \(details.fromStopName) → \(details.toStopName) · début \(startsAt.formatted(date: .omitted, time: .shortened))"
+            "\(details.eventTitle) · \(details.origin?.title.lowercased() ?? "origine antérieure inconnue") · ligne \(details.routeID), \(details.fromStopName) → \(details.toStopName) · début \(startsAt.formatted(date: .omitted, time: .shortened))"
         case let .routeDetourStarted(details):
-            "\(details.cause.map { "\($0.title) · " } ?? "")déviation active · ligne \(details.routeID), \(details.fromStopName) → \(details.toStopName)"
+            "\(details.eventTitle) · \(details.origin?.title.lowercased() ?? "origine antérieure inconnue") · ligne \(details.routeID), \(details.fromStopName) → \(details.toStopName)"
         case let .routeDetourReplanned(tripID, routeID, addedDelaySeconds, addedDistanceMeters):
             "Course \(tripID) recalée sur la déviation de la ligne \(routeID) · +\(Int((addedDelaySeconds / 60).rounded())) min · +\((addedDistanceMeters / 1_000).formatted(.number.precision(.fractionLength(1)))) km"
         case let .followingServiceDelayed(fromTripID, toTripID, routeID, delaySeconds):
             "Retard propagé de la course \(fromTripID) à la course \(toTripID) · ligne \(routeID) · +\(Int((delaySeconds / 60).rounded())) min"
         case let .routeDetourExtended(details):
-            "\(details.cause.map { "\($0.title) · " } ?? "")déviation prolongée · ligne \(details.routeID), \(details.fromStopName) → \(details.toStopName) · fin \(details.scheduledEndAt.formatted(date: .omitted, time: .shortened))"
+            "\(details.eventTitle) prolongée · \(details.origin?.title.lowercased() ?? "origine antérieure inconnue") · ligne \(details.routeID), \(details.fromStopName) → \(details.toStopName) · fin \(details.scheduledEndAt.formatted(date: .omitted, time: .shortened))"
         case let .routeDetourEnded(details):
-            "Fin de déviation · \(details.cause?.title.lowercased() ?? "perturbation") · ligne \(details.routeID), \(details.fromStopName) → \(details.toStopName)"
+            "Fin de \(details.eventTitle.lowercased()) · \(details.origin?.title.lowercased() ?? "origine antérieure inconnue") · ligne \(details.routeID), \(details.fromStopName) → \(details.toStopName)"
         case let .stopArrival(_, stopID):
             "Arrivée à l’arrêt \(stopID)"
         case .serviceCompleted:
@@ -1700,6 +1762,7 @@ struct SimulationSession: Codable, Hashable, Identifiable, Sendable {
     var dispatchedTripRoutePlans: [DispatchedTripRoutePlan]? = nil
     var primTrafficAlerts: [PRIMTrafficAlert]? = nil
     var breakdownFrequency: VehicleIncidentFrequency? = nil
+    var trafficDisruptionFrequency: TrafficDisruptionFrequency? = nil
     var workshopBayCount: Int? = nil
     var workshopExpansionCompletesAt: Date? = nil
     var workshopBayCountsByDepot: [String: Int]? = nil
@@ -1790,6 +1853,10 @@ struct SimulationSession: Codable, Hashable, Identifiable, Sendable {
 
     var effectiveBreakdownFrequency: VehicleIncidentFrequency {
         breakdownFrequency ?? .standard
+    }
+
+    var effectiveTrafficDisruptionFrequency: TrafficDisruptionFrequency {
+        trafficDisruptionFrequency ?? .standard
     }
 
     func effectiveWorkshopBayCount(for depotID: String? = nil) -> Int {
@@ -2315,7 +2382,8 @@ final class SimulationEngine: ObservableObject {
         operatedRouteIDsByDepot: [String: [String]]? = nil,
         scheduledDepartures: [ScheduledServiceDeparture] = [],
         timetableHorizonEnd: Date? = nil,
-        breakdownFrequency: VehicleIncidentFrequency = .standard
+        breakdownFrequency: VehicleIncidentFrequency = .standard,
+        trafficDisruptionFrequency: TrafficDisruptionFrequency = .standard
     ) throws {
         let pinnedRouteIDs = Array(Set(operatedRouteIDs)).sorted()
         let pinnedAssignmentIDs = Array(Set(assignmentRecordIDs)).sorted()
@@ -2407,6 +2475,7 @@ final class SimulationEngine: ObservableObject {
             stopClosures: [],
             routeClosures: [],
             breakdownFrequency: breakdownFrequency,
+            trafficDisruptionFrequency: trafficDisruptionFrequency,
             workshopBayCount: VehicleWorkshopRules.initialRepairBayCount,
             workshopExpansionCompletesAt: nil,
             loans: [],
@@ -5166,6 +5235,7 @@ final class SimulationEngine: ObservableObject {
             replacementCoordinates: replacementCoordinates,
             additionalTravelSeconds: additionalTravelSeconds,
             cause: cause,
+            origin: sourceObservation == nil ? .player : .prim,
             sourceObservation: sourceObservation,
             passengerInformationMessage: passengerInformationMessage
                 .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -5593,8 +5663,46 @@ final class SimulationEngine: ObservableObject {
             throw SimulationEngineError.scheduledDepartureUnavailable
         }
 
+        let existingRouteDetours = activeSession.routeDetours ?? []
+        let initialDetourApplication = RouteDetourSchedulePlanner.applying(
+            detours: existingRouteDetours.filter { $0.routeID == routeID },
+            to: sourceStopVisits
+        )
+        let generatedCongestion = Self.plannedRoadCongestion(
+            routeID: routeID,
+            tripID: tripID,
+            serviceDateKey: serviceDateKey,
+            stopVisits: initialDetourApplication.visits,
+            randomSeed: activeSession.randomSeed,
+            frequency: activeSession.effectiveTrafficDisruptionFrequency,
+            existingDetours: existingRouteDetours
+        )
+        var routeDetoursForTrip = existingRouteDetours
+        if let generatedCongestion {
+            routeDetoursForTrip.append(generatedCongestion)
+            activeSession.routeDetours = routeDetoursForTrip
+            let details = RouteDetourEventDetails(generatedCongestion)
+            activeSession.eventHistory.append(SimulationEvent(
+                sequence: activeSession.nextEventSequence,
+                simulatedAt: activeSession.simulatedAt,
+                kind: .routeDetourScheduled(details, startsAt: generatedCongestion.startsAt)
+            ))
+            activeSession.nextEventSequence &+= 1
+            activeSession.pendingEvents.append(SimulationEvent(
+                sequence: activeSession.nextEventSequence,
+                simulatedAt: generatedCongestion.startsAt,
+                kind: .routeDetourStarted(details)
+            ))
+            activeSession.nextEventSequence &+= 1
+            activeSession.pendingEvents.append(SimulationEvent(
+                sequence: activeSession.nextEventSequence,
+                simulatedAt: generatedCongestion.scheduledEndAt,
+                kind: .routeDetourEnded(details)
+            ))
+            activeSession.nextEventSequence &+= 1
+        }
         let detourApplication = RouteDetourSchedulePlanner.applying(
-            detours: (activeSession.routeDetours ?? []).filter { $0.routeID == routeID },
+            detours: routeDetoursForTrip.filter { $0.routeID == routeID },
             to: sourceStopVisits
         )
         let stopVisits = detourApplication.visits
@@ -6410,6 +6518,103 @@ final class SimulationEngine: ObservableObject {
                 )
             ),
             outgoingMovementEvent?.sequence
+        )
+    }
+
+    static func plannedRoadCongestion(
+        routeID: String,
+        tripID: String,
+        serviceDateKey: Int,
+        stopVisits: [ScheduledTripStopVisit],
+        randomSeed: UInt64,
+        frequency: TrafficDisruptionFrequency,
+        existingDetours: [SimulatedRouteDetour]
+    ) -> SimulatedRouteDetour? {
+        guard frequency.hazardMultiplier > 0,
+              !routeID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              !tripID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              stopVisits.count >= 2 else { return nil }
+
+        let segmentIndices = stopVisits.indices.dropLast().filter { index in
+            let from = stopVisits[index]
+            let to = stopVisits[index + 1]
+            let geometry = from.movementToNext
+            let meters = if let geometry, geometry.count >= 2 {
+                pathDistance(geometry)
+            } else {
+                pathDistance([
+                    BusMovementCoordinate(latitude: from.latitude, longitude: from.longitude),
+                    BusMovementCoordinate(latitude: to.latitude, longitude: to.longitude)
+                ])
+            }
+            return meters.isFinite && meters > 0
+        }
+        guard !segmentIndices.isEmpty else { return nil }
+
+        let distanceMeters = segmentIndices.reduce(into: 0.0) { total, index in
+            let from = stopVisits[index]
+            let to = stopVisits[index + 1]
+            if let geometry = from.movementToNext, geometry.count >= 2 {
+                total += pathDistance(geometry)
+            } else {
+                total += pathDistance([
+                    BusMovementCoordinate(latitude: from.latitude, longitude: from.longitude),
+                    BusMovementCoordinate(latitude: to.latitude, longitude: to.longitude)
+                ])
+            }
+        }
+        let distanceKilometers = distanceMeters / 1_000
+        guard distanceKilometers.isFinite, distanceKilometers > 0 else { return nil }
+
+        let key = "\(randomSeed)|\(routeID)|\(tripID)|\(serviceDateKey)|road-congestion"
+        let hazard = 0.0015 * distanceKilometers * frequency.hazardMultiplier
+        let probability = min(0.25, 1 - exp(-hazard))
+        let roll = deterministicDemandHash(seed: randomSeed, key: key) % 1_000_000
+        guard Double(roll) / 1_000_000 < probability else { return nil }
+
+        let segmentOffset = Int(deterministicDemandHash(seed: randomSeed, key: key + "|segment") % UInt64(segmentIndices.count))
+        let segmentIndex = segmentIndices[segmentOffset]
+        let fromVisit = stopVisits[segmentIndex]
+        let toVisit = stopVisits[segmentIndex + 1]
+        let startsAt = fromVisit.departureAt ?? fromVisit.scheduledAt
+        let scheduledEndAt = startsAt.addingTimeInterval(45 * 60)
+        let id = "generated-congestion-\(serviceDateKey)-\(String(deterministicDemandHash(seed: randomSeed, key: key + "|id"), radix: 16))"
+        guard !existingDetours.contains(where: { detour in
+            detour.id == id || (
+                detour.endedAt == nil
+                    && detour.routeID == routeID
+                    && detour.fromStopID == fromVisit.stopID
+                    && detour.fromStopSequence == fromVisit.stopSequence
+                    && detour.toStopID == toVisit.stopID
+                    && detour.toStopSequence == toVisit.stopSequence
+                    && periodsOverlap(startsAt, scheduledEndAt, detour.startsAt, detour.scheduledEndAt)
+            )
+        }) else { return nil }
+
+        let endpoints = [
+            BusMovementCoordinate(latitude: fromVisit.latitude, longitude: fromVisit.longitude),
+            BusMovementCoordinate(latitude: toVisit.latitude, longitude: toVisit.longitude)
+        ]
+        let coordinates = fromVisit.movementToNext.flatMap { geometry in
+            validRouteDetourCoordinates(geometry, from: fromVisit, to: toVisit) ? geometry : nil
+        } ?? endpoints
+        let delaySeconds = 240 + Int(deterministicDemandHash(seed: randomSeed, key: key + "|delay") % 601)
+
+        return SimulatedRouteDetour(
+            id: id,
+            routeID: routeID,
+            fromStopID: fromVisit.stopID,
+            fromStopName: fromVisit.stopName,
+            fromStopSequence: fromVisit.stopSequence,
+            toStopID: toVisit.stopID,
+            toStopName: toVisit.stopName,
+            toStopSequence: toVisit.stopSequence,
+            startsAt: startsAt,
+            scheduledEndAt: scheduledEndAt,
+            replacementCoordinates: coordinates,
+            additionalTravelSeconds: TimeInterval(delaySeconds),
+            cause: .congestion,
+            origin: .simulation
         )
     }
 
