@@ -1,3 +1,12 @@
+# Reprise contrôles iPhone et feuilles compactes — 1er novembre 2026
+
+- Sur iOS 17–25, les commandes de vitesse, pause/reprise et prochain événement ont maintenant des cibles de 44 × 44 points. Le smoke `validate-mobile-operations-tabs.sh` a d’abord échoué sur les anciennes cibles de 38 points, puis passe avec les trois contrôles, leurs libellés VoiceOver et l’accessoire iOS 26.
+- Les feuilles d’inspection de véhicule, de gestion du personnel, de dépôt, de lignes/horaires et d’audit GTFS utilisent un cadre adaptatif : les dimensions minimales macOS sont conservées, l’iPhone prend la largeur disponible. Dans l’annuaire compact des dépôts, sélectionner un site ouvre sa fiche dans une navigation empilée; l’affichage en deux colonnes reste sur les formats larges.
+- Le smoke du registre Frères-Lumière échouait parce que son exécutable autonome n’embarquait pas les quatre CSV qu’il charge via `Bundle.main`. Son script crée maintenant un bundle temporaire de diagnostic avec les mêmes ressources que l’app; l’assertion de la ligne 113 et les limites de preuve passent sans changer les données du jeu.
+- Les smokes `validate-mobile-operations-tabs.sh`, `validate-vehicle-market-inspection.sh`, `validate-timetable-layout.sh`, `validate-depot-directory-filters.sh` et `validate-depot-line-roster-evidence.sh` passent. `sh -n` des deux scripts modifiés et `swiftc -frontend -parse` des quatre vues Swift modifiées passent.
+- Les choix suivent `accessibility.md › Mobility` (cibles iOS de 44 × 44 pt), `layout.md › Adaptability`, `designing-for-ios.md › Best practices`, `sheets.md › Mobile` et `liquid-glass.md › Apple's rules`. Les builds Debug ont réussi pour macOS (`x86_64 arm64`) et iPhoneOS (`arm64`); les deux `Info.plist` passent `plutil -lint`. Aucune revue visuelle iPhone n’est possible sans CoreSimulator ou appareil connecté.
+- L’audit macro reste à 3/9 portes produit (33,3 % de ces portes uniquement, pas une mesure du jeu complet). L’estimation de 25–45 jours d’ingénierie concentrée (environ 5–9 semaines pour une personne), hors dépendances externes, reste inchangée.
+
 # Carte compacte iPhone et fiches d’arrêt/bus — 1er novembre 2026
 
 - La carte iPhone conserve son affichage pleine largeur, le sélecteur de lignes en feuille, l’ajustement caméra après sélection, les couches réseau/arrêts/flotte/incidents, ainsi que le compas et l’échelle. La légende et les perturbations actives restent dans des feuilles fermables afin de dégager les interactions cartographiques.

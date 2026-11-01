@@ -2,7 +2,7 @@ import MapKit
 import SwiftUI
 import UniformTypeIdentifiers
 
-private extension View {
+extension View {
     @ViewBuilder
     func platformSheetFrame(minWidth: CGFloat, minHeight: CGFloat) -> some View {
         #if os(macOS)
@@ -2415,7 +2415,8 @@ struct OperationsDashboardView: View {
                         }
                     } label: {
                         Image(systemName: "speedometer")
-                            .frame(width: 38, height: 38)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Circle())
                     }
                     .accessibilityLabel("Vitesse de simulation : \(session.speed.title)")
 
@@ -2423,7 +2424,8 @@ struct OperationsDashboardView: View {
                         if simulation.isRunning { simulation.pause() } else { simulation.resume() }
                     } label: {
                         Image(systemName: simulation.isRunning ? "pause.fill" : "play.fill")
-                            .frame(width: 38, height: 38)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Circle())
                     }
                     .buttonStyle(.borderedProminent)
                     .disabled((isTimetableExtensionBlocked && !simulation.isRunning) || pendingIncidentResponse != nil)
@@ -2433,7 +2435,8 @@ struct OperationsDashboardView: View {
                         _ = simulation.advanceToNextEvent()
                     } label: {
                         Image(systemName: "forward.end.fill")
-                            .frame(width: 38, height: 38)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Circle())
                     }
                     .buttonStyle(.bordered)
                     .disabled(session.pendingEvents.isEmpty || pendingIncidentResponse != nil)
@@ -7458,7 +7461,7 @@ private struct VehicleMarketInspectionSheet: View {
                 }
             }
         }
-        .frame(minWidth: 480, minHeight: 460)
+        .platformSheetFrame(minWidth: 480, minHeight: 460)
     }
 }
 
@@ -7717,11 +7720,11 @@ private struct MachinistManagementView: View {
                     machinist: machinist,
                     machinists: machinists
                 )
-                .frame(minWidth: 500, minHeight: 380)
+                .platformSheetFrame(minWidth: 500, minHeight: 380)
             }
             .sheet(item: $machinistForTraining) { machinist in
                 MachinistTrainingEditorView(simulation: simulation, machinist: machinist)
-                    .frame(minWidth: 500, minHeight: 340)
+                    .platformSheetFrame(minWidth: 500, minHeight: 340)
             }
             .sheet(item: $machinistForBreak) { machinist in
                 MachinistBreakEditorView(
@@ -7729,7 +7732,7 @@ private struct MachinistManagementView: View {
                     machinist: machinist,
                     windows: simulation.availableMachinistBreakWindows(for: machinist.id)
                 )
-                .frame(minWidth: 520, minHeight: 340)
+                .platformSheetFrame(minWidth: 520, minHeight: 340)
             }
             .sheet(item: $machinistBlockForCorrection) { block in
                 MachinistAssignmentCorrectionEditorView(
@@ -7738,7 +7741,7 @@ private struct MachinistManagementView: View {
                     previousMachinistName: machinistName(block.machinistID),
                     candidates: simulation.availableMachinistDutyBlockCorrectionCandidates(dutyBlockID: block.id)
                 )
-                .frame(minWidth: 540, minHeight: 440)
+                .platformSheetFrame(minWidth: 540, minHeight: 440)
             }
             .confirmationDialog(
                 "Confirmer le recrutement",

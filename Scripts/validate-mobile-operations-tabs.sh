@@ -21,6 +21,9 @@ swiftc \
 
 app_source="$project_root/TransportManagerIDFM/TransportManagerIDFMApp.swift"
 dashboard_source="$project_root/TransportManagerIDFM/Features/OperationsDashboardView.swift"
+playback_accessory_source="$project_root/TransportManagerIDFM/Features/MobileSimulationPlaybackAccessory.swift"
+depot_inspector_source="$project_root/TransportManagerIDFM/Features/DepotInspectorView.swift"
+network_coverage_source="$project_root/TransportManagerIDFM/Features/NetworkCoverageAuditView.swift"
 
 if ! rg -Uq '#if os\(iOS\)[\r\n]+[[:space:]]*OperationsDashboardView\(\)' "$app_source"; then
     echo "The iOS app root must use OperationsDashboardView." >&2
@@ -124,5 +127,60 @@ if ! rg -Fq '.frame(width: 44, height: 44)' "$dashboard_source" \
     || ! rg -Fq '.accessibilityLabel("Engager un conducteur")' "$dashboard_source" \
     || ! rg -Fq '.accessibilityLabel("Affecter un départ")' "$dashboard_source"; then
     echo "Compact empty-fleet actions must remain discoverable and have 44-point targets." >&2
+    exit 1
+fi
+
+mobile_playback_controls=$(sed -n '/private var mobileSimulationControlBar:/,/private var depotLineSidebar:/p' "$dashboard_source")
+if ! printf '%s\n' "$mobile_playback_controls" | rg -Fq '.frame(width: 44, height: 44)' \
+    || [ "$(printf '%s\n' "$mobile_playback_controls" | rg -Fc '.frame(width: 44, height: 44)')" -lt 3 ] \
+    || ! printf '%s\n' "$mobile_playback_controls" | rg -Fq 'accessibilityLabel("Vitesse de simulation :' \
+    || ! printf '%s\n' "$mobile_playback_controls" | rg -Fq 'accessibilityLabel(simulation.isRunning ? "Mettre en pause" : "Reprendre la carrière")' \
+    || ! printf '%s\n' "$mobile_playback_controls" | rg -Fq 'accessibilityLabel("Avancer au prochain événement")'; then
+    echo "The iOS 17–25 playback fallback must keep speed, pause/resume, and next-event controls with 44-point targets." >&2
+    exit 1
+fi
+
+if ! rg -Fq 'Text(simulatedAt.formatted(date: .abbreviated, time: .shortened))' "$playback_accessory_source" \
+    || ! rg -Fq 'onSetSpeed(option)' "$playback_accessory_source" \
+    || ! rg -Fq 'Button(action: onAdvanceToNextEvent)' "$playback_accessory_source" \
+    || ! rg -Fq 'Button(action: onTogglePlayback)' "$playback_accessory_source" \
+    || ! rg -Fq '.frame(width: 44, height: 44)' "$playback_accessory_source"; then
+    echo "The iOS 26 playback accessory must keep simulated time, speed, pause/resume, and next-event controls." >&2
+    exit 1
+fi
+
+for responsive_sheet in \
+    '.platformSheetFrame(minWidth: 480, minHeight: 460)' \
+    '.platformSheetFrame(minWidth: 500, minHeight: 380)' \
+    '.platformSheetFrame(minWidth: 500, minHeight: 340)' \
+    '.platformSheetFrame(minWidth: 520, minHeight: 340)' \
+    '.platformSheetFrame(minWidth: 540, minHeight: 440)'; do
+    if ! rg -Fq "$responsive_sheet" "$dashboard_source"; then
+        echo "Compact inspection and staff sheets must adapt to iPhone width while retaining desktop dimensions." >&2
+        exit 1
+    fi
+done
+
+for responsive_sheet in \
+    '.platformSheetFrame(minWidth: 1040, minHeight: 700)' \
+    '.platformSheetFrame(minWidth: 720, minHeight: 640)' \
+    '.platformSheetFrame(minWidth: 1120, minHeight: 680)'; do
+    if ! rg -Fq "$responsive_sheet" "$depot_inspector_source"; then
+        echo "Depot, line-roster, and regional-audit details must fit iPhone sheets." >&2
+        exit 1
+    fi
+done
+
+if ! rg -Fq 'if horizontalSizeClass == .compact {' "$depot_inspector_source" \
+    || ! rg -Fq '.navigationDestination(isPresented: $isMobileDepotDetailPresented)' "$depot_inspector_source" \
+    || ! rg -Fq 'selectedDepotDetail' "$depot_inspector_source"; then
+    echo "The depot directory must navigate to its detail on compact iPhone screens instead of forcing a two-column layout." >&2
+    exit 1
+fi
+
+if ! rg -Fq '.platformSheetFrame(minWidth: 860, minHeight: 620)' "$network_coverage_source" \
+    || ! rg -Fq '.platformSheetFrame(minWidth: 760, minHeight: 620)' "$network_coverage_source" \
+    || ! rg -Fq 'func platformSheetFrame(minWidth: CGFloat, minHeight: CGFloat)' "$dashboard_source"; then
+    echo "Network and trip-review sheets must use the adaptive platform frame." >&2
     exit 1
 fi

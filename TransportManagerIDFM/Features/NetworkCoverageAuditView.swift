@@ -245,7 +245,7 @@ struct NetworkCoverageAuditView: View {
                 .padding(20)
             }
         }
-        .frame(minWidth: 860, minHeight: 620)
+        .platformSheetFrame(minWidth: 860, minHeight: 620)
         .environment(\.timeZone, GTFSServiceDate.parisTimeZone)
         .toolbar {
             if showsCloseButton {
@@ -1869,7 +1869,7 @@ private struct GTFSTripGeometryReviewSheet: View {
             }
             .task(id: "\(versionID)|\(tripID)") { await loadReview() }
         }
-        .frame(minWidth: 760, minHeight: 620)
+        .platformSheetFrame(minWidth: 760, minHeight: 620)
     }
 
     @ViewBuilder

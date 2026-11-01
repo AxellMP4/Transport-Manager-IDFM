@@ -95,7 +95,7 @@ struct DepotInspectorView: View {
                     library: library,
                     initialServiceDate: serviceDate
                 )
-                .frame(minWidth: 1040, minHeight: 700)
+                .platformSheetFrame(minWidth: 1040, minHeight: 700)
             }
         }
     }
@@ -546,7 +546,7 @@ struct DepotLineRosterView: View {
                 .padding(20)
             }
         }
-        .frame(minWidth: 720, minHeight: 640)
+        .platformSheetFrame(minWidth: 720, minHeight: 640)
         .fileImporter(isPresented: $isGTFSImporterPresented, allowedContentTypes: [.zip], allowsMultipleSelection: false) { result in
             if case let .success(urls) = result, let url = urls.first {
                 library.importGTFS(from: url, provenance: gtfsImportProvenance)
@@ -565,7 +565,7 @@ struct DepotLineRosterView: View {
                     )
                 } else {
                     ContentUnavailableView("GTFS absent", systemImage: "archivebox", description: Text("Importez une archive GTFS pour afficher une grille horaire par course et par arrêt."))
-                        .frame(minWidth: 600, minHeight: 260)
+                        .platformSheetFrame(minWidth: 600, minHeight: 260)
                 }
             case .assignment(let prefill):
                 DepotAssignmentManagerView(
@@ -574,7 +574,7 @@ struct DepotLineRosterView: View {
                     depot: scenario.referenceDepots.first { $0.id == prefill.depotID },
                     prefill: prefill
                 )
-                .frame(minWidth: 720, minHeight: 620)
+                .platformSheetFrame(minWidth: 720, minHeight: 620)
             }
         }
         .task {
@@ -987,6 +987,10 @@ struct DepotDirectoryWorkspaceView: View {
     )
 
     @ObservedObject var library: NetworkLibrary
+#if os(iOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @State private var isMobileDepotDetailPresented = false
+#endif
     /// The depot currently selected in the directory; it can differ from the active career depot.
     let selectedDepotID: String
     let careerDepotID: String?
@@ -1131,12 +1135,25 @@ struct DepotDirectoryWorkspaceView: View {
     }
 
     var body: some View {
-        HStack(spacing: 0) {
-            directoryList
-                .frame(minWidth: 320, idealWidth: 390, maxWidth: 480)
-            Divider()
-            selectedDepotDetail
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        Group {
+#if os(iOS)
+            if horizontalSizeClass == .compact {
+                NavigationStack {
+                    directoryList
+                        .navigationTitle("Dépôts")
+                        .navigationBarTitleDisplayMode(.inline)
+                        .navigationDestination(isPresented: $isMobileDepotDetailPresented) {
+                            selectedDepotDetail
+                                .navigationTitle(selectedSite?.name ?? "Détail du dépôt")
+                                .navigationBarTitleDisplayMode(.inline)
+                        }
+                }
+            } else {
+                depotDirectorySplitView
+            }
+#else
+            depotDirectorySplitView
+#endif
         }
         .background(PlatformColors.windowBackground)
         .task(id: coverageSourceTaskID) {
@@ -1498,6 +1515,11 @@ struct DepotDirectoryWorkspaceView: View {
         } else {
             onSelect(site.id)
         }
+#if os(iOS)
+        if horizontalSizeClass == .compact {
+            isMobileDepotDetailPresented = true
+        }
+#endif
         guard centerMap, let coordinate = mapCoordinatesBySiteID[site.id] else { return }
         mapCameraPosition = .region(Self.region(centeredOn: coordinate, latitudeDelta: 0.22, longitudeDelta: 0.3))
     }
@@ -2069,7 +2091,7 @@ private struct DepotRegionalCoverageAuditView: View {
                 }
             }
         }
-        .frame(minWidth: 1120, minHeight: 680)
+        .platformSheetFrame(minWidth: 1120, minHeight: 680)
         .task(id: "\(auditInputKey)|\(reloadToken)") {
             await runAudit(inputKey: auditInputKey)
         }

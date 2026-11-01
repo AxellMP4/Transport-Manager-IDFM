@@ -659,7 +659,7 @@ struct DepotLinesWorkspaceView: View {
                     systemImage: "clock.badge.exclamationmark",
                     description: Text("Aucune version GTFS n’est chargée pour cette date.")
                 )
-                .frame(minWidth: 600, minHeight: 280)
+                .platformSheetFrame(minWidth: 600, minHeight: 280)
             }
         }
     }
