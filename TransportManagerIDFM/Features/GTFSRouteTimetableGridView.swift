@@ -64,33 +64,62 @@ struct GTFSRouteTimetableGridView: View {
         }
     }
 
+    private var headerTitle: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Grille théorique · ligne \(route.shortName)")
+                .font(.title2.weight(.semibold))
+            Text("Route GTFS \(route.routeID) · \(version.displaySourceTitle)")
+                .font(.caption.monospaced())
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var serviceDatePicker: some View {
+        DatePicker(
+            "Date de service",
+            selection: $serviceDate,
+            in: Self.serviceDateRange(for: version) ?? Date.distantPast...Date.distantFuture,
+            displayedComponents: .date
+        )
+        #if os(macOS)
+        .datePickerStyle(.field)
+        .frame(maxWidth: 250)
+        #else
+        .datePickerStyle(.compact)
+        .labelsHidden()
+        .accessibilityLabel("Date de service")
+        #endif
+    }
+
+    private var closeButton: some View {
+        Button("Fermer") { dismiss() }
+            .keyboardShortcut(.cancelAction)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            #if os(macOS)
             HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Grille théorique · ligne \(route.shortName)")
-                        .font(.title2.weight(.semibold))
-                    Text("Route GTFS \(route.routeID) · \(version.displaySourceTitle)")
-                        .font(.caption.monospaced())
-                        .foregroundStyle(.secondary)
-                }
+                headerTitle
                 Spacer()
-                DatePicker(
-                    "Date de service",
-                    selection: $serviceDate,
-                    in: Self.serviceDateRange(for: version) ?? Date.distantPast...Date.distantFuture,
-                    displayedComponents: .date
-                )
-                    #if os(macOS)
-                    .datePickerStyle(.field)
-                    #else
-                    .datePickerStyle(.compact)
-                    #endif
-                    .frame(maxWidth: 250)
-                Button("Fermer") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
+                serviceDatePicker
+                closeButton
             }
             .padding(18)
+            #else
+            VStack(alignment: .leading, spacing: 12) {
+                headerTitle
+
+                HStack(spacing: 12) {
+                    serviceDatePicker
+                    Spacer(minLength: 0)
+                    closeButton
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(18)
+            #endif
 
             Divider()
 
@@ -173,7 +202,11 @@ struct GTFSRouteTimetableGridView: View {
                 .padding(18)
             }
         }
+        #if os(macOS)
         .frame(minWidth: 760, minHeight: 540)
+        #else
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        #endif
         .environment(\.timeZone, GTFSServiceDate.parisTimeZone)
         .task(id: serviceDateKey) {
             await loadTimetable()
@@ -189,25 +222,7 @@ struct GTFSRouteTimetableGridView: View {
             departures: group.trips.compactMap { $0.stops.first?.scheduledAt }
         )
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(group.title)
-                        .font(.headline)
-                    Text("\(group.trips.count) courses · \(group.trips.first?.stops.count ?? 0) arrêts")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text(intervalSummaryDescription(departureIntervals))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer()
-                if let first, let last {
-                    Text("Premier départ \(serviceTime(first)) · dernier \(serviceTime(last))")
-                        .font(.caption.monospaced())
-                        .foregroundStyle(.secondary)
-                }
-            }
+            tripGroupHeader(group, departureIntervals: departureIntervals, first: first, last: last)
             ScrollView(.horizontal) {
                 VStack(alignment: .leading, spacing: 0) {
                     HStack(spacing: 0) {
@@ -252,6 +267,55 @@ struct GTFSRouteTimetableGridView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.background, in: RoundedRectangle(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(.quaternary, lineWidth: 1))
+    }
+
+    @ViewBuilder
+    private func tripGroupHeader(
+        _ group: GTFSRouteTripGroup,
+        departureIntervals: GTFSDepartureIntervalSummary,
+        first: Date?,
+        last: Date?
+    ) -> some View {
+        #if os(macOS)
+        HStack(alignment: .firstTextBaseline) {
+            tripGroupDetails(group, departureIntervals: departureIntervals)
+            Spacer()
+            tripGroupDepartureRange(first: first, last: last)
+        }
+        #else
+        VStack(alignment: .leading, spacing: 5) {
+            tripGroupDetails(group, departureIntervals: departureIntervals)
+            tripGroupDepartureRange(first: first, last: last)
+        }
+        #endif
+    }
+
+    private func tripGroupDetails(
+        _ group: GTFSRouteTripGroup,
+        departureIntervals: GTFSDepartureIntervalSummary
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(group.title)
+                .font(.headline)
+                .fixedSize(horizontal: false, vertical: true)
+            Text("\(group.trips.count) courses · \(group.trips.first?.stops.count ?? 0) arrêts")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(intervalSummaryDescription(departureIntervals))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    @ViewBuilder
+    private func tripGroupDepartureRange(first: Date?, last: Date?) -> some View {
+        if let first, let last {
+            Text("Premier départ \(serviceTime(first)) · dernier \(serviceTime(last))")
+                .font(.caption.monospaced())
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     private func intervalSummaryDescription(_ summary: GTFSDepartureIntervalSummary) -> String {
