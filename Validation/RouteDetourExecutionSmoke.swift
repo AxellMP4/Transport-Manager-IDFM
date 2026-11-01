@@ -5,13 +5,15 @@ import Foundation
 struct RouteDetourExecutionSmoke {
     static func main() {
         accidentCauseIsStoredAndLegacyDetoursDecode()
+        generatedTrafficDisruptionsAreRepeatableAndAffectSchedules()
+        trafficDisruptionFrequencyHasACompatibleCareerDefault()
         futureDetoursShiftOnlyUpcomingVisits()
         passedSegmentsAreNotRewritten()
         dispatchedTripEventsAndReservationsAreUpdated()
         detourDelayPropagatesToFollowingAssignedTrip()
         detourReservationConflictIsAtomic()
         legacySessionsDecodeWithoutTripPlans()
-        print("PASS: dispatched route detours update future events and reservations atomically")
+        print("PASS: generated traffic disruptions are repeatable, persisted, and delay affected trips")
     }
 
     private static func accidentCauseIsStoredAndLegacyDetoursDecode() {
@@ -39,12 +41,115 @@ struct RouteDetourExecutionSmoke {
         let encoded = try! JSONEncoder().encode(detour)
         let decoded = try! JSONDecoder().decode(SimulatedRouteDetour.self, from: encoded)
         precondition(decoded.cause == .accident)
+        precondition(decoded.effectiveOrigin == .player)
         let json = try! JSONSerialization.jsonObject(with: encoded) as! [String: Any]
         var legacyJSON = json
         legacyJSON.removeValue(forKey: "cause")
+        legacyJSON.removeValue(forKey: "origin")
         let legacyData = try! JSONSerialization.data(withJSONObject: legacyJSON)
         let decodedLegacy = try! JSONDecoder().decode(SimulatedRouteDetour.self, from: legacyData)
         precondition(decodedLegacy.cause == nil)
+        precondition(decodedLegacy.effectiveOrigin == .player)
+    }
+
+    private static func generatedTrafficDisruptionsAreRepeatableAndAffectSchedules() {
+        let start = Date(timeIntervalSince1970: 1_800_000_000)
+        let visits = routeVisits(startingAt: start)
+        var counts = [TrafficDisruptionFrequency: Int]()
+
+        for frequency in TrafficDisruptionFrequency.allCases {
+            counts[frequency] = (1...2_000).reduce(into: 0) { count, seed in
+                let event = SimulationEngine.plannedRoadCongestion(
+                    routeID: "line-1",
+                    tripID: "trip-\(seed)",
+                    serviceDateKey: 20261025,
+                    stopVisits: visits,
+                    randomSeed: UInt64(seed),
+                    frequency: frequency,
+                    existingDetours: []
+                )
+                if event != nil { count += 1 }
+            }
+        }
+        precondition(counts[.disabled] == 0)
+        precondition(counts[.reduced]! <= counts[.standard]!)
+        precondition(counts[.standard]! <= counts[.increased]!)
+        precondition(counts[.increased]! > 0)
+
+        let seed = (1...20_000).first { seed in
+            SimulationEngine.plannedRoadCongestion(
+                routeID: "line-1",
+                tripID: "repeatable-trip",
+                serviceDateKey: 20261025,
+                stopVisits: visits,
+                randomSeed: UInt64(seed),
+                frequency: .increased,
+                existingDetours: []
+            ) != nil
+        }
+        guard let seed,
+              let event = SimulationEngine.plannedRoadCongestion(
+                  routeID: "line-1",
+                  tripID: "repeatable-trip",
+                  serviceDateKey: 20261025,
+                  stopVisits: visits,
+                  randomSeed: UInt64(seed),
+                  frequency: .increased,
+                  existingDetours: []
+              ) else {
+            preconditionFailure("The fixed seed range should produce at least one generated congestion event.")
+        }
+        let repeated = SimulationEngine.plannedRoadCongestion(
+            routeID: "line-1",
+            tripID: "repeatable-trip",
+            serviceDateKey: 20261025,
+            stopVisits: visits,
+            randomSeed: UInt64(seed),
+            frequency: .increased,
+            existingDetours: []
+        )
+        precondition(repeated == event)
+        precondition(event.cause == .congestion)
+        precondition(event.effectiveOrigin == .simulation)
+        precondition((240...840).contains(Int(event.additionalTravelSeconds)))
+
+        let application = RouteDetourSchedulePlanner.applying(detours: [event], to: visits)
+        precondition(application.appliedDetourIDs == [event.id])
+        guard let changedSegmentIndex = visits.indices.dropLast().first(where: {
+            visits[$0].stopID == event.fromStopID && visits[$0 + 1].stopID == event.toStopID
+        }) else {
+            preconditionFailure("The generated incident must point to an existing adjacent segment.")
+        }
+        precondition(application.visits[changedSegmentIndex + 1].scheduledAt
+                     == visits[changedSegmentIndex + 1].scheduledAt.addingTimeInterval(event.additionalTravelSeconds))
+
+        let duplicate = SimulationEngine.plannedRoadCongestion(
+            routeID: "line-1",
+            tripID: "repeatable-trip",
+            serviceDateKey: 20261025,
+            stopVisits: visits,
+            randomSeed: UInt64(seed),
+            frequency: .increased,
+            existingDetours: [event]
+        )
+        precondition(duplicate == nil)
+    }
+
+    private static func trafficDisruptionFrequencyHasACompatibleCareerDefault() {
+        var session = sessionWithDispatchedTrip()
+        precondition(session.effectiveTrafficDisruptionFrequency == .standard)
+        session.trafficDisruptionFrequency = .increased
+
+        let encoded = try! JSONEncoder().encode(session)
+        let decoded = try! JSONDecoder().decode(SimulationSession.self, from: encoded)
+        precondition(decoded.effectiveTrafficDisruptionFrequency == .increased)
+
+        let json = try! JSONSerialization.jsonObject(with: encoded) as! [String: Any]
+        var legacyJSON = json
+        legacyJSON.removeValue(forKey: "trafficDisruptionFrequency")
+        let legacyData = try! JSONSerialization.data(withJSONObject: legacyJSON)
+        let decodedLegacy = try! JSONDecoder().decode(SimulationSession.self, from: legacyData)
+        precondition(decodedLegacy.effectiveTrafficDisruptionFrequency == .standard)
     }
 
     private static func futureDetoursShiftOnlyUpcomingVisits() {
