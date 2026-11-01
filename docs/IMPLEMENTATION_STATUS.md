@@ -1,3 +1,10 @@
+# Transfert manuel des carrières sur iPhone — 1er novembre 2026
+
+- Nouveauté : l’onglet Carrière iOS propose maintenant d’exporter la sauvegarde JSON vers Fichiers ou d’en importer une, y compris avant la création d’une partie. Si une carrière est déjà ouverte, l’import demande confirmation avant de la remplacer; la restauration passe par le même validateur du moteur et met la partie importée en pause. Les changements de sauvegarde continuent d’alimenter la synchronisation iCloud existante. Le fichier n’embarque pas les archives réseau, qui doivent aussi être disponibles sur l’appareil.
+- Vérification : le build Debug macOS non signé `ONLY_ACTIVE_ARCH=NO` termine au code 0 et produit `x86_64 arm64`. Le build Debug iPhoneOS générique non signé termine aussi au code 0; le produit est `arm64`, iOS minimum 17.0, Info.plist valide. Les archives locales passent vérification de signature ad hoc et ZIP après extraction fraîche; 18 fragments GTFS du 30 octobre et les 3 CSV runtime du roster sont inclus, sans entrées AppleDouble.
+- Paquet jouable macOS local : 175 702 328 octets; SHA-256 `80291df13f97457fbef87153da32a66420664021f81f4e457e962c542790dbf3`. La copie racine et celle de `build/Debug` concordent. Signature ad hoc, sans Developer ID ni notarisation.
+- Aucun parcours visuel ou transfert iCloud réel n’est revendiqué : CoreSimulator est indisponible, la session Mac est verrouillée et le provisionnement Apple requis pour le CloudKit entre appareils reste externe.
+
 # Grille des horaires GTFS adaptée à l’iPhone — 1er novembre 2026
 
 - Nouveauté : la grille garde sa barre de titre en ligne sur macOS, mais adopte sur iPhone un en-tête en deux rangées avec date de service compacte et bouton Fermer. Les titres de groupes de courses, leurs espacements et les premiers/derniers départs s’empilent pour tenir dans la largeur disponible. La largeur minimale de 760 points est conservée uniquement sur macOS; les colonnes d’arrêts restent consultables par défilement horizontal.
