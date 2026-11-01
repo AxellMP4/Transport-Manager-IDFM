@@ -26,6 +26,7 @@ L’app du paquet porte une signature **ad hoc**, sans identité Developer ID, e
 
 ## Fonctionnalités principales
 
+- Au lancement, ouvrir le menu principal pour continuer la dernière carrière, commencer une nouvelle partie, choisir un scénario/centre, reprendre n’importe quelle sauvegarde locale, importer/exporter une carrière ou régler les options. Les sauvegardes sont listées par date et restent distinctes : une nouvelle partie garde les anciennes, et un import dont l’identifiant existe déjà est importé comme copie.
 - Choisir un dépôt et démarrer une carrière sur des départs GTFS disponibles à la date choisie. Les carrières épinglent leurs versions réseau, leur dépôt et leur graine ; sauvegarde locale, export/import JSON, horloge continue, pause, vitesses et avance au prochain événement sont disponibles.
 - Parcourir les dépôts sur une carte MapKit et les filtrer par statut, exploitant documenté, contrat et données disponibles. Les épingles sont recherchées à partir d’adresses publiées; un site non localisé reste accessible dans la liste et aucune position approximative n’est inventée.
 - Explorer le catalogue régional des dépôts et des lignes, grilles horaires, arrêts, tracés, documents de ligne, contours de contrat, audits GTFS et sources. Les imports et consultations PRIM restent facultatifs ; les observations PRIM sont affichées à part des événements simulés.
