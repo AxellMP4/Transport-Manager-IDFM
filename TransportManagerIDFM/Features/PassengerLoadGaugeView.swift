@@ -30,7 +30,7 @@ struct PassengerLoadGaugeView: View {
         Group {
             if compact {
                 Text("\(presentation.occupancyPercent) %")
-                    .font(.caption2.monospacedDigit().weight(.bold))
+                    .font(.caption.monospacedDigit().weight(.bold))
                     .foregroundStyle(statusColor)
                     .padding(.horizontal, 5)
                     .padding(.vertical, 3)
@@ -45,14 +45,14 @@ struct PassengerLoadGaugeView: View {
                             .monospacedDigit()
                             .fontWeight(.semibold)
                     }
-                    .font(.caption2)
+                    .font(.caption)
 
                     ProgressView(value: presentation.progressFraction)
                         .tint(statusColor)
                         .controlSize(.small)
 
                     Text("\(presentation.status.title)\(capacityIsEstimated ? " · capacité estimée" : "")")
-                        .font(.caption2)
+                        .font(.caption)
                         .foregroundStyle(statusColor)
                 }
             }
@@ -96,10 +96,10 @@ struct PassengerVehicleMapMarkerView: View {
         Button(action: action) {
             HStack(spacing: 5) {
                 Image(systemName: symbol)
-                    .font(.caption2.weight(.bold))
+                    .font(.caption.weight(.bold))
                     .foregroundStyle(.white)
                 Text(shellNumber)
-                    .font(.caption2.monospaced().weight(.bold))
+                    .font(.caption.monospaced().weight(.bold))
                     .foregroundStyle(.primary)
                 PassengerLoadGaugeView(
                     passengerCount: passengerCount,
@@ -110,6 +110,7 @@ struct PassengerVehicleMapMarkerView: View {
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 6)
+            .frame(minWidth: 44, minHeight: 44)
             .background(.regularMaterial, in: Capsule())
             .overlay(Capsule().strokeBorder(mapColor, lineWidth: 2))
         }
