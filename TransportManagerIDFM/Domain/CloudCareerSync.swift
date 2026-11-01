@@ -274,6 +274,7 @@ final class CloudCareerSyncManager: ObservableObject {
     private static let minimumUploadInterval: TimeInterval = 120
 
     private let container = CKContainer(identifier: containerIdentifier)
+    private let syncRequestCoalescer = CloudSyncRequestCoalescer()
     private let throttleRetryScheduler = CloudSyncRetryScheduler()
     private var scheduledSync: Task<Void, Never>?
     private var lastUploadAttemptAt: Date?
@@ -307,10 +308,27 @@ final class CloudCareerSyncManager: ObservableObject {
         library: NetworkLibrary,
         resolution: SyncResolution
     ) async {
-        guard !isSyncing else { return }
-        isSyncing = true
+        await syncRequestCoalescer.run(
+            { [weak self] in
+                guard let self else { return }
+                await self.performSynchronization(
+                    with: engine,
+                    library: library,
+                    resolution: resolution
+                )
+            },
+            onStateChange: { [weak self] isSyncing in
+                self?.isSyncing = isSyncing
+            }
+        )
+    }
+
+    private func performSynchronization(
+        with engine: SimulationEngine,
+        library: NetworkLibrary,
+        resolution: SyncResolution
+    ) async {
         statusMessage = "Synchronisation iCloud…"
-        defer { isSyncing = false }
 
         do {
             let accountStatus = try await container.accountStatus()
@@ -729,6 +747,36 @@ final class CloudSyncRetryScheduler {
             await retry()
         }
         return { task.cancel() }
+    }
+}
+
+@MainActor
+final class CloudSyncRequestCoalescer {
+    typealias Operation = @MainActor () async -> Void
+    typealias StateChange = @MainActor (Bool) -> Void
+
+    private(set) var isRunning = false
+    private var pendingOperation: Operation?
+
+    func run(_ operation: @escaping Operation, onStateChange: StateChange? = nil) async {
+        guard !isRunning else {
+            pendingOperation = operation
+            return
+        }
+
+        isRunning = true
+        onStateChange?(true)
+        defer {
+            isRunning = false
+            onStateChange?(false)
+        }
+
+        var nextOperation: Operation? = operation
+        while let currentOperation = nextOperation {
+            pendingOperation = nil
+            await currentOperation()
+            nextOperation = pendingOperation
+        }
     }
 }
 

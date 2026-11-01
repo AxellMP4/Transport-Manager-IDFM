@@ -7,7 +7,8 @@ struct CloudCareerSyncRetrySmoke {
         await throttledUploadRetriesWithoutFurtherInput()
         await aNewerSuccessfulSyncCancelsTheRetry()
         await deallocationCancelsTheRetry()
-        print("PASS: throttled iCloud upload retries once and cancels stale retries")
+        await aNewerRequestRunsAfterTheActiveSync()
+        print("PASS: throttled retries and in-flight synchronization coalescing are deterministic")
     }
 
     @MainActor
@@ -78,6 +79,48 @@ struct CloudCareerSyncRetrySmoke {
         precondition(weakScheduler == nil, "The retry task must not keep its owner alive.")
         await queue.fireNext()
         precondition(attempts == 0, "A retry owned by a deallocated sync manager must not run.")
+    }
+
+    @MainActor
+    private static func aNewerRequestRunsAfterTheActiveSync() async {
+        let coalescer = CloudSyncRequestCoalescer()
+        let gate = SmokeAsyncGate()
+        var completedRequests: [Int] = []
+
+        let firstSync = Task { @MainActor in
+            await coalescer.run {
+                completedRequests.append(1)
+                await gate.wait()
+            }
+        }
+
+        while completedRequests.isEmpty { await Task.yield() }
+        await coalescer.run { completedRequests.append(2) }
+        await coalescer.run { completedRequests.append(3) }
+        precondition(completedRequests == [1], "Requests arriving during a sync must wait, not overlap it.")
+
+        gate.release()
+        await firstSync.value
+        precondition(completedRequests == [1, 3], "The latest queued save must run immediately after the active sync.")
+    }
+}
+
+@MainActor
+private final class SmokeAsyncGate {
+    private var continuation: CheckedContinuation<Void, Never>?
+    private var isReleased = false
+
+    func wait() async {
+        guard !isReleased else { return }
+        await withCheckedContinuation { continuation in
+            self.continuation = continuation
+        }
+    }
+
+    func release() {
+        isReleased = true
+        continuation?.resume()
+        continuation = nil
     }
 }
 

@@ -45,6 +45,10 @@ enum SimulationEngineError: LocalizedError {
     case invalidImportedSave
     case noSessionToExport
     case maintenanceNotRequired
+    case recoveryTeamMaintenanceNotRequired
+    case recoveryTeamAlreadyInMaintenance
+    case recoveryTeamBusy
+    case recoveryTeamMaintenanceRequired
     case workshopPartUnavailable(VehicleWorkshopPart)
     case invalidWorkshopPartQuantity
     case workshopExpansionUnavailable
@@ -162,6 +166,14 @@ enum SimulationEngineError: LocalizedError {
             "Aucune carrière active à exporter."
         case .maintenanceNotRequired:
             "Ce véhicule est déjà à 100 % d’état et ne nécessite pas cet entretien."
+        case .recoveryTeamMaintenanceNotRequired:
+            "L’équipe de dépannage est déjà à 100 % d’état et ne nécessite pas cet entretien."
+        case .recoveryTeamAlreadyInMaintenance:
+            "L’équipe de dépannage est déjà en entretien dans ce dépôt."
+        case .recoveryTeamBusy:
+            "L’équipe de dépannage est engagée jusqu’au retour du bus et ne peut pas commencer son entretien."
+        case .recoveryTeamMaintenanceRequired:
+            "L’état de l’équipe impose un entretien avant un nouveau départ. Planifiez-le dans l’espace Incidents."
         case let .workshopPartUnavailable(part):
             "Stock épuisé : achetez un \(part.title.lowercased()) avant de planifier ce travail."
         case .invalidWorkshopPartQuantity:
@@ -706,6 +718,7 @@ enum SimulationEventKind: Codable, Hashable, Sendable {
     case vehicleRepairCompleted(incidentID: String)
     case vehicleMaintenanceStarted(maintenanceID: String)
     case vehicleMaintenanceCompleted(maintenanceID: String)
+    case recoveryTeamMaintenanceCompleted(depotID: String)
     case machinistAbsenceCompleted(absenceID: String)
     case machinistTrainingCompleted(trainingID: String)
     case machinistBreakStarted(breakID: String)
@@ -811,6 +824,8 @@ struct SimulationEvent: Codable, Hashable, Identifiable, Sendable {
             "Début de l’entretien préventif en atelier"
         case .vehicleMaintenanceCompleted:
             "Entretien préventif terminé"
+        case let .recoveryTeamMaintenanceCompleted(depotID):
+            "Entretien de l’équipe de dépannage terminé · \(DepotCareerScope.depotReference(for: depotID)?.name ?? depotID)"
         case .machinistAbsenceCompleted:
             "Absence machiniste terminée"
         case .machinistTrainingCompleted:
@@ -1401,6 +1416,14 @@ enum VehicleRecoveryRules {
     static let reliefCalloutWait: TimeInterval = 20 * 60
     static let reliefMaximumDispatchDistanceMeters: Double = 35_000
     static let reliefSurchargeEuro = 1_500
+    static let teamMaintenanceThresholdPercent = 25
+    static let teamMaintenanceCostEuro = 1_800
+    static let teamMaintenanceDuration: TimeInterval = 4 * 60 * 60
+
+    static func conditionLossAfterTow(distanceMeters: Double) -> Int {
+        guard distanceMeters.isFinite, distanceMeters > 0 else { return 5 }
+        return min(20, max(5, 5 + Int((distanceMeters / 20_000).rounded(.up))))
+    }
 
     static func teamID(for depotID: String) -> String {
         "simulated-recovery-team-\(depotID)"
@@ -1613,6 +1636,8 @@ struct SimulationSession: Codable, Hashable, Identifiable, Sendable {
     var passengerTransferQueueEntries: [PassengerTransferQueueEntry]? = nil
     var vehicleIncidents: [VehicleIncident]?
     var vehicleMaintenanceRecords: [VehicleMaintenanceRecord]?
+    var recoveryTeamConditionPercentByDepot: [String: Int]? = nil
+    var recoveryTeamMaintenanceCompletesAtByDepot: [String: Date]? = nil
     var stopClosures: [SimulatedStopClosure]? = nil
     var routeClosures: [SimulatedRouteClosure]? = nil
     var routeDetours: [SimulatedRouteDetour]? = nil
@@ -1739,7 +1764,65 @@ struct SimulationSession: Codable, Hashable, Identifiable, Sendable {
                 ?? incident.occurredAt.addingTimeInterval(plan?.expectedTravelSeconds ?? 0)
             return expectedArrival > simulatedAt ? expectedArrival : nil
         }.max()
-        return max(simulatedAt, occupiedUntil ?? simulatedAt)
+        let maintenanceCompletion = recoveryTeamMaintenanceCompletionDate(depotID: depotID)
+        let maintenanceUntil = maintenanceCompletion.flatMap { $0 > simulatedAt ? $0 : nil }
+        return max(simulatedAt, max(occupiedUntil ?? simulatedAt, maintenanceUntil ?? simulatedAt))
+    }
+
+    func recoveryTeamConditionPercent(depotID: String) -> Int {
+        min(100, max(0, recoveryTeamConditionPercentByDepot?[depotID] ?? 100))
+    }
+
+    func recoveryTeamMaintenanceCompletionDate(depotID: String) -> Date? {
+        recoveryTeamMaintenanceCompletesAtByDepot?[depotID]
+    }
+
+    func isRecoveryTeamDispatchEligible(depotID: String) -> Bool {
+        if let maintenanceCompletion = recoveryTeamMaintenanceCompletionDate(depotID: depotID),
+           maintenanceCompletion > simulatedAt {
+            return false
+        }
+        return recoveryTeamConditionPercent(depotID: depotID) >= VehicleRecoveryRules.teamMaintenanceThresholdPercent
+    }
+
+    func canDispatchRecoveryTeam(depotID: String, at dispatchAt: Date) -> Bool {
+        if let maintenanceCompletion = recoveryTeamMaintenanceCompletionDate(depotID: depotID) {
+            return dispatchAt >= maintenanceCompletion
+        }
+        return projectedRecoveryTeamConditionPercent(depotID: depotID, at: dispatchAt)
+            >= VehicleRecoveryRules.teamMaintenanceThresholdPercent
+    }
+
+    func projectedRecoveryTeamConditionPercent(depotID: String, at date: Date) -> Int {
+        if let maintenanceCompletion = recoveryTeamMaintenanceCompletionDate(depotID: depotID),
+           maintenanceCompletion <= date {
+            return 100
+        }
+        let upcomingWear = (vehicleIncidents ?? []).reduce(into: 0) { totalWear, incident in
+            guard incident.repairResponse == .towToDepot,
+                  let plan = incident.towPlan,
+                  plan.depotID == depotID,
+                  plan.recoveryProvider != .simulatedRelief,
+                  let arrivalAt = plan.expectedDepotArrivalAt,
+                  arrivalAt > simulatedAt,
+                  arrivalAt <= date else { return }
+            totalWear += VehicleRecoveryRules.conditionLossAfterTow(distanceMeters: plan.totalServiceDistanceMeters)
+        }
+        return max(0, recoveryTeamConditionPercent(depotID: depotID) - upcomingWear)
+    }
+
+    func recoveryTeamAvailabilityForReliefAssessment(depotID: String) -> Date {
+        if recoveryTeamConditionPercent(depotID: depotID) < VehicleRecoveryRules.teamMaintenanceThresholdPercent,
+           recoveryTeamMaintenanceCompletionDate(depotID: depotID) == nil {
+            return .distantFuture
+        }
+        let availableAt = nextRecoveryTeamAvailableAt(depotID: depotID)
+        if recoveryTeamMaintenanceCompletionDate(depotID: depotID) == nil,
+           projectedRecoveryTeamConditionPercent(depotID: depotID, at: availableAt)
+                < VehicleRecoveryRules.teamMaintenanceThresholdPercent {
+            return .distantFuture
+        }
+        return availableAt
     }
 
     func nextRecoveryReliefAvailableAt(depotID: String) -> Date {
@@ -4045,6 +4128,59 @@ final class SimulationEngine: ObservableObject {
         save()
     }
 
+    func scheduleRecoveryTeamMaintenance(depotID: String) throws {
+        guard var activeSession = session,
+              let cashBalance = activeSession.cashBalance else {
+            throw SimulationEngineError.marketUnavailable
+        }
+        guard activeSession.effectiveManagedDepotIDs.contains(depotID) else {
+            throw SimulationEngineError.marketUnavailable
+        }
+        guard activeSession.recoveryTeamMaintenanceCompletionDate(depotID: depotID) == nil else {
+            throw SimulationEngineError.recoveryTeamAlreadyInMaintenance
+        }
+        guard activeSession.recoveryTeamConditionPercent(depotID: depotID) < 100 else {
+            throw SimulationEngineError.recoveryTeamMaintenanceNotRequired
+        }
+        guard activeSession.nextRecoveryTeamAvailableAt(depotID: depotID) <= activeSession.simulatedAt else {
+            throw SimulationEngineError.recoveryTeamBusy
+        }
+        guard cashBalance >= VehicleRecoveryRules.teamMaintenanceCostEuro else {
+            throw SimulationEngineError.insufficientCapital(
+                required: VehicleRecoveryRules.teamMaintenanceCostEuro,
+                available: cashBalance
+            )
+        }
+
+        let completionAt = activeSession.simulatedAt.addingTimeInterval(VehicleRecoveryRules.teamMaintenanceDuration)
+        var completionDates = activeSession.recoveryTeamMaintenanceCompletesAtByDepot ?? [:]
+        completionDates[depotID] = completionAt
+        activeSession.recoveryTeamMaintenanceCompletesAtByDepot = completionDates
+        var ledgerEntries = activeSession.ledgerEntries ?? []
+        let maintenanceID = UUID().uuidString
+        ledgerEntries.append(SimulationLedgerEntry(
+            id: "recovery-team-maintenance-\(maintenanceID)",
+            occurredAt: activeSession.simulatedAt,
+            category: "Entretien équipe de dépannage",
+            description: "Équipe simulée du dépôt · restauration à 100 % · durée de jeu 4 h",
+            amount: -VehicleRecoveryRules.teamMaintenanceCostEuro,
+            nature: .operating,
+            cashDeltaEuro: 0,
+            depotID: depotID
+        ))
+        activeSession.ledgerEntries = ledgerEntries
+        let sequence = activeSession.nextEventSequence
+        activeSession.nextEventSequence &+= 1
+        activeSession.pendingEvents.append(SimulationEvent(
+            sequence: sequence,
+            simulatedAt: completionAt,
+            kind: .recoveryTeamMaintenanceCompleted(depotID: depotID)
+        ))
+        activeSession.pendingEvents.sort(by: Self.eventOrder)
+        session = activeSession
+        save()
+    }
+
     func scheduleVehicleRepair(
         incidentID: String,
         response: VehicleRepairResponse,
@@ -4069,6 +4205,16 @@ final class SimulationEngine: ObservableObject {
         }
         guard incident.repairResponse == nil, !alreadyScheduled else {
             throw SimulationEngineError.repairAlreadyPlanned
+        }
+        if response == .towToDepot,
+           let towPlan,
+           (towPlan.recoveryProvider ?? .depotTeam) == .depotTeam,
+           activeSession.recoveryTeamMaintenanceCompletionDate(depotID: towPlan.depotID) == nil,
+           !activeSession.canDispatchRecoveryTeam(
+                depotID: towPlan.depotID,
+                at: towPlan.dispatchStartsAt ?? activeSession.simulatedAt
+           ) {
+            throw SimulationEngineError.recoveryTeamMaintenanceRequired
         }
         if response == .towToDepot {
             guard let towPlan, Self.isValid(towPlan, for: incident, in: activeSession) else {
@@ -4407,6 +4553,7 @@ final class SimulationEngine: ObservableObject {
         guard let depot = DepotCareerScope.depotReference(for: plan.depotID),
               let dispatchStartsAt = plan.dispatchStartsAt else { return false }
         let depotTeamAvailableAt = session.nextRecoveryTeamAvailableAt(depotID: depot.id)
+        let reliefAssessmentTeamAvailableAt = session.recoveryTeamAvailabilityForReliefAssessment(depotID: depot.id)
         let providerIsValid: Bool
         switch plan.recoveryProvider ?? .depotTeam {
         case .depotTeam:
@@ -4414,11 +4561,12 @@ final class SimulationEngine: ObservableObject {
                 && plan.recoveryTeamName == VehicleRecoveryRules.teamName(for: depot.name)
                 && (plan.recoveryProviderSurchargeEuro == nil || plan.recoveryProviderSurchargeEuro == 0)
                 && dispatchStartsAt == depotTeamAvailableAt
+                && session.canDispatchRecoveryTeam(depotID: depot.id, at: dispatchStartsAt)
         case .simulatedRelief:
             if case let .available(estimatedPlan) = VehicleRecoveryRules.reliefAssessment(
                 from: plan,
                 simulatedAt: session.simulatedAt,
-                depotTeamAvailableAt: depotTeamAvailableAt,
+                depotTeamAvailableAt: reliefAssessmentTeamAvailableAt,
                 reliefAvailableAt: session.nextRecoveryReliefAvailableAt(depotID: depot.id)
             ) {
                 providerIsValid = plan.recoveryTeamID == VehicleRecoveryRules.reliefTeamID(for: depot.id)
@@ -6853,6 +7001,7 @@ final class SimulationEngine: ObservableObject {
         let payrollEntries = newAccruals.filter { $0.category == "Rémunération machinistes" }
         let workshopCategories: Set<String> = [
             "Entretien préventif",
+            "Entretien équipe de dépannage",
             "Réparation",
             "Diagnostic de panne",
             "Pièces d’atelier"
@@ -8525,6 +8674,17 @@ final class SimulationEngine: ObservableObject {
             session.vehicleIncidents = incidents
             return
         }
+        if case let .recoveryTeamMaintenanceCompleted(depotID) = event.kind {
+            guard var completionDates = session.recoveryTeamMaintenanceCompletesAtByDepot,
+                  let completionAt = completionDates[depotID],
+                  completionAt <= event.simulatedAt else { return }
+            completionDates.removeValue(forKey: depotID)
+            session.recoveryTeamMaintenanceCompletesAtByDepot = completionDates
+            var teamConditions = session.recoveryTeamConditionPercentByDepot ?? [:]
+            teamConditions[depotID] = 100
+            session.recoveryTeamConditionPercentByDepot = teamConditions
+            return
+        }
         guard var buses = session.ownedBuses else { return }
         if case let .vehicleBreakdown(plannedIncident) = event.kind {
             guard let busIndex = buses.firstIndex(where: { $0.id == plannedIncident.vehicleID }) else { return }
@@ -8601,6 +8761,13 @@ final class SimulationEngine: ObservableObject {
             guard var incidents = session.vehicleIncidents,
                   let incidentIndex = incidents.firstIndex(where: { $0.id == incidentID && !$0.isResolved }),
                   let plan = incidents[incidentIndex].towPlan else { return }
+            if plan.recoveryProvider != .simulatedRelief {
+                var teamConditions = session.recoveryTeamConditionPercentByDepot ?? [:]
+                let currentCondition = session.recoveryTeamConditionPercent(depotID: plan.depotID)
+                let wear = VehicleRecoveryRules.conditionLossAfterTow(distanceMeters: plan.totalServiceDistanceMeters)
+                teamConditions[plan.depotID] = max(0, currentCondition - wear)
+                session.recoveryTeamConditionPercentByDepot = teamConditions
+            }
             incidents[incidentIndex].towArrivedAt = event.simulatedAt
             incidents[incidentIndex].depotArrivedAt = event.simulatedAt
             session.vehicleIncidents = incidents

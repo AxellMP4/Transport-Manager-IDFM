@@ -9704,6 +9704,7 @@ private struct IncidentHistoryView: View {
     let onPreparePRIMDetour: (PRIMTrafficAlert) -> Void
     let onDismissPRIMAlert: (String) -> Void
     @Environment(\.dismiss) private var dismiss
+    @State private var recoveryTeamMaintenanceError: String?
 
     private var incidents: [VehicleIncident] {
         (simulation.session?.vehicleIncidents ?? []).sorted { $0.occurredAt > $1.occurredAt }
@@ -9716,6 +9717,73 @@ private struct IncidentHistoryView: View {
     var body: some View {
         NavigationStack {
             List {
+                Section("Équipe de dépannage") {
+                    if let session = simulation.session {
+                        let depotID = session.effectiveActiveDepotID
+                        let depotName = DepotCareerScope.depotReference(for: depotID)?.name ?? depotID
+                        let condition = session.recoveryTeamConditionPercent(depotID: depotID)
+                        let completionAt = session.recoveryTeamMaintenanceCompletionDate(depotID: depotID)
+                        let teamAvailableAt = session.nextRecoveryTeamAvailableAt(depotID: depotID)
+
+                        LabeledContent("Dépôt", value: depotName)
+                        HStack(spacing: 10) {
+                            Label("État", systemImage: "wrench.and.screwdriver")
+                            Spacer()
+                            Text("\(condition) %")
+                                .monospacedDigit()
+                                .foregroundStyle(condition < VehicleRecoveryRules.teamMaintenanceThresholdPercent ? Color.orange : Color.primary)
+                        }
+                        ProgressView(value: Double(condition), total: 100)
+                            .accessibilityLabel("État de l’équipe de dépannage · \(condition) pour cent")
+
+                        if let completionAt {
+                            Label("Entretien jusqu’à \(completionAt.formatted(date: .abbreviated, time: .shortened))", systemImage: "clock")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        } else if teamAvailableAt > session.simulatedAt {
+                            Label("Équipe engagée jusqu’au retour estimé à \(teamAvailableAt.formatted(date: .abbreviated, time: .shortened))", systemImage: "bus.fill")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        } else if condition < VehicleRecoveryRules.teamMaintenanceThresholdPercent {
+                            Label("Entretien requis avant un nouveau départ.", systemImage: "exclamationmark.triangle.fill")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        } else {
+                            Label("Équipe disponible", systemImage: "checkmark.circle.fill")
+                                .font(.caption)
+                                .foregroundStyle(.green)
+                        }
+
+                        if condition < 100 && completionAt == nil {
+                            Button {
+                                do {
+                                    try simulation.scheduleRecoveryTeamMaintenance(depotID: depotID)
+                                    recoveryTeamMaintenanceError = nil
+                                } catch {
+                                    recoveryTeamMaintenanceError = error.localizedDescription
+                                }
+                            } label: {
+                                Label(
+                                    "Planifier l’entretien · \(currency(VehicleRecoveryRules.teamMaintenanceCostEuro))",
+                                    systemImage: "calendar.badge.clock"
+                                )
+                            }
+                            .disabled(teamAvailableAt > session.simulatedAt)
+                        }
+
+                        if let recoveryTeamMaintenanceError {
+                            Label(recoveryTeamMaintenanceError, systemImage: "exclamationmark.triangle.fill")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+
+                        Text("Règle de jeu : chaque remorquage retire 5 points, plus 1 point par tranche entamée de 20 km, dans la limite de 20 points. Sous \(VehicleRecoveryRules.teamMaintenanceThresholdPercent) %, l’entretien est requis; il coûte \(currency(VehicleRecoveryRules.teamMaintenanceCostEuro)) et dure 4 h simulées.")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
                 Section("Alertes trafic PRIM") {
                     if primTrafficAlerts.isEmpty {
                         Text("Aucune alerte trafic consultée pour les lignes exploitées.")
@@ -10111,7 +10179,7 @@ private struct IncidentResponseView: View {
         return VehicleRecoveryRules.reliefAssessment(
             from: plan,
             simulatedAt: session.simulatedAt,
-            depotTeamAvailableAt: session.nextRecoveryTeamAvailableAt(depotID: plan.depotID),
+            depotTeamAvailableAt: session.recoveryTeamAvailabilityForReliefAssessment(depotID: plan.depotID),
             reliefAvailableAt: session.nextRecoveryReliefAvailableAt(depotID: plan.depotID)
         )
     }
