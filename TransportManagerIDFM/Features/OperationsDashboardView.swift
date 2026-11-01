@@ -993,6 +993,7 @@ struct OperationsDashboardView: View {
                 stop: request.stop,
                 routeID: request.routeID,
                 sourceObservation: request.sourceObservation,
+                suggestedCause: request.cause,
                 library: library,
                 simulation: simulation
             )
@@ -1411,12 +1412,22 @@ struct OperationsDashboardView: View {
             } else {
                 IncidentHistoryView(
                     simulation: simulation,
+                    library: library,
                     showsCloseButton: false,
                     onPreparePRIMDetour: { alert in
                         routeDetourRequest = RouteDetourRequest(
                             stop: nil,
                             routeID: alert.routeID,
-                            sourceObservation: alert.observation
+                            sourceObservation: alert.observation,
+                            cause: .trafficReport
+                        )
+                    },
+                    onStartRoadAccident: { routeID in
+                        routeDetourRequest = RouteDetourRequest(
+                            stop: nil,
+                            routeID: routeID,
+                            sourceObservation: nil,
+                            cause: .accident
                         )
                     },
                     onDismissPRIMAlert: { alertID in
@@ -3342,6 +3353,9 @@ struct OperationsDashboardView: View {
                                 Text("\(library.busRoutes.first(where: { $0.routeID == detour.routeID })?.displayName ?? detour.routeID) · \(detour.fromStopName) → \(detour.toStopName)")
                                     .font(.caption.weight(.semibold))
                                     .fixedSize(horizontal: false, vertical: true)
+                                Text("Cause · \(detour.cause?.title ?? "non précisée")")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
                                 Text("Temps estimé : \(detourRemainingLabel(detour)) · fin prévue à \(detour.scheduledEndAt.formatted(date: .omitted, time: .shortened))")
                                     .font(.caption2)
                                     .foregroundStyle(.secondary)
@@ -7819,6 +7833,7 @@ private struct RouteDetourRequest: Identifiable {
     let stop: GTFSStopSummary?
     let routeID: String
     let sourceObservation: PRIMTrafficObservation?
+    var cause: RouteDetourCause = .other
 
     var id: String { "\(stop?.stopID ?? "line")|\(routeID)|\(sourceObservation?.report.id ?? "manual")" }
 }
@@ -9856,8 +9871,10 @@ private struct MonthlyMachinistPayrollView: View {
 
 private struct IncidentHistoryView: View {
     @ObservedObject var simulation: SimulationEngine
+    @ObservedObject var library: NetworkLibrary
     var showsCloseButton = true
     let onPreparePRIMDetour: (PRIMTrafficAlert) -> Void
+    let onStartRoadAccident: (String) -> Void
     let onDismissPRIMAlert: (String) -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var recoveryTeamMaintenanceError: String?
@@ -9868,6 +9885,20 @@ private struct IncidentHistoryView: View {
 
     private var primTrafficAlerts: [PRIMTrafficAlert] {
         (simulation.session?.primTrafficAlerts ?? []).sorted { $0.lastSeenAt > $1.lastSeenAt }
+    }
+
+    private var roadDetours: [SimulatedRouteDetour] {
+        (simulation.session?.routeDetours ?? []).sorted {
+            if $0.startsAt != $1.startsAt { return $0.startsAt > $1.startsAt }
+            return $0.id < $1.id
+        }
+    }
+
+    private var operatedRoutes: [GTFSRouteSummary] {
+        let routeIDs = simulation.session?.allEffectiveOperatedRouteIDs ?? []
+        return library.busRoutes
+            .filter { routeIDs.contains($0.routeID) }
+            .sorted { $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending }
     }
 
     var body: some View {
@@ -9956,6 +9987,13 @@ private struct IncidentHistoryView: View {
                         }
                     }
                 }
+                RoadIncidentHistorySection(
+                    detours: roadDetours,
+                    operatedRoutes: operatedRoutes,
+                    simulatedAt: simulation.session?.simulatedAt ?? .now,
+                    actionIsBlocked: simulation.session?.incidentAwaitingRepairResponse != nil,
+                    onDeclareAccident: onStartRoadAccident
+                )
                 Section("Pannes de véhicules") {
                     if incidents.isEmpty {
                         ContentUnavailableView(
