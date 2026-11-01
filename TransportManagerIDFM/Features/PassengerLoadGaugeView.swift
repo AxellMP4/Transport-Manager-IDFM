@@ -79,12 +79,17 @@ struct PassengerVehicleMapMarkerView: View {
         return "bus.fill"
     }
 
-    private var occupancyPercent: Int {
+    private var loadPresentation: PassengerLoadPresentation {
         PassengerLoadPresentation(
             passengerCount: passengerCount,
             capacity: capacity,
             capacityIsEstimated: capacityIsEstimated
-        ).occupancyPercent
+        )
+    }
+
+    private var accessibleLoadSummary: String {
+        let load = loadPresentation
+        return "\(load.passengerCount) sur \(load.capacity) voyageurs, \(load.occupancyPercent) %, \(load.status.title)\(capacityIsEstimated ? ", capacité estimée" : "")"
     }
 
     var body: some View {
@@ -109,6 +114,7 @@ struct PassengerVehicleMapMarkerView: View {
             .overlay(Capsule().strokeBorder(mapColor, lineWidth: 2))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Ouvrir le bus \(shellNumber), \(status.title), \(occupancyPercent) % de remplissage")
+        .accessibilityLabel("Ouvrir le bus \(shellNumber), \(status.title)")
+        .accessibilityValue(accessibleLoadSummary)
     }
 }
