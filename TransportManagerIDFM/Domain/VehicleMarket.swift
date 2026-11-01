@@ -322,6 +322,76 @@ struct VehicleMarketOffer: Codable, Hashable, Identifiable, Sendable {
     let priceBasis: String
 }
 
+struct VehicleMarketInspectionFinding: Codable, Hashable, Identifiable, Sendable {
+    let id: String
+    let title: String
+    let detail: String
+    let estimatedCostEuro: Int
+}
+
+struct VehicleMarketInspectionReport: Codable, Hashable, Identifiable, Sendable {
+    let offerID: String
+    let modelID: String
+    let vehicleYear: Int
+    let odometerKilometers: Int
+    let estimatedConditionPercent: Int
+    let findings: [VehicleMarketInspectionFinding]
+    let estimatedRemediationCostEuro: Int
+
+    var id: String { offerID }
+}
+
+enum VehicleMarketInspectionRules {
+    static func estimate(for offer: VehicleMarketOffer, gameYear: Int) -> VehicleMarketInspectionReport? {
+        guard offer.condition == .used else { return nil }
+
+        let conditionPercent = max(0, min(100, offer.conditionPercent))
+        let odometerKilometers = max(0, offer.odometerKilometers)
+        let yearDifference = gameYear.subtractingReportingOverflow(offer.vehicleYear)
+        let vehicleAgeYears = yearDifference.overflow ? 100 : max(0, min(100, yearDifference.partialValue))
+        var findings: [VehicleMarketInspectionFinding] = []
+
+        if conditionPercent < 100 {
+            findings.append(VehicleMarketInspectionFinding(
+                id: "condition-remediation",
+                title: "Remise à niveau de l’état estimé",
+                detail: "L’offre indique un état de \(conditionPercent) %. Le coût reprend le barème d’entretien de jeu affiché dans le marché.",
+                estimatedCostEuro: VehicleMarketCatalog.preventiveMaintenanceCost(for: conditionPercent)
+            ))
+        }
+
+        if odometerKilometers >= 180_000 {
+            let mileageBands = min(20, 1 + (odometerKilometers - 180_000) / 50_000)
+            findings.append(VehicleMarketInspectionFinding(
+                id: "high-mileage-wear",
+                title: "Usure liée au kilométrage estimée",
+                detail: "Le kilométrage dépasse le repère de jeu de 180 000 km. Le nombre de tranches supplémentaires sert uniquement à estimer une remise en état.",
+                estimatedCostEuro: mileageBands * 650
+            ))
+        }
+
+        if vehicleAgeYears >= 10 {
+            let ageBands = min(50, vehicleAgeYears - 9)
+            findings.append(VehicleMarketInspectionFinding(
+                id: "age-related-check",
+                title: "Contrôle des équipements lié à l’âge estimé",
+                detail: "L’âge du véhicule atteint au moins 10 ans dans l’année de carrière. Le contrôle et son coût sont une hypothèse de jeu, sans défaut réel constaté.",
+                estimatedCostEuro: ageBands * 250
+            ))
+        }
+
+        return VehicleMarketInspectionReport(
+            offerID: offer.id,
+            modelID: offer.modelID,
+            vehicleYear: offer.vehicleYear,
+            odometerKilometers: odometerKilometers,
+            estimatedConditionPercent: conditionPercent,
+            findings: findings,
+            estimatedRemediationCostEuro: findings.reduce(0) { $0 + $1.estimatedCostEuro }
+        )
+    }
+}
+
 struct PurchasedBus: Codable, Hashable, Identifiable, Sendable {
     let id: String
     let modelID: String
