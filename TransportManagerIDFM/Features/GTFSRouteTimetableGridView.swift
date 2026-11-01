@@ -232,8 +232,8 @@ struct GTFSRouteTimetableGridView: View {
                         ForEach(Array(stopVisits.enumerated()), id: \.offset) { _, visit in
                             Text(visit.stopName)
                                 .font(.caption.weight(.semibold))
-                                .lineLimit(2)
-                                .frame(width: 112, height: 42, alignment: .leading)
+                                .frame(width: 112, alignment: .leading)
+                                .fixedSize(horizontal: false, vertical: true)
                                 .padding(.trailing, 6)
                         }
                     }
@@ -246,11 +246,13 @@ struct GTFSRouteTimetableGridView: View {
                                 .font(.caption2.monospaced())
                                 .lineLimit(1)
                                 .frame(width: 100, alignment: .leading)
+                                .accessibilityLabel("Course \(trip.tripID)")
                             ForEach(Array(trip.stops.enumerated()), id: \.offset) { _, visit in
                                 Text(serviceTime(visit.scheduledAt))
                                     .font(.caption.monospaced())
                                     .frame(width: 112, alignment: .leading)
                                     .padding(.trailing, 6)
+                                    .accessibilityLabel("\(visit.stopName), \(serviceTime(visit.scheduledAt))")
                             }
                         }
                         .padding(.horizontal, 9)

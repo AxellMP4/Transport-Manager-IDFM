@@ -8,6 +8,8 @@ struct GameLaunchScenarioChoice: Identifiable, Hashable, Sendable {
 }
 
 struct GameLaunchMenuView: View {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
     private enum Page {
         case home
         case scenarios
@@ -48,7 +50,30 @@ struct GameLaunchMenuView: View {
         }
     }
 
+    private var isCareerRestorePending: Bool {
+        isSynchronizing || syncStatus == "iCloud non vérifié"
+    }
+
+    private var isCareerActionBlocked: Bool {
+        isCareerRestorePending
+    }
+
+    private var isCompactLayout: Bool { horizontalSizeClass == .compact }
+
     var body: some View {
+        Group {
+            if isCompactLayout {
+                compactLayout
+            } else {
+                desktopLayout
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(PlatformColors.windowBackground.opacity(0.98))
+        .accessibilityIdentifier("gameLaunchMenu")
+    }
+
+    private var desktopLayout: some View {
         HStack(spacing: 28) {
             identityPanel
                 .frame(width: 330)
@@ -70,9 +95,71 @@ struct GameLaunchMenuView: View {
         }
         .shadow(color: .black.opacity(0.12), radius: 24, y: 12)
         .padding(24)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(PlatformColors.windowBackground.opacity(0.98))
-        .accessibilityIdentifier("gameLaunchMenu")
+    }
+
+    private var compactLayout: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 10) {
+                Image(systemName: "bus.fill")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(.tint)
+                    .frame(width: 34, height: 34)
+                    .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Transport Manager")
+                        .font(.headline)
+                        .lineLimit(1)
+                    Text(page == .home
+                        ? "IDFM · \(networkLineCount.formatted()) lignes · \(scenarios.count.formatted()) centres"
+                        : compactPageTitle)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+
+                Spacer(minLength: 4)
+
+                if page != .home {
+                    Button {
+                        page = .home
+                        searchText = ""
+                    } label: {
+                        Image(systemName: "chevron.backward")
+                            .frame(width: 36, height: 36)
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityLabel("Retour au menu principal")
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+
+            Divider()
+
+            Group {
+                if page == .options {
+                    ScrollView { optionsPage }
+                        .scrollIndicators(.visible)
+                } else {
+                    pageContent
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .padding(16)
+        }
+        .frame(maxWidth: 640, maxHeight: .infinity, alignment: .topLeading)
+        .background(PlatformColors.windowBackground)
+    }
+
+    private var compactPageTitle: String {
+        switch page {
+        case .home: "Transport Manager"
+        case .scenarios: "Choisir un scénario"
+        case .savedCareers: "Carrières sauvegardées"
+        case .options: "Options"
+        case .guide: "Guide de prise en main"
+        }
     }
 
     private var identityPanel: some View {
@@ -165,10 +252,17 @@ struct GameLaunchMenuView: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            if isSynchronizing {
+            Text(syncStatus.localizedCaseInsensitiveContains("sauvegarde locale")
+                ? "Cette configuration de développement garde les carrières sur cet iPhone. Les versions App Store signées avec l’équipe iCloud pourront les synchroniser; les fichiers JSON restent disponibles pour les transferts manuels."
+                : "Quand iCloud est configuré, ta carrière peut être retrouvée sur tes autres appareils connectés au même compte iCloud. Les fichiers JSON restent disponibles pour un transfert manuel.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if isCareerRestorePending {
                 HStack(spacing: 10) {
                     ProgressView().controlSize(.small)
-                    Text("Vérification de la carrière iCloud…")
+                    Text(isSynchronizing ? "Vérification de la carrière iCloud…" : "Préparation de la récupération iCloud…")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
@@ -177,15 +271,33 @@ struct GameLaunchMenuView: View {
                 .background(Color.accentColor.opacity(0.07), in: RoundedRectangle(cornerRadius: 10))
             }
 
+            if hasSyncConflict {
+                VStack(alignment: .leading, spacing: 5) {
+                    Label("Choix de version requis", systemImage: "exclamationmark.icloud")
+                        .font(.callout.weight(.semibold))
+                        .foregroundStyle(.orange)
+                    Text("Reprends la partie locale, puis ouvre le menu iCloud dans la barre supérieure du tableau de bord pour choisir la version à continuer.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
+                .accessibilityElement(children: .combine)
+            }
+
             ScrollView {
                 VStack(spacing: 9) {
                     if let activeCareer {
                         actionRow(
-                            title: "Continuer la carrière",
-                            detail: "Reprendre à \(activeCareer.simulatedAt.formatted(date: .abbreviated, time: .shortened))",
+                            title: hasSyncConflict ? "Ouvrir la partie locale" : "Continuer la carrière",
+                            detail: hasSyncConflict
+                                ? "Reprendre, puis choisir une version dans le menu iCloud"
+                                : "Reprendre à \(activeCareer.simulatedAt.formatted(date: .abbreviated, time: .shortened))",
                             symbol: "play.fill",
                             prominent: true,
-                            disabled: isSynchronizing,
+                            disabled: isCareerRestorePending,
                             action: onContinue
                         )
                     }
@@ -194,28 +306,28 @@ struct GameLaunchMenuView: View {
                         detail: "Choisir un centre et préparer le réseau",
                         symbol: "plus.circle",
                         prominent: activeCareer == nil,
-                        disabled: isSynchronizing,
+                        disabled: isCareerActionBlocked,
                         action: onNewCareer
                     )
                     actionRow(
                         title: "Choisir un scénario",
                         detail: "Parcourir les centres et contrats disponibles",
                         symbol: "map",
-                        disabled: isSynchronizing,
+                        disabled: isCareerActionBlocked,
                         action: { page = .scenarios; searchText = "" }
                     )
                     actionRow(
                         title: "Carrières sauvegardées",
                         detail: savedCareers.isEmpty ? "Aucune sauvegarde locale trouvée" : "\(savedCareers.count) carrière(s) disponible(s)",
                         symbol: "tray.full",
-                        disabled: isSynchronizing,
+                        disabled: isCareerActionBlocked,
                         action: { page = .savedCareers }
                     )
                     actionRow(
                         title: "Importer une carrière…",
                         detail: "Ouvrir un fichier JSON de sauvegarde",
                         symbol: "square.and.arrow.down",
-                        disabled: isSynchronizing,
+                        disabled: isCareerActionBlocked,
                         action: onImportCareer
                     )
                     actionRow(
@@ -242,8 +354,10 @@ struct GameLaunchMenuView: View {
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
                 Spacer(minLength: 8)
-                Button("Synchroniser") { onSynchronize() }
-                    .disabled(isSynchronizing)
+                Button(syncStatus.localizedCaseInsensitiveContains("sauvegarde locale") ? "Sur cet iPhone" : "Synchroniser") {
+                    onSynchronize()
+                }
+                .disabled(isCareerRestorePending || syncStatus.localizedCaseInsensitiveContains("iCloud indisponible"))
             }
             .font(.caption)
             .foregroundStyle(.secondary)
@@ -288,7 +402,7 @@ struct GameLaunchMenuView: View {
                             }
                             .buttonStyle(.bordered)
                             .controlSize(.large)
-                            .disabled(isSynchronizing)
+                            .disabled(isCareerActionBlocked)
                             .accessibilityHint("Ouvre la préparation de carrière pour ce centre")
                         }
                     }
@@ -338,15 +452,7 @@ struct GameLaunchMenuView: View {
                                         .font(.callout)
                                         .foregroundStyle(.secondary)
                                         .lineLimit(1)
-                                    HStack(spacing: 14) {
-                                        Label(career.updatedAt.formatted(date: .abbreviated, time: .shortened), systemImage: "clock")
-                                        if let cashBalance = career.cashBalance {
-                                            Label("\(cashBalance.formatted()) €", systemImage: "eurosign.circle")
-                                        }
-                                        Text("Partie · \(career.simulatedAt.formatted(date: .abbreviated, time: .shortened))")
-                                    }
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    careerMetadata(for: career)
                                 }
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(13)
@@ -412,13 +518,30 @@ struct GameLaunchMenuView: View {
                     Label(syncStatus, systemImage: hasSyncConflict ? "exclamationmark.icloud" : "icloud")
                         .foregroundStyle(hasSyncConflict ? Color.orange : Color.secondary)
                         .fixedSize(horizontal: false, vertical: true)
-                    HStack {
-                        Button("Synchroniser maintenant", action: onSynchronize)
-                            .disabled(isSynchronizing)
-                        Spacer()
-                        if activeCareer != nil {
-                            Button("Sauvegarder maintenant", action: onSaveCareer)
-                            Button("Exporter…", action: onExportCareer)
+                    if hasSyncConflict {
+                        Text("Les deux versions sont conservées. Pour choisir, reprends la partie locale puis ouvre le menu iCloud dans la barre supérieure du tableau de bord.")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    if isCompactLayout {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Button("Synchroniser maintenant", action: onSynchronize)
+                                .disabled(isCareerRestorePending)
+                            if activeCareer != nil {
+                                Button("Sauvegarder maintenant", action: onSaveCareer)
+                                Button("Exporter…", action: onExportCareer)
+                            }
+                        }
+                    } else {
+                        HStack {
+                            Button("Synchroniser maintenant", action: onSynchronize)
+                                .disabled(isCareerRestorePending)
+                            Spacer()
+                            if activeCareer != nil {
+                                Button("Sauvegarder maintenant", action: onSaveCareer)
+                                Button("Exporter…", action: onExportCareer)
+                            }
                         }
                     }
                 }
@@ -432,14 +555,16 @@ struct GameLaunchMenuView: View {
 
     private func pageHeader(_ title: String, subtitle: String) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Button {
-                page = .home
-                searchText = ""
-            } label: {
-                Label("Menu principal", systemImage: "chevron.left")
+            if !isCompactLayout {
+                Button {
+                    page = .home
+                    searchText = ""
+                } label: {
+                    Label("Menu principal", systemImage: "chevron.left")
+                }
+                .buttonStyle(.plain)
+                .help("Retour au menu principal")
             }
-            .buttonStyle(.plain)
-            .help("Retour au menu principal")
             Text(title)
                 .font(.system(.title, design: .rounded).weight(.bold))
             Text(subtitle)
@@ -505,6 +630,31 @@ struct GameLaunchMenuView: View {
         DepotCareerScope.depotReference(for: career.depotID)?.name
             ?? DepotLineRoster.selectableSites.first(where: { $0.id == career.depotID })?.name
             ?? career.depotID
+    }
+
+    @ViewBuilder
+    private func careerMetadata(for career: SavedCareerSummary) -> some View {
+        if isCompactLayout {
+            VStack(alignment: .leading, spacing: 5) {
+                Label(career.updatedAt.formatted(date: .abbreviated, time: .shortened), systemImage: "clock")
+                if let cashBalance = career.cashBalance {
+                    Label("\(cashBalance.formatted()) €", systemImage: "eurosign.circle")
+                }
+                Label("Partie · \(career.simulatedAt.formatted(date: .abbreviated, time: .shortened))", systemImage: "play.circle")
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        } else {
+            HStack(spacing: 14) {
+                Label(career.updatedAt.formatted(date: .abbreviated, time: .shortened), systemImage: "clock")
+                if let cashBalance = career.cashBalance {
+                    Label("\(cashBalance.formatted()) €", systemImage: "eurosign.circle")
+                }
+                Text("Partie · \(career.simulatedAt.formatted(date: .abbreviated, time: .shortened))")
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
     }
 }
 

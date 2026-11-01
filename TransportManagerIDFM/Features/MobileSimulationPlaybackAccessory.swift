@@ -9,6 +9,8 @@ struct MobileSimulationPlaybackAccessory: View {
     let simulatedAt: Date
     let speed: SimulationSpeed
     let isRunning: Bool
+    let canControlPlayback: Bool
+    let canAdvanceToNextEvent: Bool
     let onTogglePlayback: () -> Void
     let onAdvanceToNextEvent: () -> Void
     let onSetSpeed: (SimulationSpeed) -> Void
@@ -85,6 +87,7 @@ struct MobileSimulationPlaybackAccessory: View {
         }
         .buttonStyle(.glass)
         .buttonBorderShape(.circle)
+        .disabled(!canControlPlayback)
         .accessibilityLabel("Vitesse de simulation : \(speed.title)")
     }
 
@@ -96,6 +99,7 @@ struct MobileSimulationPlaybackAccessory: View {
         }
         .buttonStyle(.glass)
         .buttonBorderShape(.circle)
+        .disabled(!canAdvanceToNextEvent)
         .accessibilityLabel("Avancer au prochain événement")
     }
 
@@ -108,6 +112,7 @@ struct MobileSimulationPlaybackAccessory: View {
         .buttonStyle(.glassProminent)
         .buttonBorderShape(.circle)
         .tint(Color.accentColor)
+        .disabled(!canControlPlayback)
         .accessibilityLabel(isRunning ? "Mettre en pause et sauvegarder" : "Reprendre la carrière")
     }
 }

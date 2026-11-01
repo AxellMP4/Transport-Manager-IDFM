@@ -500,12 +500,14 @@
 		100000000000000000000003 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]" = "TransportManagerIDFM/Resources/TransportManagerIDFM-iOS.entitlements";
-				"CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]" = "TransportManagerIDFM/Resources/TransportManagerIDFM-iOS.entitlements";
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]" = "TransportManagerIDFM/Resources/TransportManagerIDFM-iOS-Local.entitlements";
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]" = "TransportManagerIDFM/Resources/TransportManagerIDFM-iOS-Local.entitlements";
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = TransportManagerIDFM/Resources/TransportManagerIDFM.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 2J9Q89QNRQ;
+				"SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=iphoneos*]" = "$(inherited) LOCAL_ONLY_SIGNING";
+				"SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=iphonesimulator*]" = "$(inherited) LOCAL_ONLY_SIGNING";
 				"ENABLE_APP_SANDBOX[sdk=macosx*]" = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;

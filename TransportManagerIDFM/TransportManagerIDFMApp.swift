@@ -14,7 +14,7 @@ struct TransportManagerIDFMApp: App {
     var body: some Scene {
         WindowGroup {
             #if os(iOS)
-            MobileOperationsView()
+            OperationsDashboardView()
                 .tint(Color(red: 0.04, green: 0.48, blue: 0.40))
             #else
             OperationsDashboardView()
@@ -33,11 +33,19 @@ struct MobileCloudRestorePresentation: Equatable {
     let statusMessage: String
     let statusSymbol: String
     let isRetryEnabled: Bool
+    let isSyncing: Bool
+    let hasConflict: Bool
+    let canStartNewCareer: Bool
+    let canImportSave: Bool
 
     init(statusMessage: String, isSyncing: Bool, hasConflict: Bool) {
         self.statusMessage = statusMessage
         statusSymbol = hasConflict ? "exclamationmark.icloud" : "icloud"
         isRetryEnabled = !isSyncing
+        self.isSyncing = isSyncing
+        self.hasConflict = hasConflict
+        canStartNewCareer = !isSyncing
+        canImportSave = !isSyncing
     }
 }
 
@@ -68,6 +76,88 @@ enum MobileOperationsTab: String, CaseIterable, Identifiable, Sendable {
         case .fleet: "bus"
         case .finances: "chart.bar.fill"
         }
+    }
+}
+
+enum MobileDashboardTab: String, CaseIterable, Hashable, Identifiable, Sendable {
+    case map
+    case courses
+    case fleet
+    case reports
+    case network
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .map: "Carte"
+        case .courses: "Courses"
+        case .fleet: "Parc"
+        case .reports: "Rapports"
+        case .network: "Réseau"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .map: "map.fill"
+        case .courses: "tram.fill"
+        case .fleet: "bus.fill"
+        case .reports: "chart.bar.fill"
+        case .network: "point.topleft.down.to.point.bottomright.curvepath"
+        }
+    }
+
+    var workspaceKeys: [String] {
+        switch self {
+        case .map: ["network"]
+        case .courses: ["assignments"]
+        case .fleet: ["fleet", "staff", "depots"]
+        case .reports: ["reports", "incidents"]
+        case .network: ["lines", "coursesMotifs", "sources"]
+        }
+    }
+
+    var defaultWorkspaceKey: String {
+        switch self {
+        case .map: "network"
+        case .courses: "assignments"
+        case .fleet: "fleet"
+        case .reports: "reports"
+        case .network: "lines"
+        }
+    }
+
+    static func containing(workspaceKey: String) -> Self {
+        allCases.first { $0.workspaceKeys.contains(workspaceKey) } ?? .map
+    }
+}
+
+struct MobileDashboardWorkspaceSelection: Equatable, Sendable {
+    private(set) var selectedTab: MobileDashboardTab
+    private var workspaceKeysByTab: [MobileDashboardTab: String]
+
+    init() {
+        selectedTab = .map
+        workspaceKeysByTab = Dictionary(
+            uniqueKeysWithValues: MobileDashboardTab.allCases.map { ($0, $0.defaultWorkspaceKey) }
+        )
+    }
+
+    mutating func selectTab(_ tab: MobileDashboardTab) {
+        selectedTab = tab
+    }
+
+    mutating func selectWorkspace(workspaceKey: String) {
+        guard let tab = MobileDashboardTab.allCases.first(where: { $0.workspaceKeys.contains(workspaceKey) }) else {
+            return
+        }
+        workspaceKeysByTab[tab] = workspaceKey
+        selectedTab = tab
+    }
+
+    func selectedWorkspaceKey(for tab: MobileDashboardTab) -> String {
+        workspaceKeysByTab[tab] ?? tab.defaultWorkspaceKey
     }
 }
 
@@ -129,6 +219,7 @@ private struct MobileOperationsView: View {
     @State private var careerStartError: String?
     @State private var mobileActionMessage: String?
     @State private var mobileSaveTransferMessage: String?
+    @State private var isInitialCareerRestorePending = true
     @State private var isSaveImporterPresented = false
     @State private var isSaveExporterPresented = false
     @State private var saveExportDocument = SimulationSaveFile(data: Data())
@@ -154,8 +245,10 @@ private struct MobileOperationsView: View {
             .presentationDetents([.large])
         }
         .task {
+            isInitialCareerRestorePending = true
             await library.seedBundledIDFMSnapshotsIfNeeded()
             await cloudSync.synchronize(with: simulation, library: library)
+            isInitialCareerRestorePending = false
             if let activeDepotID = simulation.session?.effectiveActiveDepotID {
                 selectedDepotID = activeDepotID
             } else if !playableDepots.contains(where: { $0.id == selectedDepotID }) {
@@ -279,6 +372,8 @@ private struct MobileOperationsView: View {
             simulatedAt: session.simulatedAt,
             speed: session.speed,
             isRunning: simulation.isRunning,
+            canControlPlayback: true,
+            canAdvanceToNextEvent: !session.pendingEvents.isEmpty,
             onTogglePlayback: {
                 if simulation.isRunning {
                     simulation.pauseAndSave()
@@ -394,9 +489,18 @@ private struct MobileOperationsView: View {
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
                         }
+#if LOCAL_ONLY_SIGNING
+                        Label("Partie sauvegardée sur cet iPhone", systemImage: "iphone")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+#else
                         Label(cloudSync.statusMessage, systemImage: cloudSync.hasConflict ? "exclamationmark.icloud" : "icloud")
                             .font(.footnote)
                             .foregroundStyle(cloudSync.hasConflict ? .orange : .secondary)
+                        Text("Pour retrouver cette carrière sur un autre appareil, utilise le même compte iCloud.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                         Button {
                             Task { await cloudSync.synchronize(with: simulation, library: library) }
                         } label: {
@@ -407,10 +511,13 @@ private struct MobileOperationsView: View {
                             Button("Utiliser la version iCloud") {
                                 Task { await cloudSync.resolveConflict(usingCloud: true, with: simulation, library: library) }
                             }
+                            .disabled(cloudSync.isSyncing)
                             Button("Publier ma version locale") {
                                 Task { await cloudSync.resolveConflict(usingCloud: false, with: simulation, library: library) }
                             }
+                            .disabled(cloudSync.isSyncing)
                         }
+#endif
                     }
 
                     Section("Fichier de sauvegarde") {
@@ -422,6 +529,8 @@ private struct MobileOperationsView: View {
                         } label: {
                             Label("Importer une sauvegarde JSON", systemImage: "square.and.arrow.down")
                         }
+                        .disabled(!cloudRestorePresentation.canImportSave)
+                        .accessibilityHint(mobileSaveImportHint)
                         if let mobileSaveTransferMessage {
                             Text(mobileSaveTransferMessage)
                                 .font(.footnote)
@@ -448,11 +557,32 @@ private struct MobileOperationsView: View {
 
     private var newCareerOverview: some View {
         List {
+#if LOCAL_ONLY_SIGNING
+            Section("Sauvegarde locale") {
+                Label("Les parties sont conservées sur cet iPhone.", systemImage: "iphone")
+                    .font(.footnote)
+                Text("La synchronisation iCloud demande une équipe Apple qui prend en charge cette capacité.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+#else
             Section("Synchronisation iCloud") {
                 Label(cloudRestorePresentation.statusMessage, systemImage: cloudRestorePresentation.statusSymbol)
                     .font(.footnote)
                     .foregroundStyle(cloudSync.hasConflict ? .orange : .secondary)
                     .fixedSize(horizontal: false, vertical: true)
+
+                Text("Quand iCloud est configuré, ta carrière peut être retrouvée sur les autres appareils connectés au même compte iCloud. L’import et l’export JSON restent disponibles pour un transfert manuel.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if cloudRestorePresentation.isSyncing {
+                    Text("Attends la fin de cette vérification avant de créer une carrière ou d’importer un fichier.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
 
                 Button {
                     Task { await cloudSync.synchronize(with: simulation, library: library) }
@@ -462,6 +592,7 @@ private struct MobileOperationsView: View {
                 }
                 .disabled(!cloudRestorePresentation.isRetryEnabled)
             }
+#endif
 
             Section("Fichier de sauvegarde") {
                 Button {
@@ -469,6 +600,8 @@ private struct MobileOperationsView: View {
                 } label: {
                     Label("Importer une sauvegarde JSON", systemImage: "square.and.arrow.down")
                 }
+                .disabled(!cloudRestorePresentation.canImportSave)
+                .accessibilityHint(mobileSaveImportHint)
                 if let mobileSaveTransferMessage {
                     Text(mobileSaveTransferMessage)
                         .font(.footnote)
@@ -584,6 +717,7 @@ private struct MobileOperationsView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .disabled(!canStartMobileCareer)
+                    .accessibilityHint(mobileCareerCreationHint)
 
                     if let careerStartError {
                         Text(careerStartError)
@@ -602,10 +736,26 @@ private struct MobileOperationsView: View {
 
     private var cloudRestorePresentation: MobileCloudRestorePresentation {
         MobileCloudRestorePresentation(
-            statusMessage: cloudSync.statusMessage,
-            isSyncing: cloudSync.isSyncing,
+            statusMessage: isInitialCareerRestorePending && !cloudSync.isSyncing
+                ? "Préparation des données avant la vérification iCloud…"
+                : cloudSync.statusMessage,
+            isSyncing: isInitialCareerRestorePending || cloudSync.isSyncing,
             hasConflict: cloudSync.hasConflict
         )
+    }
+
+    private var mobileSaveImportHint: String {
+        if cloudRestorePresentation.isSyncing {
+            return "Disponible après la vérification de la carrière iCloud."
+        }
+        return "Choisir un fichier de carrière JSON à importer."
+    }
+
+    private var mobileCareerCreationHint: String {
+        if cloudRestorePresentation.isSyncing {
+            return "Disponible après la vérification de la carrière iCloud."
+        }
+        return "Crée une carrière avec les paramètres sélectionnés."
     }
 
     private func prepareMobileSaveExport() {
@@ -693,7 +843,8 @@ private struct MobileOperationsView: View {
     }
 
     private var canStartMobileCareer: Bool {
-        library.catalog.isPlayable
+        cloudRestorePresentation.canStartNewCareer
+            && library.catalog.isPlayable
             && simulation.session == nil
             && playableDepots.contains { $0.id == selectedDepotID }
             && playableDateRange?.contains(careerStartMoment) == true

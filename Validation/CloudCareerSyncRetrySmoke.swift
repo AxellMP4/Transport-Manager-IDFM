@@ -4,22 +4,28 @@ import Foundation
 struct CloudCareerSyncRetrySmoke {
     @MainActor
     static func main() async {
-        await choosingCloudPreservesDifferentLocalCareerBeforeDownload()
+        await choosingCloudPreservesLocalCareerBeforeDownload()
+        var policyFailures: [String] = []
+        if let failure = await choosingCloudPreservesSameLocalCareerBeforeDownload() {
+            policyFailures.append(failure)
+        }
+        if let failure = await failedLocalBackupPreventsSameCareerCloudReplacement() {
+            policyFailures.append(failure)
+        }
         await throttledUploadRetriesWithoutFurtherInput()
         await aNewerSuccessfulSyncCancelsTheRetry()
         await deallocationCancelsTheRetry()
         await aNewerRequestRunsAfterTheActiveSync()
+        precondition(policyFailures.isEmpty, policyFailures.joined(separator: "\n"))
         print("PASS: throttled retries and in-flight synchronization coalescing are deterministic")
     }
 
     @MainActor
-    private static func choosingCloudPreservesDifferentLocalCareerBeforeDownload() async {
+    private static func choosingCloudPreservesLocalCareerBeforeDownload() async {
         var operations: [String] = []
 
         do {
             try await CloudCareerSyncPolicy.resolvePreferCloudChoice(
-                localSessionID: "local-career",
-                remoteSessionID: "cloud-career",
                 preserveLocal: { operations.append("preserve-local") },
                 downloadCloud: { operations.append("download-cloud") }
             )
@@ -29,8 +35,50 @@ struct CloudCareerSyncRetrySmoke {
 
         precondition(
             operations == ["preserve-local", "download-cloud"],
-            "Choosing a different iCloud career must preserve the local career before downloading the replacement."
+            "Choosing iCloud must preserve the local career before downloading the replacement."
         )
+    }
+
+    @MainActor
+    private static func choosingCloudPreservesSameLocalCareerBeforeDownload() async -> String? {
+        var operations: [String] = []
+
+        do {
+            try await CloudCareerSyncPolicy.resolvePreferCloudChoice(
+                preserveLocal: { operations.append("preserve-local") },
+                downloadCloud: { operations.append("download-cloud") }
+            )
+        } catch {
+            return "FAIL (same-session conflict): successful backup and download threw \(error)"
+        }
+
+        guard operations == ["preserve-local", "download-cloud"] else {
+            return "FAIL (same-session conflict): expected [preserve-local, download-cloud], got \(operations)"
+        }
+        return nil
+    }
+
+    @MainActor
+    private static func failedLocalBackupPreventsSameCareerCloudReplacement() async -> String? {
+        var downloadedCloud = false
+        var receivedBackupError = false
+        let backupError = NSError(domain: "CloudCareerSyncRetrySmoke", code: 1)
+
+        do {
+            try await CloudCareerSyncPolicy.resolvePreferCloudChoice(
+                preserveLocal: { throw backupError },
+                downloadCloud: { downloadedCloud = true }
+            )
+        } catch let error as NSError {
+            receivedBackupError = error == backupError
+        } catch {
+            return "FAIL (backup failure): expected original backup error, got \(error)"
+        }
+
+        guard receivedBackupError, !downloadedCloud else {
+            return "FAIL (backup failure): expected backup error propagation and no cloud download; receivedBackupError=\(receivedBackupError), downloadedCloud=\(downloadedCloud)"
+        }
+        return nil
     }
 
     @MainActor

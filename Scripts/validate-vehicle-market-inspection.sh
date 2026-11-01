@@ -5,6 +5,10 @@ project_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 temporary_directory=$(mktemp -d "${TMPDIR:-/tmp}/transitcity-market-inspection.XXXXXX")
 trap 'rm -rf "$temporary_directory"' EXIT HUP INT TERM
 
+market_view="$project_root/TransportManagerIDFM/Features/OperationsDashboardView.swift"
+rg -Fq 'VehicleMarketDepotCompatibilityRules.presentation(for: energyReadiness)' "$market_view"
+rg -Fq '.accessibilityIdentifier("vehicleMarketDepotCompatibility")' "$market_view"
+
 mkdir -p "$temporary_directory/swift-modules" "$temporary_directory/clang-modules"
 
 swiftc \

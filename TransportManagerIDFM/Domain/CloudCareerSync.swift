@@ -34,14 +34,10 @@ enum CloudCareerSyncPolicy {
 
     @MainActor
     static func resolvePreferCloudChoice(
-        localSessionID: String,
-        remoteSessionID: String,
         preserveLocal: @MainActor () async throws -> Void,
         downloadCloud: @MainActor () async throws -> Void
     ) async throws {
-        if localSessionID != remoteSessionID {
-            try await preserveLocal()
-        }
+        try await preserveLocal()
         try await downloadCloud()
     }
 }
@@ -387,8 +383,6 @@ final class CloudCareerSyncManager: ObservableObject {
             let checkpoint = loadCheckpoint(for: localSession.id)
             if resolution == .preferCloud {
                 try await CloudCareerSyncPolicy.resolvePreferCloudChoice(
-                    localSessionID: localSession.id,
-                    remoteSessionID: remoteEnvelope.sessionID,
                     preserveLocal: {
                         try await self.preserveConflict(localSession: localSession, engine: engine, library: library)
                     },

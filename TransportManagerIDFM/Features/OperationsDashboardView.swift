@@ -2,6 +2,17 @@ import MapKit
 import SwiftUI
 import UniformTypeIdentifiers
 
+private extension View {
+    @ViewBuilder
+    func platformSheetFrame(minWidth: CGFloat, minHeight: CGFloat) -> some View {
+        #if os(macOS)
+        self.frame(minWidth: minWidth, minHeight: minHeight)
+        #else
+        self.frame(maxWidth: .infinity, maxHeight: .infinity)
+        #endif
+    }
+}
+
 struct SimulationSaveFile: FileDocument {
     static var readableContentTypes: [UTType] { [.json] }
 
@@ -68,6 +79,31 @@ private struct EmptyMapFleetActionCard: View {
         }
     }
 
+    private var compactActions: some View {
+        HStack(spacing: 8) {
+            Button(action: onBuyBus) {
+                Image(systemName: "cart.badge.plus")
+                    .frame(width: 40, height: 40)
+            }
+            .buttonStyle(.borderedProminent)
+            .accessibilityLabel("Acheter un bus")
+
+            Button(action: onHireDriver) {
+                Image(systemName: "person.badge.plus")
+                    .frame(width: 40, height: 40)
+            }
+            .buttonStyle(.bordered)
+            .accessibilityLabel("Engager un conducteur")
+
+            Button(action: onAssignDeparture) {
+                Image(systemName: "arrow.triangle.branch")
+                    .frame(width: 40, height: 40)
+            }
+            .buttonStyle(.bordered)
+            .accessibilityLabel("Affecter un départ")
+        }
+    }
+
     var body: some View {
         ViewThatFits(in: .horizontal) {
             HStack(spacing: 12) {
@@ -80,6 +116,12 @@ private struct EmptyMapFleetActionCard: View {
             HStack(spacing: 12) {
                 compactStatus
                 actions
+            }
+            .fixedSize(horizontal: true, vertical: false)
+
+            HStack(spacing: 12) {
+                compactStatus
+                compactActions
             }
             .fixedSize(horizontal: true, vertical: false)
 
@@ -257,6 +299,21 @@ private enum OperationsWorkspaceTab: String, CaseIterable, Identifiable {
         }
     }
 
+    var mobileTitle: String {
+        switch self {
+        case .network: "Carte"
+        case .coursesMotifs: "Horaires"
+        case .depots: "Dépôts"
+        case .lines: "Lignes"
+        case .assignments: "Affectations"
+        case .fleet: "Bus"
+        case .staff: "Équipe"
+        case .reports: "Rapports"
+        case .incidents: "Incidents"
+        case .sources: "Sources"
+        }
+    }
+
     var symbol: String {
         switch self {
         case .network: "map"
@@ -325,6 +382,8 @@ private enum DataWorkspaceSection: String, CaseIterable, Identifiable {
 }
 
 struct OperationsDashboardView: View {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
     private enum LocalImportKind {
         case gtfs
         case routeGeometry
@@ -389,6 +448,9 @@ struct OperationsDashboardView: View {
     @State private var isContractLibraryPresented = false
     @State private var isRegionalDepotRegistryPresented = false
     @State private var isDepotLineRosterPresented = false
+    @State private var isMobileLinePickerPresented = false
+    @State private var isMobileMapEventsPresented = false
+    @State private var isMobileMapLegendPresented = false
     @State private var isIncidentResponsePresented = false
     @State private var incidentForResponse: VehicleIncident?
     @State private var isSaveImporterPresented = false
@@ -402,6 +464,7 @@ struct OperationsDashboardView: View {
     // A new player should first choose a real depot, then enter its line roster.
     // Existing careers are redirected to the operating map during dashboard setup.
     @State private var selectedWorkspaceTab: OperationsWorkspaceTab = .network
+    @State private var mobileWorkspaceSelection = MobileDashboardWorkspaceSelection()
     @State private var isLaunchMenuPresented = true
     @State private var isPreparingNewCareer = false
     @State private var assignmentWorkspaceSection: AssignmentWorkspaceSection = .depotLines
@@ -423,6 +486,41 @@ struct OperationsDashboardView: View {
 
     private var isCareerPreparationMode: Bool {
         simulation.session == nil || isPreparingNewCareer
+    }
+
+    private var usesCompactMobileNavigation: Bool {
+        #if os(iOS)
+        horizontalSizeClass == .compact
+        #else
+        false
+        #endif
+    }
+
+    private var mobileDashboardTabSelection: Binding<MobileDashboardTab> {
+        Binding(
+            get: { mobileWorkspaceSelection.selectedTab },
+            set: { tab in
+                mobileWorkspaceSelection.selectTab(tab)
+                guard let workspace = OperationsWorkspaceTab(
+                    rawValue: mobileWorkspaceSelection.selectedWorkspaceKey(for: tab)
+                ) else { return }
+                selectedWorkspaceTab = workspace
+            }
+        )
+    }
+
+    private func mobileWorkspaceBinding(for tab: MobileDashboardTab) -> Binding<OperationsWorkspaceTab> {
+        Binding(
+            get: {
+                OperationsWorkspaceTab(rawValue: mobileWorkspaceSelection.selectedWorkspaceKey(for: tab))
+                    ?? .network
+            },
+            set: { workspace in
+                guard tab.workspaceKeys.contains(workspace.rawValue) else { return }
+                mobileWorkspaceSelection.selectWorkspace(workspaceKey: workspace.rawValue)
+                selectedWorkspaceTab = workspace
+            }
+        )
     }
 
     private var breakdownFrequency: VehicleIncidentFrequency {
@@ -702,12 +800,27 @@ struct OperationsDashboardView: View {
             Toggle(isOn: $showsStopsLayer) { Label("Arrêts", systemImage: "bus.stop") }
             Toggle(isOn: $showsFleetLayer) { Label("Flotte", systemImage: "bus.fill") }
             Toggle(isOn: $showsIncidentsLayer) { Label("Incidents et travaux", systemImage: "wrench.and.screwdriver") }
+            if usesCompactMobileNavigation {
+                Button {
+                    isMobileMapLegendPresented = true
+                } label: {
+                    Label("Légende et source du réseau", systemImage: "info.circle")
+                }
+            }
         } label: {
-            Label("Couches", systemImage: "square.3.layers.3d")
-                .font(.caption.weight(.semibold))
-                .padding(.horizontal, 10)
-                .padding(.vertical, 7)
-                .background(.regularMaterial, in: Capsule())
+            Group {
+                if usesCompactMobileNavigation {
+                    Image(systemName: "square.3.layers.3d")
+                        .frame(width: 36, height: 36)
+                        .background(.regularMaterial, in: Circle())
+                } else {
+                    Label("Couches", systemImage: "square.3.layers.3d")
+                        .font(.caption.weight(.semibold))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 7)
+                        .background(.regularMaterial, in: Capsule())
+                }
+            }
         }
         .menuStyle(.borderlessButton)
         .accessibilityLabel("Couches de la carte")
@@ -792,6 +905,19 @@ struct OperationsDashboardView: View {
         }
     }
 
+    private var activeMapEventCount: Int {
+        (simulation.session?.activeRouteClosures.count ?? 0)
+            + activeStopReplacementGuides.count
+            + (simulation.session?.activeRouteDetours.count ?? 0)
+            + activeVehicleIncidentCount
+    }
+
+    private var activeVehicleIncidentCount: Int {
+        (simulation.session?.vehicleIncidents ?? []).filter { incident in
+            !incident.isResolved && selectedDepotRouteIDs.contains(incident.routeID)
+        }.count
+    }
+
     private var selectedRouteGeometries: [NetworkRouteGeometry] {
         guard let selectedRouteID,
               let route = library.busRoutes.first(where: { $0.routeID == selectedRouteID }) else { return [] }
@@ -855,6 +981,17 @@ struct OperationsDashboardView: View {
         VStack(spacing: 0) {
             topBar
             Divider()
+            #if os(iOS)
+            depotSelectionBar
+            Divider()
+            if simulation.session != nil && !isCareerPreparationMode {
+                if #unavailable(iOS 26.0) {
+                    mobileSimulationControlBar
+                    Divider()
+                }
+            }
+            mobileWorkspaceTabs
+            #else
             if !isCareerPreparationMode {
                 workspaceNavigationBar
                 Divider()
@@ -866,9 +1003,87 @@ struct OperationsDashboardView: View {
                 Divider()
             }
             workspaceContent
+            #endif
         }
         .background(PlatformColors.windowBackground)
     }
+
+#if os(iOS)
+    @ViewBuilder
+    private var mobileWorkspaceTabs: some View {
+        if #available(iOS 26.0, *) {
+            TabView(selection: mobileDashboardTabSelection) {
+                mobileWorkspaceTabItems
+            }
+            .tabBarMinimizeBehavior(.onScrollDown)
+            .tabViewBottomAccessory {
+                if let session = simulation.session, !isCareerPreparationMode {
+                    MobileSimulationPlaybackAccessory(
+                        simulatedAt: session.simulatedAt,
+                        speed: session.speed,
+                        isRunning: simulation.isRunning,
+                        canControlPlayback: !(isTimetableExtensionBlocked && !simulation.isRunning)
+                            && pendingIncidentResponse == nil,
+                        canAdvanceToNextEvent: !session.pendingEvents.isEmpty && pendingIncidentResponse == nil,
+                        onTogglePlayback: {
+                            if simulation.isRunning { simulation.pause() } else { simulation.resume() }
+                        },
+                        onAdvanceToNextEvent: { _ = simulation.advanceToNextEvent() },
+                        onSetSpeed: { simulation.setSpeed($0) }
+                    )
+                }
+            }
+        } else {
+            TabView(selection: mobileDashboardTabSelection) {
+                mobileWorkspaceTabItems
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var mobileWorkspaceTabItems: some View {
+        ForEach(MobileDashboardTab.allCases) { tab in
+            let workspace = OperationsWorkspaceTab(
+                rawValue: mobileWorkspaceSelection.selectedWorkspaceKey(for: tab)
+            ) ?? .network
+            VStack(spacing: 0) {
+                mobileWorkspaceSectionPicker(for: tab)
+                workspaceContent(for: workspace)
+            }
+                .tabItem { Label(tab.title, systemImage: tab.systemImage) }
+                .tag(tab)
+        }
+    }
+
+    @ViewBuilder
+    private func mobileWorkspaceSectionPicker(for tab: MobileDashboardTab) -> some View {
+        let workspaces = tab.workspaceKeys.compactMap { OperationsWorkspaceTab(rawValue: $0) }
+        let selectedWorkspace = OperationsWorkspaceTab(
+            rawValue: mobileWorkspaceSelection.selectedWorkspaceKey(for: tab)
+        ) ?? .network
+        if workspaces.count > 1 {
+            HStack {
+                Picker(selection: mobileWorkspaceBinding(for: tab)) {
+                    ForEach(workspaces) { workspace in
+                        Label(workspace.mobileTitle, systemImage: workspace.symbol)
+                            .tag(workspace)
+                    }
+                } label: {
+                    Label(selectedWorkspace.mobileTitle, systemImage: selectedWorkspace.symbol)
+                }
+                .pickerStyle(.menu)
+                .accessibilityLabel("Section de l’onglet \(tab.title) : \(selectedWorkspace.mobileTitle)")
+                .accessibilityHint("Choisir une section de l’onglet \(tab.title).")
+
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 5)
+            .background(Color.primary.opacity(0.025))
+            Divider()
+        }
+    }
+#endif
 
     private var dashboardFileHandling: some View {
         dashboardLayout
@@ -1050,13 +1265,77 @@ struct OperationsDashboardView: View {
 
     private var dashboardSheets: some View {
         dashboardAlerts
+#if os(iOS)
+        .sheet(isPresented: $isMobileMapEventsPresented) {
+            NavigationStack {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        if activeVehicleIncidentCount > 0 {
+                            Button {
+                                isMobileMapEventsPresented = false
+                                selectedWorkspaceTab = .incidents
+                            } label: {
+                                Label("Voir les pannes et interventions (\(activeVehicleIncidentCount))", systemImage: "wrench.and.screwdriver")
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                        activeRouteClosuresCard
+                        activeStopClosuresCard
+                        activeRouteDetoursCard
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(16)
+                }
+                .navigationTitle("Perturbations actives")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Terminé") { isMobileMapEventsPresented = false }
+                    }
+                }
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $isMobileMapLegendPresented) {
+            NavigationStack {
+                ScrollView {
+                    mapLegend
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(16)
+                }
+                .navigationTitle("Légende de la carte")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Terminé") { isMobileMapLegendPresented = false }
+                    }
+                }
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $isMobileLinePickerPresented) {
+            NavigationStack {
+                depotLineSidebar
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button("Terminé") { isMobileLinePickerPresented = false }
+                        }
+                    }
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
+#endif
         .sheet(isPresented: $isRouteLibraryPresented) {
             NetworkRouteLibraryView(library: library, onSelectRoute: selectRoute)
-                .frame(minWidth: 560, minHeight: 480)
+                .platformSheetFrame(minWidth: 560, minHeight: 480)
         }
         .sheet(isPresented: $isContractLibraryPresented) {
             NetworkContractLibraryView(library: library, onSelectContract: selectContract)
-                .frame(minWidth: 600, minHeight: 520)
+                .platformSheetFrame(minWidth: 600, minHeight: 520)
         }
         .sheet(isPresented: $isRegionalDepotRegistryPresented) {
             RegionalDepotRegistryView(onSelectSiteID: { depotID in
@@ -1064,7 +1343,7 @@ struct OperationsDashboardView: View {
                 selectedWorkspaceTab = .network
                 isRegionalDepotRegistryPresented = false
             })
-                .frame(minWidth: 620, minHeight: 560)
+                .platformSheetFrame(minWidth: 620, minHeight: 560)
         }
         .sheet(isPresented: $isDepotLineRosterPresented) {
             DepotLineRosterView(
@@ -1073,7 +1352,7 @@ struct OperationsDashboardView: View {
                 library: library,
                 initialServiceDate: simulation.session?.simulatedAt ?? careerStartMoment
             )
-            .frame(minWidth: 1040, minHeight: 700)
+            .platformSheetFrame(minWidth: 1040, minHeight: 700)
         }
         .sheet(isPresented: $isIncidentResponsePresented) {
             if let incident = incidentForResponse {
@@ -1084,7 +1363,7 @@ struct OperationsDashboardView: View {
                     depots: scenario.referenceDepots,
                     onIncidentUpdated: { incidentForResponse = $0 }
                 )
-                    .frame(minWidth: 720, minHeight: 760)
+                    .platformSheetFrame(minWidth: 720, minHeight: 760)
             }
         }
         .sheet(item: $routeDetourRequest) { request in
@@ -1096,7 +1375,7 @@ struct OperationsDashboardView: View {
                 library: library,
                 simulation: simulation
             )
-            .frame(minWidth: 820, minHeight: 760)
+            .platformSheetFrame(minWidth: 820, minHeight: 760)
         }
         .sheet(item: $stopClosureRequest) { request in
             StopClosureEditorView(
@@ -1105,7 +1384,7 @@ struct OperationsDashboardView: View {
                 library: library,
                 simulation: simulation
             )
-            .frame(minWidth: 760, minHeight: 700)
+            .platformSheetFrame(minWidth: 760, minHeight: 700)
         }
     }
 
@@ -1136,6 +1415,9 @@ struct OperationsDashboardView: View {
                 incidentForResponse = incident
                 isIncidentResponsePresented = true
             }
+        }
+        .onChange(of: selectedWorkspaceTab) { _, workspace in
+            mobileWorkspaceSelection.selectWorkspace(workspaceKey: workspace.rawValue)
         }
         .task(id: scenarioLineCoverageTaskID) {
             await refreshScenarioLineCoverage(for: scenarioLineCoverageTaskID)
@@ -1200,6 +1482,128 @@ struct OperationsDashboardView: View {
     }
 
     private var topBar: some View {
+        #if os(iOS)
+        mobileTopBar
+        #else
+        desktopTopBar
+        #endif
+    }
+
+    private var mobileTopBar: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "bus.fill")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(.tint)
+                .frame(width: 30, height: 30)
+                .background(.tint.opacity(0.10), in: RoundedRectangle(cornerRadius: 9))
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Transport Manager")
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+                Text(isCareerPreparationMode ? "Préparer une carrière" : scenario.name)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            .layoutPriority(1)
+
+            Spacer(minLength: 2)
+
+            if isCareerPreparationMode {
+                DatePicker("Départ", selection: $careerStartMoment, displayedComponents: [.date, .hourAndMinute])
+                    .datePickerStyle(.compact)
+                    .labelsHidden()
+                    .frame(width: 112)
+                    .environment(\.timeZone, GTFSServiceDate.parisTimeZone)
+                    .accessibilityLabel("Date et heure de début de la carrière")
+            }
+
+            if isCareerPreparationMode, isSelectedDepotPlayable {
+                Button(action: startCareer) {
+                    Image(systemName: isPreparingTimetable ? "clock.arrow.circlepath" : "play.fill")
+                        .frame(width: 36, height: 36)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(!canStartCareer || isPreparingTimetable)
+                .accessibilityLabel(isPreparingTimetable ? "Chargement des horaires" : "Démarrer la carrière")
+                .help(startCareerHelp)
+            }
+
+            mobileOptionsMenu
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+    }
+
+    private var mobileOptionsMenu: some View {
+        Menu {
+            Button(action: openLaunchMenu) {
+                Label("Menu principal", systemImage: "house")
+            }
+            Divider()
+            Label(cloudSync.statusMessage, systemImage: cloudSync.hasConflict ? "exclamationmark.icloud" : "icloud")
+                .foregroundStyle(cloudSync.hasConflict ? .orange : .secondary)
+            Button {
+                Task { await cloudSync.synchronize(with: simulation, library: library) }
+            } label: {
+                Label("Synchroniser iCloud", systemImage: "arrow.triangle.2.circlepath.icloud")
+            }
+            .disabled(cloudSync.isSyncing)
+            if cloudSync.hasConflict {
+                Button("Utiliser la version iCloud") {
+                    Task { await cloudSync.resolveConflict(usingCloud: true, with: simulation, library: library) }
+                }
+                Button("Publier ma version locale") {
+                    Task { await cloudSync.resolveConflict(usingCloud: false, with: simulation, library: library) }
+                }
+            }
+            Divider()
+            if simulation.session != nil && !isCareerPreparationMode {
+                Button {
+                    prepareSaveExport()
+                } label: {
+                    Label("Exporter la carrière…", systemImage: "square.and.arrow.up")
+                }
+                Button {
+                    simulation.save()
+                } label: {
+                    Label("Sauvegarder maintenant", systemImage: "externaldrive")
+                }
+                Divider()
+            }
+            Button {
+                isSaveImporterPresented = true
+            } label: {
+                Label("Importer une carrière…", systemImage: "square.and.arrow.down")
+            }
+
+        if isCareerPreparationMode {
+            Divider()
+            Picker("Fréquence des pannes", selection: breakdownFrequencyBinding) {
+                ForEach(VehicleIncidentFrequency.allCases) { frequency in
+                    Text(frequency.title).tag(frequency)
+                }
+            }
+            Text(breakdownFrequency.explanation)
+            Picker("Congestion routière simulée", selection: trafficDisruptionFrequencyBinding) {
+                ForEach(TrafficDisruptionFrequency.allCases) { frequency in
+                    Text(frequency.title).tag(frequency)
+                }
+            }
+            Text(trafficDisruptionFrequency.explanation)
+        }
+        } label: {
+            Image(systemName: "ellipsis.circle")
+                .font(.title3)
+                .frame(width: 44, height: 44)
+                .contentShape(Circle())
+        }
+        .accessibilityLabel("Options de carrière et sauvegarde")
+        .help("Ouvrir le menu principal, les sauvegardes et les options")
+    }
+
+    private var desktopTopBar: some View {
         HStack(spacing: 12) {
             Image(systemName: "bus.fill")
                 .font(.system(size: 18, weight: .semibold))
@@ -1373,29 +1777,58 @@ struct OperationsDashboardView: View {
 
     @ViewBuilder
     private var workspaceContent: some View {
+        workspaceContent(for: selectedWorkspaceTab)
+    }
+
+    @ViewBuilder
+    private func workspaceContent(for workspace: OperationsWorkspaceTab) -> some View {
         VStack(spacing: 0) {
-            if selectedWorkspaceTab != .network {
-                workspaceNavigationHeader
+            if workspace != .network {
+                if usesCompactMobileNavigation {
+                    mobileWorkspaceNavigationHeader(for: workspace)
+                } else {
+                    workspaceNavigationHeader(for: workspace)
+                }
                 Divider()
             }
 
-            workspaceBody
+            workspaceBody(for: workspace)
         }
     }
 
-    private var workspaceNavigationHeader: some View {
+    private func mobileWorkspaceNavigationHeader(for workspace: OperationsWorkspaceTab) -> some View {
+        HStack(spacing: 8) {
+            Text((workspace == .lines
+                ? DepotLineRoster.selectableSites.first(where: { $0.id == lineCatalogDepotID })?.name
+                : nil) ?? selectedDepotSite?.name ?? selectedDepot?.name ?? "Aucun dépôt")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            Spacer(minLength: 4)
+            if simulation.session != nil, lineCatalogDepotID != selectedDepotID, workspace == .lines {
+                Label("Consultation", systemImage: "eye")
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(PlatformColors.controlBackground)
+    }
+
+    private func workspaceNavigationHeader(for workspace: OperationsWorkspaceTab) -> some View {
         HStack(spacing: 12) {
-            Text(selectedWorkspaceTab.title)
+            Text(workspace.title)
                 .font(.headline)
 
             Spacer()
 
-            if simulation.session != nil, lineCatalogDepotID != selectedDepotID, selectedWorkspaceTab == .lines {
+            if simulation.session != nil, lineCatalogDepotID != selectedDepotID, workspace == .lines {
                 Label("Consultation", systemImage: "eye")
                     .font(.caption.weight(.medium))
                     .foregroundStyle(.secondary)
             }
-            Text((selectedWorkspaceTab == .lines
+            Text((workspace == .lines
                 ? DepotLineRoster.selectableSites.first(where: { $0.id == lineCatalogDepotID })?.name
                 : nil) ?? selectedDepotSite?.name ?? selectedDepot?.name ?? "Aucun dépôt")
                 .font(.caption.weight(.medium))
@@ -1407,13 +1840,17 @@ struct OperationsDashboardView: View {
     }
 
     @ViewBuilder
-    private var workspaceBody: some View {
-        switch selectedWorkspaceTab {
+    private func workspaceBody(for workspace: OperationsWorkspaceTab) -> some View {
+        switch workspace {
         case .network:
-            HStack(spacing: 0) {
-                depotLineSidebar
-                Divider()
+            if usesCompactMobileNavigation {
                 mapPanel
+            } else {
+                HStack(spacing: 0) {
+                    depotLineSidebar
+                    Divider()
+                    mapPanel
+                }
             }
         case .coursesMotifs:
             GTFSCourseMotifReviewWorkspace(library: library)
@@ -1813,7 +2250,7 @@ struct OperationsDashboardView: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
-            .frame(minWidth: 165, alignment: .leading)
+            .frame(minWidth: usesCompactMobileNavigation ? 0 : 165, alignment: .leading)
 
             Menu {
                 if let session = simulation.session, !isCareerPreparationMode {
@@ -1849,7 +2286,11 @@ struct OperationsDashboardView: View {
                     }
                 }
             } label: {
-                Label(isCareerPreparationMode ? "Choisir un dépôt" : "Changer de dépôt", systemImage: "chevron.down")
+                if usesCompactMobileNavigation {
+                    Label(isCareerPreparationMode ? "Choisir" : "Changer", systemImage: "chevron.down")
+                } else {
+                    Label(isCareerPreparationMode ? "Choisir un dépôt" : "Changer de dépôt", systemImage: "chevron.down")
+                }
             }
             .platformBorderedMenuStyle()
             .help(isCareerPreparationMode
@@ -1867,8 +2308,8 @@ struct OperationsDashboardView: View {
 
             Spacer(minLength: 8)
         }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 8)
+        .padding(.horizontal, usesCompactMobileNavigation ? 12 : 18)
+        .padding(.vertical, usesCompactMobileNavigation ? 6 : 8)
         .background(Color.primary.opacity(0.025))
     }
 
@@ -1949,6 +2390,62 @@ struct OperationsDashboardView: View {
         }
     }
 
+    private var mobileSimulationControlBar: some View {
+        Group {
+            if let session = simulation.session {
+                HStack(spacing: 8) {
+                    Label(session.simulatedAt.formatted(date: .omitted, time: .shortened), systemImage: "clock")
+                        .font(.caption.weight(.semibold).monospacedDigit())
+                        .lineLimit(1)
+                        .environment(\.timeZone, GTFSServiceDate.parisTimeZone)
+
+                    Spacer(minLength: 2)
+
+                    Menu {
+                        ForEach(SimulationSpeed.allCases) { speed in
+                            Button {
+                                simulation.setSpeed(speed)
+                            } label: {
+                                if speed == session.speed {
+                                    Label(speed.title, systemImage: "checkmark")
+                                } else {
+                                    Text(speed.title)
+                                }
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "speedometer")
+                            .frame(width: 38, height: 38)
+                    }
+                    .accessibilityLabel("Vitesse de simulation : \(session.speed.title)")
+
+                    Button {
+                        if simulation.isRunning { simulation.pause() } else { simulation.resume() }
+                    } label: {
+                        Image(systemName: simulation.isRunning ? "pause.fill" : "play.fill")
+                            .frame(width: 38, height: 38)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled((isTimetableExtensionBlocked && !simulation.isRunning) || pendingIncidentResponse != nil)
+                    .accessibilityLabel(simulation.isRunning ? "Mettre en pause" : "Reprendre la carrière")
+
+                    Button {
+                        _ = simulation.advanceToNextEvent()
+                    } label: {
+                        Image(systemName: "forward.end.fill")
+                            .frame(width: 38, height: 38)
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(session.pendingEvents.isEmpty || pendingIncidentResponse != nil)
+                    .accessibilityLabel("Avancer au prochain événement")
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 2)
+                .environment(\.timeZone, GTFSServiceDate.parisTimeZone)
+            }
+        }
+    }
+
     private var depotLineSidebar: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .center, spacing: 8) {
@@ -1963,6 +2460,7 @@ struct OperationsDashboardView: View {
                 }
                 Spacer(minLength: 0)
                 Button {
+                    isMobileLinePickerPresented = false
                     selectedWorkspaceTab = .lines
                 } label: {
                     Image(systemName: "doc.text.magnifyingglass")
@@ -2099,7 +2597,7 @@ struct OperationsDashboardView: View {
             }
             .padding(12)
         }
-        .frame(width: 286)
+        .frame(maxWidth: usesCompactMobileNavigation ? .infinity : 286)
         .background(PlatformColors.controlBackground)
     }
 
@@ -3249,20 +3747,40 @@ struct OperationsDashboardView: View {
                 MapCompass()
                 MapScaleView()
             }
-            .ignoresSafeArea(edges: .bottom)
+            .ignoresSafeArea(edges: usesCompactMobileNavigation ? [] : .bottom)
             .overlay(alignment: .topLeading) {
-                HStack(spacing: 7) {
-                    Image(systemName: "map.fill").foregroundStyle(.tint)
-                    Text(selectedDepotSite?.name ?? selectedDepot?.name ?? "Réseau")
-                        .font(.caption.weight(.semibold))
-                    Text("·")
-                    Text(selectedDepotLineID ?? "Toutes les lignes")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                Group {
+                    if usesCompactMobileNavigation {
+                        Button {
+                            isMobileLinePickerPresented = true
+                        } label: {
+                            HStack(spacing: 8) {
+                            Image(systemName: "list.bullet").foregroundStyle(.tint)
+                            Text(selectedDepotLineID.map { "Ligne \($0)" } ?? "\(selectedDepotMapLines.count) lignes")
+                                .font(.caption.weight(.semibold))
+                                .lineLimit(1)
+                            }
+                            .padding(.horizontal, 11)
+                            .padding(.vertical, 8)
+                            .background(.regularMaterial, in: Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    .accessibilityLabel("Choisir une ligne parmi \(selectedDepotMapLines.count) lignes du dépôt \(currentlyDisplayedDepotName)")
+                    } else {
+                        HStack(spacing: 8) {
+                            Image(systemName: "map.fill").foregroundStyle(.tint)
+                            Text(selectedDepotSite?.name ?? selectedDepot?.name ?? "Réseau")
+                                .font(.caption.weight(.semibold))
+                            Text("·")
+                            Text(selectedDepotLineID ?? "Toutes les lignes")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.horizontal, 11)
+                        .padding(.vertical, 8)
+                        .background(.regularMaterial, in: Capsule())
+                    }
                 }
-                .padding(.horizontal, 11)
-                .padding(.vertical, 8)
-                .background(.regularMaterial, in: Capsule())
                 .padding(14)
             }
             .overlay(alignment: .center) {
@@ -3280,12 +3798,26 @@ struct OperationsDashboardView: View {
             .overlay(alignment: .topTrailing) {
                 if catalog.activeVersion != nil {
                     HStack(spacing: 8) {
+                        if usesCompactMobileNavigation, activeMapEventCount > 0 {
+                            Button {
+                                isMobileMapEventsPresented = true
+                            } label: {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundStyle(.orange)
+                                    .frame(width: 36, height: 36)
+                                    .background(.regularMaterial, in: Circle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Perturbations actives : \(activeMapEventCount)")
+                        }
                         mapLayerControls
                         HStack(spacing: 6) {
                             Image(systemName: "point.3.connected.trianglepath.dotted")
-                            Text(isLoadingDepotFallbackShapes
-                                ? "\(selectedDepotMapLines.count) lignes · chargement…"
-                                : "\(selectedDepotMapLines.count) lignes · \(mapFleetBuses.count) bus")
+                            Text(usesCompactMobileNavigation
+                                ? "\(selectedDepotMapLines.count)"
+                                : isLoadingDepotFallbackShapes
+                                    ? "\(selectedDepotMapLines.count) lignes · chargement…"
+                                    : "\(selectedDepotMapLines.count) lignes · \(mapFleetBuses.count) bus")
                                 .monospacedDigit()
                         }
                         .font(.caption.weight(.medium))
@@ -3297,15 +3829,19 @@ struct OperationsDashboardView: View {
                 }
             }
             .overlay(alignment: .bottomLeading) {
-                mapLegend.padding(16)
+                if !usesCompactMobileNavigation {
+                    mapLegend.padding(16)
+                }
             }
             .overlay(alignment: .bottomTrailing) {
-                VStack(alignment: .trailing, spacing: 8) {
-                    activeRouteClosuresCard
-                    activeStopClosuresCard
-                    activeRouteDetoursCard
+                if !usesCompactMobileNavigation {
+                    VStack(alignment: .trailing, spacing: 8) {
+                        activeRouteClosuresCard
+                        activeStopClosuresCard
+                        activeRouteDetoursCard
+                    }
+                    .padding(16)
                 }
-                .padding(16)
             }
             .overlay(alignment: .bottom) {
                 if simulation.session != nil && mapFleetBuses.isEmpty {
@@ -3349,7 +3885,10 @@ struct OperationsDashboardView: View {
                     presentStopClosureEditor(for: stop, routeID: routeID)
                 }
             )
-                .frame(width: 360, height: 500)
+                .frame(
+                    maxWidth: usesCompactMobileNavigation ? .infinity : 360,
+                    maxHeight: usesCompactMobileNavigation ? .infinity : 500
+                )
         }
         .popover(isPresented: Binding(
             get: { selectedBusID != nil },
@@ -3363,7 +3902,10 @@ struct OperationsDashboardView: View {
                     fleet: session.ownedBuses ?? [],
                     session: session
                 )
-                .frame(width: 380, height: 500)
+                .frame(
+                    maxWidth: usesCompactMobileNavigation ? .infinity : 380,
+                    maxHeight: usesCompactMobileNavigation ? .infinity : 500
+                )
             }
         }
         .accessibilityLabel("Carte d’exploitation, \(visibleBusStops.count) arrêts de bus visibles")
@@ -4089,6 +4631,9 @@ struct OperationsDashboardView: View {
     }
 
     private func selectDepotLine(_ line: DepotMapLine) {
+        if usesCompactMobileNavigation {
+            isMobileLinePickerPresented = false
+        }
         selectedDepotLineID = line.id
         selectedRouteID = line.routes.first?.routeID
         selectedContractFeatureID = nil
@@ -5595,6 +6140,9 @@ private struct VehicleMarketView: View {
     @State private var depotReturnRequestID = UUID()
 
     private var session: SimulationSession? { simulation.session }
+    private var activeDepotName: String {
+        DepotCareerScope.depotReference(for: activeDepotID)?.name ?? activeDepotID
+    }
     private var offers: [VehicleMarketOffer] { session?.marketOffers ?? [] }
     private var fleet: [PurchasedBus] {
         (session?.ownedBuses ?? []).filter { $0.depotID == activeDepotID }
@@ -6313,14 +6861,28 @@ private struct VehicleMarketView: View {
             vehicleTechnicalVariants(for: model)
 
             if let energyReadiness {
-                Label("Dépôt · \(energyReadiness.statusTitle)", systemImage: energyReadinessSymbol(energyReadiness))
-                    .font(.caption2.weight(.medium))
-                    .foregroundStyle(energyReadinessColor(energyReadiness))
-                if !energyReadiness.isReady {
-                    Text(energyReadiness.detail)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                if case .legacyUnverified = energyReadiness {
+                    let compatibility = VehicleMarketDepotCompatibilityRules.presentation(for: energyReadiness)
+                    VStack(alignment: .leading, spacing: 5) {
+                        Label("COB \(activeDepotName) · \(compatibility.status)", systemImage: energyReadinessSymbol(energyReadiness))
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(energyReadinessColor(energyReadiness))
+                        Text(compatibility.detail)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .accessibilityIdentifier("vehicleMarketDepotCompatibility")
+                } else {
+                    Label("Dépôt · \(energyReadiness.statusTitle)", systemImage: energyReadinessSymbol(energyReadiness))
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(energyReadinessColor(energyReadiness))
+                    if !energyReadiness.isReady {
+                        Text(energyReadiness.detail)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
             }
             if model.energy == .electric,

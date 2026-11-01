@@ -392,6 +392,25 @@ enum VehicleMarketInspectionRules {
     }
 }
 
+struct VehicleMarketDepotCompatibilityPresentation: Equatable, Sendable {
+    let status: String
+    let detail: String
+}
+
+enum VehicleMarketDepotCompatibilityRules {
+    static func presentation(for readiness: DepotEnergyReadiness) -> VehicleMarketDepotCompatibilityPresentation {
+        let status: String
+        switch readiness {
+        case .legacyUnverified:
+            status = "Achat autorisé · équipement non vérifié dans cette ancienne sauvegarde"
+        default:
+            status = readiness.statusTitle
+        }
+
+        return VehicleMarketDepotCompatibilityPresentation(status: status, detail: readiness.detail)
+    }
+}
+
 struct PurchasedBus: Codable, Hashable, Identifiable, Sendable {
     let id: String
     let modelID: String

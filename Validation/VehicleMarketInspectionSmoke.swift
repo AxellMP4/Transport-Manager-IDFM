@@ -3,6 +3,24 @@ import Foundation
 @main
 struct VehicleMarketInspectionSmoke {
     static func main() {
+        let unknownDepotEnergy = DepotEnergyEvidence(
+            status: .unknown,
+            note: "L’installation réelle de ce dépôt n’est pas documentée.",
+            dateLabel: nil,
+            sources: []
+        )
+        let legacyReadiness = DepotEnergyReadiness.legacyUnverified(unknownDepotEnergy)
+        let legacyCompatibility = VehicleMarketDepotCompatibilityRules.presentation(for: legacyReadiness)
+        precondition(legacyReadiness.isReady, "Une sauvegarde ancienne conserve le comportement d’achat compatible avec son schéma.")
+        precondition(legacyCompatibility.status.contains("Achat autorisé"))
+        precondition(legacyCompatibility.status.contains("non vérifié"))
+        precondition(legacyCompatibility.detail == unknownDepotEnergy.note)
+
+        let requiredInstallation = DepotEnergyReadiness.requiresInstallation(unknownDepotEnergy)
+        let blockedCompatibility = VehicleMarketDepotCompatibilityRules.presentation(for: requiredInstallation)
+        precondition(!requiredInstallation.isReady, "Une carrière récente doit installer l’équipement requis avant l’achat.")
+        precondition(blockedCompatibility.status == requiredInstallation.statusTitle, "Les autres états de compatibilité gardent leur libellé existant.")
+
         guard let usedOffer = VehicleMarketCatalog.offers(for: 2026).first(where: {
             $0.id == "irisbus-citelis-12-diesel-used-2012-2026"
         }) else {

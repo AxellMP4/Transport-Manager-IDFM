@@ -7,6 +7,7 @@ struct SpecialTransportSmoke {
         try specialTransportIsReservedEarnedInvoicedAndSettled()
         specialTransportRejectsVehicleAndMachinistConflicts()
         specialTransportMachinistChoicesRespectTraining()
+        try specialTransportReopensSettledDutyBlockAndPaysOnlyExtension()
         try pendingSpecialTransportCanBeCancelledAndOldSavesDecode()
         print("PASS: special transport reserves resources and records agreed revenue through settlement")
     }
@@ -193,6 +194,109 @@ struct SpecialTransportSmoke {
             !availableMachinists.contains(where: { $0.id == "driver-1" }),
             "A machinist whose training overlaps the charter must not appear in its choices."
         )
+    }
+
+    private static func specialTransportReopensSettledDutyBlockAndPaysOnlyExtension() throws {
+        let firstDutyStart = Date(timeIntervalSince1970: 1_798_000_000)
+        let firstDutyEnd = firstDutyStart.addingTimeInterval(3_600)
+        let transportStartsAt = firstDutyEnd.addingTimeInterval(3_600)
+        let transportEndsAt = transportStartsAt.addingTimeInterval(3_600)
+        let sessionStartsAt = firstDutyEnd.addingTimeInterval(1_800)
+        var session = makeSession(at: sessionStartsAt, busCount: 1, machinistCount: 1)
+        session.machinistServiceAssignments = [MachinistServiceAssignment(
+            id: "prior-assignment",
+            machinistID: "driver-1",
+            dutyBlockID: "settled-block",
+            vehicleID: "bus-1",
+            vehicleModelID: "iveco-urbanway-12-gnv",
+            tripID: "prior-trip",
+            routeID: "route-113",
+            serviceDateKey: 20261025,
+            plannedStartAt: firstDutyStart,
+            plannedEndAt: firstDutyEnd,
+            actualEndAt: firstDutyEnd
+        )]
+        session.machinistDutyBlocks = [MachinistDutyBlock(
+            id: "settled-block",
+            machinistID: "driver-1",
+            plannedStartAt: firstDutyStart,
+            plannedEndAt: firstDutyEnd,
+            actualEndAt: firstDutyEnd,
+            laborCostEuro: 24,
+            lastSettledAt: firstDutyEnd
+        )]
+        session.machinistPayrollRecords = [MachinistPayrollRecord(
+            id: "machinist-duty-settled-block",
+            machinistID: "driver-1",
+            occurredAt: firstDutyEnd,
+            kind: .service,
+            workHours: 1,
+            amountEuro: 24,
+            details: "service initial · 1 h"
+        )]
+        let engine = try engine(with: session)
+
+        let cancelledOrder = try engine.scheduleSpecialTransport(
+            clientName: "Association des Rives",
+            purpose: "Prolongement d’un service",
+            startsAt: transportStartsAt,
+            durationMinutes: 60,
+            plannedDistanceKilometers: 12.5,
+            passengerCount: 20,
+            vehicleID: "bus-1",
+            machinistID: "driver-1",
+            quotedAmountEuro: 700
+        )
+
+        guard let scheduledSession = engine.session,
+              let scheduledBlock = scheduledSession.machinistDutyBlocks?.first(where: { $0.id == "settled-block" }),
+              let charterAssignment = scheduledSession.machinistServiceAssignments?.first(where: { $0.tripID == cancelledOrder.id }) else {
+            preconditionFailure("A charter joined to a settled block must reopen that block.")
+        }
+        precondition(charterAssignment.dutyBlockID == scheduledBlock.id)
+        precondition(scheduledBlock.actualEndAt == nil)
+        precondition(scheduledBlock.plannedEndAt == transportEndsAt)
+        precondition(scheduledBlock.laborCostEuro == 24, "Reopening must preserve the amount already settled.")
+        precondition(scheduledBlock.lastSettledAt == firstDutyEnd)
+
+        try engine.cancelSpecialTransport(orderID: cancelledOrder.id)
+        guard let cancelledSession = engine.session,
+              let restoredBlock = cancelledSession.machinistDutyBlocks?.first(where: { $0.id == "settled-block" }) else {
+            preconditionFailure("Cancelling a pending extension must restore the prior settled block.")
+        }
+        precondition(restoredBlock.actualEndAt == firstDutyEnd)
+        precondition(restoredBlock.plannedEndAt == firstDutyEnd)
+        precondition(restoredBlock.laborCostEuro == 24)
+        precondition(restoredBlock.lastSettledAt == firstDutyEnd)
+        precondition(!cancelledSession.machinistServiceAssignments!.contains { $0.tripID == cancelledOrder.id })
+
+        let order = try engine.scheduleSpecialTransport(
+            clientName: "Association des Rives",
+            purpose: "Prolongement d’un service",
+            startsAt: transportStartsAt,
+            durationMinutes: 60,
+            plannedDistanceKilometers: 12.5,
+            passengerCount: 20,
+            vehicleID: "bus-1",
+            machinistID: "driver-1",
+            quotedAmountEuro: 700
+        )
+
+        precondition(engine.advanceToNextEvent())
+        precondition(engine.advanceToNextEvent())
+        guard let completedSession = engine.session,
+              let completedOrder = completedSession.specialTransportOrders?.first(where: { $0.id == order.id }),
+              let settledBlock = completedSession.machinistDutyBlocks?.first(where: { $0.id == "settled-block" }) else {
+            preconditionFailure("The completed charter should settle the reopened duty block.")
+        }
+        precondition(completedOrder.status == .completed)
+        precondition(settledBlock.actualEndAt == transportEndsAt)
+        precondition(settledBlock.laborCostEuro == 72)
+        let payroll = completedSession.machinistPayrollRecords?.filter { $0.machinistID == "driver-1" } ?? []
+        precondition(payroll.count == 2, "The extension must add one incremental payroll record.")
+        let extensionPayroll = payroll.first { $0.id.hasPrefix("machinist-duty-extension-settled-block-") }
+        precondition(extensionPayroll?.workHours == 2)
+        precondition(extensionPayroll?.amountEuro == 48)
     }
 
     private static func pendingSpecialTransportCanBeCancelledAndOldSavesDecode() throws {

@@ -3685,7 +3685,7 @@ final class SimulationEngine: ObservableObject {
             throw SimulationEngineError.specialTransportVehicleConflict
         }
 
-        guard Self.machinistDutyBlockAssignmentPlan(
+        guard let machinistDutyPlan = Self.machinistDutyBlockAssignmentPlan(
             machinistID,
             from: startsAt,
             to: endsAt,
@@ -3695,8 +3695,25 @@ final class SimulationEngine: ObservableObject {
             absences: activeSession.machinistAbsences ?? [],
             trainings: activeSession.machinistTrainings ?? [],
             allowReopeningSettledBlocks: true
-        ) != nil else {
+        ) else {
             throw SimulationEngineError.machinistUnavailable
+        }
+
+        var updatedDutyBlocks = activeSession.machinistDutyBlocks ?? []
+        let dutyBlockID: String?
+        if let joiningDutyBlockID = machinistDutyPlan.joiningDutyBlockID {
+            guard let dutyBlockIndex = updatedDutyBlocks.firstIndex(where: { $0.id == joiningDutyBlockID }) else {
+                throw SimulationEngineError.machinistUnavailable
+            }
+            dutyBlockID = joiningDutyBlockID
+            Self.reopenAndExtendMachinistDutyBlock(
+                &updatedDutyBlocks[dutyBlockIndex],
+                from: startsAt,
+                to: endsAt
+            )
+            activeSession.machinistDutyBlocks = updatedDutyBlocks
+        } else {
+            dutyBlockID = nil
         }
 
         let orderID = "special-transport-\(UUID().uuidString)"
@@ -3722,6 +3739,7 @@ final class SimulationEngine: ObservableObject {
         updatedAssignments.append(MachinistServiceAssignment(
             id: "assignment-\(orderID)",
             machinistID: machinist.id,
+            dutyBlockID: dutyBlockID,
             vehicleID: bus.id,
             vehicleModelID: bus.modelID,
             tripID: orderID,
@@ -3791,7 +3809,29 @@ final class SimulationEngine: ObservableObject {
                 false
             }
         }
-        activeSession.machinistServiceAssignments?.removeAll { $0.tripID == orderID }
+        var assignments = activeSession.machinistServiceAssignments ?? []
+        let removedAssignments = assignments.filter { $0.tripID == orderID }
+        assignments.removeAll { $0.tripID == orderID }
+        activeSession.machinistServiceAssignments = assignments
+
+        let affectedDutyBlockIDs = Set(removedAssignments.compactMap(\.dutyBlockID))
+        if !affectedDutyBlockIDs.isEmpty {
+            activeSession.machinistDutyBlocks = (activeSession.machinistDutyBlocks ?? []).compactMap { block in
+                guard affectedDutyBlockIDs.contains(block.id) else { return block }
+                let remainingAssignments = assignments.filter { $0.dutyBlockID == block.id }
+                guard let plannedStartAt = remainingAssignments.map(\.plannedStartAt).min(),
+                      let plannedEndAt = remainingAssignments.map(\.plannedEndAt).max() else {
+                    return nil
+                }
+                var restoredBlock = block
+                restoredBlock.plannedStartAt = plannedStartAt
+                restoredBlock.plannedEndAt = plannedEndAt
+                restoredBlock.actualEndAt = remainingAssignments.allSatisfy { $0.actualEndAt != nil }
+                    ? remainingAssignments.compactMap(\.actualEndAt).max()
+                    : nil
+                return restoredBlock
+            }
+        }
         activeSession.updatedAt = Date.now
         session = activeSession
         save()
