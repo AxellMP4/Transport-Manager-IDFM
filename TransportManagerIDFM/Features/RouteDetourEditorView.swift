@@ -18,6 +18,7 @@ struct RouteDetourEditorView: View {
     let stop: GTFSStopSummary?
     let routeID: String
     let sourceObservation: PRIMTrafficObservation?
+    let suggestedCause: RouteDetourCause
     @ObservedObject var library: NetworkLibrary
     @ObservedObject var simulation: SimulationEngine
 
@@ -27,6 +28,7 @@ struct RouteDetourEditorView: View {
     @State private var alternatives: [RouteDetourCandidate] = []
     @State private var selectedCandidateID: String?
     @State private var candidateSegmentID: String?
+    @State private var cause: RouteDetourCause
     @State private var startsAt = Date.now
     @State private var endsAt = Date.now.addingTimeInterval(60 * 60)
     @State private var additionalDelayMinutes = 10
@@ -37,6 +39,23 @@ struct RouteDetourEditorView: View {
     @State private var routingError: String?
     @State private var saveError: String?
     @State private var mapCameraPosition: MapCameraPosition = .automatic
+
+    init(
+        stop: GTFSStopSummary?,
+        routeID: String,
+        sourceObservation: PRIMTrafficObservation?,
+        suggestedCause: RouteDetourCause = .accident,
+        library: NetworkLibrary,
+        simulation: SimulationEngine
+    ) {
+        self.stop = stop
+        self.routeID = routeID
+        self.sourceObservation = sourceObservation
+        self.suggestedCause = suggestedCause
+        self.library = library
+        self.simulation = simulation
+        _cause = State(initialValue: suggestedCause)
+    }
 
     private var routeName: String {
         library.busRoutes.first(where: { $0.routeID == routeID })?.displayName ?? routeID
@@ -92,6 +111,18 @@ struct RouteDetourEditorView: View {
                             .font(.caption)
                             .foregroundStyle(.orange)
                     }
+                }
+
+                Section("Type de perturbation") {
+                    Picker("Cause", selection: $cause) {
+                        ForEach(RouteDetourCause.allCases) { option in
+                            Text(option.title).tag(option)
+                        }
+                    }
+                    Label(cause.explanation, systemImage: cause.symbol)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
 
                 if let sourceObservation {
@@ -236,7 +267,7 @@ struct RouteDetourEditorView: View {
                 }
             }
             .formStyle(.grouped)
-            .navigationTitle("Déviation temporaire")
+            .navigationTitle(cause == .accident ? "Déclarer un accident" : "Déviation temporaire")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Annuler") { dismiss() }
@@ -377,6 +408,7 @@ struct RouteDetourEditorView: View {
                 endsAt: endsAt,
                 replacementCoordinates: selectedCandidate.coordinates,
                 additionalTravelSeconds: Double(additionalDelayMinutes * 60),
+                cause: cause,
                 sourceObservation: sourceObservation,
                 passengerInformationMessage: passengerInformationMessage
             )
