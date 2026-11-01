@@ -13,6 +13,7 @@ struct GameLaunchMenuView: View {
         case scenarios
         case savedCareers
         case options
+        case guide
     }
 
     @Binding var breakdownFrequency: VehicleIncidentFrequency
@@ -33,6 +34,7 @@ struct GameLaunchMenuView: View {
     let onExportCareer: () -> Void
     let onSaveCareer: () -> Void
     let onSynchronize: () -> Void
+    let onOpenGuideDestination: (CareerGuideDestination) -> Void
 
     @State private var page: Page = .home
     @State private var searchText = ""
@@ -144,6 +146,11 @@ struct GameLaunchMenuView: View {
             savedCareersPage
         case .options:
             optionsPage
+        case .guide:
+            CareerGuideView(
+                onClose: { page = .home },
+                onOpenDestination: onOpenGuideDestination
+            )
         }
     }
 
@@ -216,6 +223,12 @@ struct GameLaunchMenuView: View {
                         detail: "Fréquence des pannes et synchronisation iCloud",
                         symbol: "gearshape",
                         action: { page = .options }
+                    )
+                    actionRow(
+                        title: "Guide de prise en main",
+                        detail: "Quatre étapes pour lancer et suivre une carrière",
+                        symbol: "book",
+                        action: { page = .guide }
                     )
                 }
                 .padding(.vertical, 4)
@@ -492,6 +505,59 @@ struct GameLaunchMenuView: View {
         DepotCareerScope.depotReference(for: career.depotID)?.name
             ?? DepotLineRoster.selectableSites.first(where: { $0.id == career.depotID })?.name
             ?? career.depotID
+    }
+}
+
+struct CareerGuideView: View {
+    let onClose: () -> Void
+    let onOpenDestination: (CareerGuideDestination) -> Void
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text("Les bases d’une carrière")
+                        .font(.title2.weight(.bold))
+                    Text("Ce guide est facultatif. Tu peux le fermer à tout moment et le rouvrir depuis le menu ou l’onglet Carrière.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    ForEach(CareerGuideChapter.all) { chapter in
+                        GroupBox {
+                            VStack(alignment: .leading, spacing: 11) {
+                                Text(chapter.summary)
+                                    .font(.body)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                ForEach(chapter.destinations) { destination in
+                                    Button {
+                                        onOpenDestination(destination)
+                                    } label: {
+                                        Label(destination.title, systemImage: destination.systemImage)
+                                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                                            .contentShape(Rectangle())
+                                    }
+                                    .buttonStyle(.bordered)
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        } label: {
+                            Label(chapter.title, systemImage: "\(chapter.id).circle.fill")
+                                .font(.headline)
+                        }
+                    }
+                }
+                .padding(20)
+                .frame(maxWidth: 760, alignment: .leading)
+                .frame(maxWidth: .infinity)
+            }
+            .navigationTitle("Guide")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Fermer", action: onClose)
+                }
+            }
+        }
     }
 }
 
