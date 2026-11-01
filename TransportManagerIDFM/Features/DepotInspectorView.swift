@@ -1,3 +1,4 @@
+import MapKit
 import SwiftUI
 
 private enum DepotRosterSheet: Identifiable {
@@ -970,7 +971,21 @@ struct RegionalDepotRegistryView: View {
     }
 }
 
+private struct DepotMapCoordinate: Equatable, Sendable {
+    let latitude: Double
+    let longitude: Double
+
+    var mapCoordinate: CLLocationCoordinate2D {
+        CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+    }
+}
+
 struct DepotDirectoryWorkspaceView: View {
+    private static let regionalMapRegion = MKCoordinateRegion(
+        center: CLLocationCoordinate2D(latitude: 48.82, longitude: 2.43),
+        span: MKCoordinateSpan(latitudeDelta: 1.05, longitudeDelta: 1.65)
+    )
+
     @ObservedObject var library: NetworkLibrary
     /// The depot currently selected in the directory; it can differ from the active career depot.
     let selectedDepotID: String
@@ -985,6 +1000,17 @@ struct DepotDirectoryWorkspaceView: View {
 
     @State private var searchText = ""
     @State private var browseSelectionID: String?
+    @State private var availabilityFilter = DepotDirectoryAvailabilityFilter.all
+    @State private var selectedOperatorFilter: String?
+    @State private var selectedContractFilter: String?
+    @State private var qualityFilter = DepotDirectoryQualityFilter.all
+    @State private var mapCameraPosition = MapCameraPosition.region(Self.regionalMapRegion)
+    @State private var mapCoordinatesBySiteID: [String: DepotMapCoordinate] = [:]
+    @State private var isResolvingMapLocations = false
+    @State private var mapResolutionProgress = 0
+    @State private var mapResolutionBatchCount = 0
+    @State private var mapLookupAttemptedSiteIDs: Set<String> = []
+    @State private var mapLocationFailureSiteIDs: Set<String> = []
     @State private var selectedSiteServiceAudit: DepotGTFSServiceAudit?
     @State private var selectedSiteServiceAuditError: String?
     @State private var isLoadingSelectedSiteServiceAudit = false
@@ -994,7 +1020,9 @@ struct DepotDirectoryWorkspaceView: View {
         selectionLocked ? (browseSelectionID ?? selectedDepotID) : selectedDepotID
     }
 
-    private var sites: [DepotLineRosterSite] {
+    private let mapResolutionBatchLimit = 20
+
+    private var directorySearchMatches: [DepotLineRosterSite] {
         DepotLineRoster.selectableSites
             .filter { site in
                 searchText.isEmpty
@@ -1002,12 +1030,60 @@ struct DepotDirectoryWorkspaceView: View {
                     || site.locality.localizedCaseInsensitiveContains(searchText)
                     || site.documentedAddress?.localizedCaseInsensitiveContains(searchText) == true
             }
-            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
+
+    private var sites: [DepotLineRosterSite] {
+        DepotDirectorySiteFilter(
+            availability: availabilityFilter,
+            operatorName: selectedOperatorFilter,
+            contractID: selectedContractFilter,
+            quality: qualityFilter
+        )
+        .applying(to: directorySearchMatches)
+        .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
 
     private var activeSites: [DepotLineRosterSite] { sites.filter { $0.availability == .operational } }
     private var unverifiedSites: [DepotLineRosterSite] { sites.filter { $0.availability == .currentStatusUnverified } }
     private var plannedSites: [DepotLineRosterSite] { sites.filter { $0.availability == .planned } }
+
+    private var availableOperators: [String] {
+        Array(Set(DepotLineRoster.selectableSites.compactMap { site -> String? in
+            guard let name = site.operatorName?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty else { return nil }
+            return name
+        })).sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+    }
+
+    private var availableContracts: [String] {
+        Array(Set(DepotLineRoster.selectableSites.compactMap { site -> String? in
+            guard let contractID = site.idfmBusContractID?.trimmingCharacters(in: .whitespacesAndNewlines), !contractID.isEmpty else { return nil }
+            return contractID
+        })).sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+    }
+
+    private var locatedSites: [DepotLineRosterSite] {
+        sites.filter { mapCoordinatesBySiteID[$0.id] != nil }
+    }
+
+    private var pendingAddressSites: [DepotLineRosterSite] {
+        sites.filter { site in
+            guard let address = site.documentedAddress?.trimmingCharacters(in: .whitespacesAndNewlines), !address.isEmpty else { return false }
+            return mapCoordinatesBySiteID[site.id] == nil && !mapLookupAttemptedSiteIDs.contains(site.id)
+        }
+    }
+
+    private var failedAddressSites: [DepotLineRosterSite] {
+        sites.filter { site in
+            mapLocationFailureSiteIDs.contains(site.id)
+                && site.documentedAddress?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+        }
+    }
+
+    private var sitesWithoutPublishedAddressCount: Int {
+        sites.count - sites.filter { site in
+            site.documentedAddress?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+        }.count
+    }
 
     private var selectedSite: DepotLineRosterSite? {
         DepotLineRoster.selectableSites.first { $0.id == directorySelectedDepotID }
@@ -1093,7 +1169,7 @@ struct DepotDirectoryWorkspaceView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Tous les dépôts")
                     .font(.title2.weight(.semibold))
-                Text("\(DepotLineRoster.selectableSites.count) sites recensés en Île-de-France")
+                Text("\(sites.count) résultat(s) · \(DepotLineRoster.selectableSites.count) sites recensés")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -1114,6 +1190,14 @@ struct DepotDirectoryWorkspaceView: View {
             TextField("Nom du dépôt ou de la ville", text: $searchText)
                 .textFieldStyle(.roundedBorder)
                 .padding(.horizontal, 12)
+                .padding(.bottom, 7)
+
+            depotDirectoryFilters
+                .padding(.horizontal, 12)
+                .padding(.bottom, 8)
+
+            depotMapPicker
+                .padding(.horizontal, 10)
                 .padding(.bottom, 9)
 
             Divider()
@@ -1142,15 +1226,294 @@ struct DepotDirectoryWorkspaceView: View {
         .background(PlatformColors.controlBackground)
     }
 
+    private var depotDirectoryFilters: some View {
+        VStack(spacing: 6) {
+            HStack(spacing: 6) {
+                Menu {
+                    ForEach(DepotDirectoryAvailabilityFilter.allCases) { filter in
+                        Button {
+                            availabilityFilter = filter
+                        } label: {
+                            if availabilityFilter == filter {
+                                Label(filter.title, systemImage: "checkmark")
+                            } else {
+                                Text(filter.title)
+                            }
+                        }
+                    }
+                } label: {
+                    Label(availabilityFilter.title, systemImage: "line.3.horizontal.decrease")
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
+                .help("Filtrer les sites par statut documenté")
+
+                Menu {
+                    Button {
+                        selectedOperatorFilter = nil
+                    } label: {
+                        if selectedOperatorFilter == nil { Label("Tous les exploitants", systemImage: "checkmark") }
+                        else { Text("Tous les exploitants") }
+                    }
+                    ForEach(availableOperators, id: \.self) { operatorName in
+                        Button {
+                            selectedOperatorFilter = operatorName
+                        } label: {
+                            if selectedOperatorFilter == operatorName { Label(operatorName, systemImage: "checkmark") }
+                            else { Text(operatorName) }
+                        }
+                    }
+                } label: {
+                    Label(selectedOperatorFilter ?? "Exploitant", systemImage: "bus")
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
+                .help("Filtrer par exploitant documenté au contrat")
+            }
+
+            HStack(spacing: 6) {
+                Menu {
+                    Button {
+                        selectedContractFilter = nil
+                    } label: {
+                        if selectedContractFilter == nil { Label("Tous les contrats", systemImage: "checkmark") }
+                        else { Text("Tous les contrats") }
+                    }
+                    ForEach(availableContracts, id: \.self) { contractID in
+                        Button {
+                            selectedContractFilter = contractID
+                        } label: {
+                            if selectedContractFilter == contractID { Label("DSP \(contractID)", systemImage: "checkmark") }
+                            else { Text("DSP \(contractID)") }
+                        }
+                    }
+                } label: {
+                    Label(selectedContractFilter.map { "DSP \($0)" } ?? "Contrat", systemImage: "building.2")
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
+                .help("Filtrer par contrat IDFM connu")
+
+                Menu {
+                    ForEach(DepotDirectoryQualityFilter.allCases) { filter in
+                        Button {
+                            qualityFilter = filter
+                        } label: {
+                            if qualityFilter == filter { Label(filter.title, systemImage: "checkmark") }
+                            else { Text(filter.title) }
+                        }
+                    }
+                } label: {
+                    Label(qualityFilter == .all ? "Données" : qualityFilter.title, systemImage: "checkmark.seal")
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
+                .help("Filtrer par niveau de donnée publiée")
+            }
+        }
+        .buttonStyle(.bordered)
+    }
+
+    private var depotMapPicker: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Map(position: $mapCameraPosition) {
+                ForEach(locatedSites) { site in
+                    if let coordinate = mapCoordinatesBySiteID[site.id] {
+                        Annotation(site.name, coordinate: coordinate.mapCoordinate, anchor: .bottom) {
+                            Button {
+                                selectDepotSite(site, centerMap: true)
+                            } label: {
+                                VStack(spacing: 3) {
+                                    Image(systemName: directorySelectedDepotID == site.id ? "building.2.fill" : "building.2")
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundStyle(site.availability == .operational ? Color.green : Color.orange)
+                                    Text(site.name)
+                                        .font(.caption2.weight(.semibold))
+                                        .lineLimit(1)
+                                        .fixedSize(horizontal: true, vertical: false)
+                                }
+                                .padding(.horizontal, 7)
+                                .padding(.vertical, 5)
+                                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .strokeBorder(
+                                            directorySelectedDepotID == site.id ? Color.accentColor : Color.primary.opacity(0.12),
+                                            lineWidth: directorySelectedDepotID == site.id ? 2 : 1
+                                        )
+                                }
+                                .frame(minWidth: 44, minHeight: 44)
+                                .contentShape(RoundedRectangle(cornerRadius: 8))
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Sélectionner \(site.name) sur la carte")
+                            .accessibilityHint("Affiche les données de ce dépôt dans le panneau de détail.")
+                        }
+                    }
+                }
+            }
+            .mapStyle(.standard)
+            .frame(height: 218)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(alignment: .topLeading) {
+                Label("Dépôts Île-de-France", systemImage: "map")
+                    .font(.caption.weight(.semibold))
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 6)
+                    .background(.regularMaterial, in: Capsule())
+                    .padding(8)
+            }
+            .overlay {
+                if locatedSites.isEmpty {
+                    VStack(spacing: 5) {
+                        Image(systemName: "mappin.slash.circle")
+                            .font(.title2)
+                            .foregroundStyle(.secondary)
+                        Text("Aucune épingle localisée")
+                            .font(.subheadline.weight(.semibold))
+                        Text(pendingAddressSites.isEmpty
+                             ? "Les sites restent consultables dans la liste."
+                             : "Localisez les adresses publiées pour afficher les sites sur la carte.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(14)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                    .allowsHitTesting(false)
+                }
+            }
+
+            HStack(spacing: 8) {
+                Text("\(locatedSites.count) épingle(s) · \(sites.count) résultat(s)")
+                    .font(.caption2.weight(.medium).monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                Spacer(minLength: 0)
+                if isResolvingMapLocations {
+                    ProgressView(value: Double(mapResolutionProgress), total: Double(max(1, mapResolutionBatchCount)))
+                        .frame(width: 72)
+                        .accessibilityLabel("Localisation des adresses \(mapResolutionProgress) sur \(mapResolutionBatchCount)")
+                } else if !pendingAddressSites.isEmpty {
+                    Button {
+                        Task { await resolveVisibleDepotAddresses(retryFailures: false) }
+                    } label: {
+                        Label("Localiser les adresses", systemImage: "mappin.and.ellipse")
+                            .labelStyle(.iconOnly)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .help("Rechercher dans Apple Plans jusqu’à \(min(mapResolutionBatchLimit, pendingAddressSites.count)) adresses publiées pour placer leurs épingles")
+                    .accessibilityLabel("Localiser jusqu’à \(min(mapResolutionBatchLimit, pendingAddressSites.count)) adresses publiées")
+                } else if !failedAddressSites.isEmpty {
+                    Button {
+                        Task { await resolveVisibleDepotAddresses(retryFailures: true) }
+                    } label: {
+                        Label("Relancer les adresses", systemImage: "arrow.clockwise")
+                            .labelStyle(.iconOnly)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .help("Réessayer les \(failedAddressSites.count) adresses qui n’ont pas pu être localisées")
+                    .accessibilityLabel("Réessayer les \(failedAddressSites.count) adresses non localisées")
+                }
+            }
+
+            if sitesWithoutPublishedAddressCount > 0 {
+                Text("\(sitesWithoutPublishedAddressCount) site(s) sans adresse publiée restent accessibles dans la liste et ne reçoivent pas de position estimée.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if !failedAddressSites.isEmpty {
+                Text("\(failedAddressSites.count) adresse(s) n’ont pas pu être localisées par Plans. Elles restent dans la liste; vous pourrez les relancer après avoir réduit les filtres.")
+                    .font(.caption2)
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Text("Les épingles sont des résultats Apple Plans à partir d’adresses publiées; elles ne prouvent pas l’affectation des lignes au COB.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    @MainActor
+    private func resolveVisibleDepotAddresses(retryFailures: Bool) async {
+        guard !isResolvingMapLocations else { return }
+        let candidates = retryFailures ? failedAddressSites : pendingAddressSites
+        let batch = Array(candidates.prefix(mapResolutionBatchLimit))
+        guard !batch.isEmpty else { return }
+
+        isResolvingMapLocations = true
+        mapResolutionProgress = 0
+        mapResolutionBatchCount = batch.count
+        defer { isResolvingMapLocations = false }
+
+        for site in batch {
+            guard !Task.isCancelled else { return }
+            mapLookupAttemptedSiteIDs.insert(site.id)
+            do {
+                if let coordinate = try await resolveMapCoordinate(for: site) {
+                    mapCoordinatesBySiteID[site.id] = coordinate
+                    mapLocationFailureSiteIDs.remove(site.id)
+                    if locatedSites.count == 1 {
+                        mapCameraPosition = .region(Self.region(centeredOn: coordinate, latitudeDelta: 0.45, longitudeDelta: 0.6))
+                    }
+                } else {
+                    mapLocationFailureSiteIDs.insert(site.id)
+                }
+            } catch {
+                mapLocationFailureSiteIDs.insert(site.id)
+            }
+            mapResolutionProgress += 1
+        }
+    }
+
+    @MainActor
+    private func resolveMapCoordinate(for site: DepotLineRosterSite) async throws -> DepotMapCoordinate? {
+        guard let address = site.documentedAddress?.trimmingCharacters(in: .whitespacesAndNewlines), !address.isEmpty else {
+            return nil
+        }
+
+        let request = MKLocalSearch.Request()
+        request.naturalLanguageQuery = "\(address), Île-de-France, France"
+        request.region = Self.regionalMapRegion
+        let response = try await MKLocalSearch(request: request).start()
+        guard let placemark = response.mapItems.lazy.map(\.placemark).first(where: { placemark in
+            let coordinate = placemark.coordinate
+            return placemark.countryCode?.uppercased() == "FR"
+                && (48.0...49.3).contains(coordinate.latitude)
+                && (1.3...3.6).contains(coordinate.longitude)
+        }) else {
+            return nil
+        }
+        return DepotMapCoordinate(latitude: placemark.coordinate.latitude, longitude: placemark.coordinate.longitude)
+    }
+
+    private func selectDepotSite(_ site: DepotLineRosterSite, centerMap: Bool) {
+        if selectionLocked {
+            browseSelectionID = site.id
+        } else {
+            onSelect(site.id)
+        }
+        guard centerMap, let coordinate = mapCoordinatesBySiteID[site.id] else { return }
+        mapCameraPosition = .region(Self.region(centeredOn: coordinate, latitudeDelta: 0.22, longitudeDelta: 0.3))
+    }
+
+    private static func region(centeredOn coordinate: DepotMapCoordinate, latitudeDelta: CLLocationDegrees, longitudeDelta: CLLocationDegrees) -> MKCoordinateRegion {
+        MKCoordinateRegion(
+            center: coordinate.mapCoordinate,
+            span: MKCoordinateSpan(latitudeDelta: latitudeDelta, longitudeDelta: longitudeDelta)
+        )
+    }
+
     @ViewBuilder
     private func siteRow(_ site: DepotLineRosterSite) -> some View {
         let isSelected = directorySelectedDepotID == site.id
         Button {
-            if selectionLocked {
-                browseSelectionID = site.id
-            } else {
-                onSelect(site.id)
-            }
+            selectDepotSite(site, centerMap: true)
         } label: {
             HStack(alignment: .top, spacing: 10) {
                 Image(systemName: site.availability.systemImage)
