@@ -16,6 +16,7 @@ struct GameLaunchMenuView: View {
     }
 
     @Binding var breakdownFrequency: VehicleIncidentFrequency
+    @Binding var trafficDisruptionFrequency: TrafficDisruptionFrequency
     let activeCareer: SavedCareerSummary?
     let savedCareers: [SavedCareerSummary]
     let savedCareerNotice: String?
@@ -366,6 +367,26 @@ struct GameLaunchMenuView: View {
                     .pickerStyle(.menu)
 #endif
                     Text(breakdownFrequency.explanation)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            GroupBox("Congestion routière simulée") {
+                VStack(alignment: .leading, spacing: 8) {
+                    Picker("Fréquence", selection: $trafficDisruptionFrequency) {
+                        ForEach(TrafficDisruptionFrequency.allCases) { frequency in
+                            Text(frequency.title).tag(frequency)
+                        }
+                    }
+#if os(macOS)
+                    .pickerStyle(.radioGroup)
+#else
+                    .pickerStyle(.menu)
+#endif
+                    Text(trafficDisruptionFrequency.explanation)
                         .font(.callout)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
