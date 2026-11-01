@@ -50,12 +50,20 @@ struct GameLaunchMenuView: View {
         }
     }
 
+    private var careerRestorePresentation: CareerRestorePresentation {
+        CareerRestorePresentation(
+            statusMessage: syncStatus,
+            isSyncing: isSynchronizing,
+            hasConflict: hasSyncConflict
+        )
+    }
+
     private var isCareerRestorePending: Bool {
-        isSynchronizing || syncStatus == "iCloud non vérifié"
+        careerRestorePresentation.isPending
     }
 
     private var isCareerActionBlocked: Bool {
-        isCareerRestorePending
+        !careerRestorePresentation.canStartNewCareer || !careerRestorePresentation.canImportSave
     }
 
     private var isCompactLayout: Bool { horizontalSizeClass == .compact }
