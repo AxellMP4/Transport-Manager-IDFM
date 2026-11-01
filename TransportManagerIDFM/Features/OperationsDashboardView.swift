@@ -285,6 +285,7 @@ struct OperationsDashboardView: View {
     @State private var careerStartMoment = Date.now
     @State private var selectedCandidateCareerLineIDs = Set<String>()
     @AppStorage("transportManager.breakdownFrequency") private var breakdownFrequencyRaw = VehicleIncidentFrequency.standard.rawValue
+    @AppStorage("transportManager.trafficDisruptionFrequency") private var trafficDisruptionFrequencyRaw = TrafficDisruptionFrequency.standard.rawValue
     @State private var careerStartError: String?
     @State private var isPreparingTimetable = false
     @State private var isTimetableExtensionBlocked = false
@@ -360,6 +361,17 @@ struct OperationsDashboardView: View {
         Binding(
             get: { VehicleIncidentFrequency(rawValue: breakdownFrequencyRaw) ?? .standard },
             set: { breakdownFrequencyRaw = $0.rawValue }
+        )
+    }
+
+    private var trafficDisruptionFrequency: TrafficDisruptionFrequency {
+        TrafficDisruptionFrequency(rawValue: trafficDisruptionFrequencyRaw) ?? .standard
+    }
+
+    private var trafficDisruptionFrequencyBinding: Binding<TrafficDisruptionFrequency> {
+        Binding(
+            get: { TrafficDisruptionFrequency(rawValue: trafficDisruptionFrequencyRaw) ?? .standard },
+            set: { trafficDisruptionFrequencyRaw = $0.rawValue }
         )
     }
 
@@ -726,6 +738,7 @@ struct OperationsDashboardView: View {
             if isLaunchMenuPresented {
                 GameLaunchMenuView(
                     breakdownFrequency: breakdownFrequencyBinding,
+                    trafficDisruptionFrequency: trafficDisruptionFrequencyBinding,
                     activeCareer: activeCareerSummary,
                     savedCareers: simulation.savedCareers,
                     savedCareerNotice: simulation.savedCareerNotice,
@@ -1201,6 +1214,13 @@ struct OperationsDashboardView: View {
                         }
                     }
                     Text(breakdownFrequency.explanation)
+                        .font(.caption)
+                    Picker("Congestion routière simulée", selection: trafficDisruptionFrequencyBinding) {
+                        ForEach(TrafficDisruptionFrequency.allCases) { frequency in
+                            Text(frequency.title).tag(frequency)
+                        }
+                    }
+                    Text(trafficDisruptionFrequency.explanation)
                         .font(.caption)
                 }
             } label: {
@@ -2196,7 +2216,8 @@ struct OperationsDashboardView: View {
                     operatedRouteIDsByDepot: [depotID: Array(operatedRouteIDs)],
                     scheduledDepartures: departures,
                     timetableHorizonEnd: initialHorizonEnd,
-                    breakdownFrequency: breakdownFrequency
+                    breakdownFrequency: breakdownFrequency,
+                    trafficDisruptionFrequency: trafficDisruptionFrequency
                 )
                 selectedWorkspaceTab = .network
                 isPreparingNewCareer = false
@@ -2494,6 +2515,17 @@ struct OperationsDashboardView: View {
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
+                VStack(alignment: .leading, spacing: 5) {
+                    Picker("Congestion routière simulée", selection: trafficDisruptionFrequencyBinding) {
+                        ForEach(TrafficDisruptionFrequency.allCases) { frequency in
+                            Text(frequency.title).tag(frequency)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    Text(trafficDisruptionFrequency.explanation)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
                 if catalog.activeVersion != nil && !isCareerStartWithinNetworkValidity {
                     Text("Choisissez une date comprise dans la période de validité du GTFS actif.")
                         .font(.caption2)
@@ -2505,6 +2537,9 @@ struct OperationsDashboardView: View {
                     Text("Démarrée le \(session.createdAt.formatted(date: .abbreviated, time: .omitted))")
                         .font(.caption)
                     Text("Fréquence des pannes : \(session.effectiveBreakdownFrequency.title.lowercased()) · \(session.effectiveBreakdownFrequency.explanation.lowercased())")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    Text("Congestion routière simulée : \(session.effectiveTrafficDisruptionFrequency.title.lowercased()) · \(session.effectiveTrafficDisruptionFrequency.explanation.lowercased())")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                     Text("Version réseau conservée : \(session.networkVersions.gtfsID.prefix(12))")
