@@ -80,3 +80,49 @@ if ! rg -Fq 'CareerGuideView(' "$project_root/TransportManagerIDFM/Features/Game
     echo "The optional career guide must remain available from the shared launch menu." >&2
     exit 1
 fi
+
+if ! rg -Fq 'MapCompass()' "$dashboard_source" \
+    || ! rg -Fq 'MapScaleView()' "$dashboard_source" \
+    || ! rg -Fq 'interactionModes: [.pan, .zoom]' "$dashboard_source"; then
+    echo "The compact operations map must preserve pan, zoom, compass, and scale controls." >&2
+    exit 1
+fi
+
+for layer_title in 'Réseau et lignes' 'Arrêts' 'Flotte' 'Incidents et travaux'; do
+    if ! rg -Fq "Label(\"$layer_title\"" "$dashboard_source"; then
+        echo "The compact map is missing the $layer_title layer control." >&2
+        exit 1
+    fi
+done
+
+if ! rg -Fq 'private func compactStopDetail' "$dashboard_source" \
+    || ! rg -Fq 'private func compactBusDetail' "$dashboard_source" \
+    || ! rg -Fq 'ScrollView {' "$dashboard_source" \
+    || ! rg -Fq 'accessibilityLabel("Fermer le détail de l’arrêt")' "$dashboard_source" \
+    || ! rg -Fq 'accessibilityLabel("Fermer le détail du bus")' "$dashboard_source"; then
+    echo "Compact bus and stop details must scroll and expose an explicit close action." >&2
+    exit 1
+fi
+
+if ! rg -Fq 'Button("Terminé") { isMobileLinePickerPresented = false }' "$dashboard_source" \
+    || ! rg -Fq 'Button("Terminé") { isMobileMapLegendPresented = false }' "$dashboard_source" \
+    || ! rg -Fq 'Button("Terminé") { isMobileMapEventsPresented = false }' "$dashboard_source" \
+    || ! rg -Fq 'selectedDepotLineID = line.id' "$dashboard_source" \
+    || ! rg -Fq 'fitMap(to: coordinates)' "$dashboard_source"; then
+    echo "Line selection, map fitting, and dismissible map panels must remain available." >&2
+    exit 1
+fi
+
+if sed -n '/\.overlay(alignment: \.bottomTrailing)/,/\.overlay(alignment: \.bottom)/p' "$dashboard_source" \
+    | rg -Fq 'if usesCompactMobileNavigation'; then
+    echo "Long disruption notices must stay in the compact event sheet, not cover the map." >&2
+    exit 1
+fi
+
+if ! rg -Fq '.frame(width: 44, height: 44)' "$dashboard_source" \
+    || ! rg -Fq '.accessibilityLabel("Acheter un bus")' "$dashboard_source" \
+    || ! rg -Fq '.accessibilityLabel("Engager un conducteur")' "$dashboard_source" \
+    || ! rg -Fq '.accessibilityLabel("Affecter un départ")' "$dashboard_source"; then
+    echo "Compact empty-fleet actions must remain discoverable and have 44-point targets." >&2
+    exit 1
+fi
