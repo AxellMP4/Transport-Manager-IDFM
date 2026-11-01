@@ -1,5 +1,11 @@
 # Reprise : validations iPhone/iCloud et offre Bords de Marne au 1er novembre — 1er novembre 2026
 
+## Smokes ciblés de carrière, voyageurs et synchronisation — 1er novembre 2026
+
+- `sh Scripts/validate-passenger-system.sh` et `sh Scripts/validate-route-detour-execution.sh` réussissent : les échanges voyageurs conservent les validations et les sauvegardes, et les retards de déviation recalculent les événements et réservations futurs de façon atomique.
+- `sh Scripts/validate-cloud-career-archive.sh`, `sh Scripts/validate-cloud-career-sync-retry.sh` et `sh Scripts/validate-mobile-cloud-restore-presentation.sh` réussissent : l’archive épingle les versions réseau et contrôle dates/conflits, les reprises sont temporisées et regroupées, et la restauration vide reste visible avec une nouvelle tentative disponible après erreur.
+- Ces smokes sont locaux et déterministes; ils ne testent pas le service CloudKit Apple ni une sauvegarde réellement synchronisée entre un Mac et un iPhone. CoreSimulator est indisponible et la session graphique macOS demeure verrouillée, donc aucun lancement visuel n’est revendiqué.
+
 ## Résumés d’espacement dans les grilles horaires GTFS — 1er novembre 2026
 
 - Nouveauté : chaque groupe de la grille (direction, destination et séquence exacte d’arrêts) affiche le nombre d’intervalles, leur médiane et le plus long, calculés entre les premiers départs des courses à la date sélectionnée. Un groupe sans deux premiers départs renseignés affiche que l’espacement n’est pas calculable. L’écran précise qu’il s’agit de départs théoriques GTFS et ne déduit aucune plage de pointe ou d’heures creuses.
