@@ -752,6 +752,44 @@ struct SimulatedAdvertisingCampaign: Codable, Hashable, Identifiable, Sendable {
     }
 }
 
+enum SpecialTransportStatus: String, Codable, CaseIterable, Hashable, Identifiable, Sendable {
+    case scheduled
+    case inProgress
+    case completed
+    case cancelled
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .scheduled: "Prévu"
+        case .inProgress: "En cours"
+        case .completed: "Terminé"
+        case .cancelled: "Annulé"
+        }
+    }
+}
+
+struct SimulationSpecialTransportOrder: Codable, Hashable, Identifiable, Sendable {
+    let id: String
+    let clientName: String
+    let purpose: String
+    let startsAt: Date
+    let endsAt: Date
+    let plannedDistanceKilometers: Double
+    let passengerCount: Int
+    let vehicleID: String
+    let machinistID: String
+    let quotedAmountEuro: Int
+    let createdAt: Date
+    var status: SpecialTransportStatus
+    var startedAt: Date? = nil
+    var completedAt: Date? = nil
+    var vehicleWasAtDepot: Bool? = nil
+
+    var plannedDistanceMeters: Double { plannedDistanceKilometers * 1_000 }
+}
+
 enum AccessoryRevenueRules {
     static let estimatedAdvertisingEuroPerVehicleKilometer = 0.50
 
