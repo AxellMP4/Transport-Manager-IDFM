@@ -62,7 +62,7 @@ struct DepotLineRosterManifestState: Sendable {
     var summary: String {
         if let errorMessage { return "Manifeste non validé · \(errorMessage)" }
         let claimCount = rosterRows.reduce(0) { $0 + $1.claims.count }
-        return "Manifeste validé · \(entries.count) entrées · \(claimCount) preuves datées"
+        return "Manifeste validé · \(entries.count) entrées · \(claimCount) preuves consignées"
     }
 }
 
