@@ -84,6 +84,7 @@
 		030000000000000000000133 /* GTFSDepartureIntervalSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000133 /* GTFSDepartureIntervalSummary.swift */; };
 		030000000000000000000134 /* GameLaunchMenuFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000134 /* GameLaunchMenuFlow.swift */; };
 		030000000000000000000135 /* GameLaunchMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000135 /* GameLaunchMenuView.swift */; };
+		030000000000000000000136 /* RoadIncidentHistorySection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000136 /* RoadIncidentHistorySection.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -166,6 +167,7 @@
 		020000000000000000000133 /* GTFSDepartureIntervalSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GTFSDepartureIntervalSummary.swift; sourceTree = "<group>"; };
 		020000000000000000000134 /* GameLaunchMenuFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameLaunchMenuFlow.swift; sourceTree = "<group>"; };
 		020000000000000000000135 /* GameLaunchMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameLaunchMenuView.swift; sourceTree = "<group>"; };
+		020000000000000000000136 /* RoadIncidentHistorySection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoadIncidentHistorySection.swift; sourceTree = "<group>"; };
 		040000000000000000000001 /* TransportManagerIDFM.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TransportManagerIDFM.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -251,6 +253,7 @@
 			isa = PBXGroup;
 			children = (
 				020000000000000000000004 /* OperationsDashboardView.swift */,
+				020000000000000000000136 /* RoadIncidentHistorySection.swift */,
 				020000000000000000000135 /* GameLaunchMenuView.swift */,
 				020000000000000000000131 /* PassengerLoadGaugeView.swift */,
 				020000000000000000000132 /* PassengerOperationsReportView.swift */,
@@ -418,6 +421,7 @@
 				030000000000000000000133 /* GTFSDepartureIntervalSummary.swift in Sources */,
 				030000000000000000000134 /* GameLaunchMenuFlow.swift in Sources */,
 				030000000000000000000135 /* GameLaunchMenuView.swift in Sources */,
+				030000000000000000000136 /* RoadIncidentHistorySection.swift in Sources */,
 				030000000000000000000005 /* DepotInspectorView.swift in Sources */,
 				030000000000000000000006 /* GTFSFeedImporter.swift in Sources */,
 				030000000000000000000007 /* NetworkLibrary.swift in Sources */,
