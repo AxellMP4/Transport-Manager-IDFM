@@ -5,7 +5,7 @@ import Foundation
 struct RouteDetourExecutionSmoke {
     static func main() {
         accidentCauseIsStoredAndLegacyDetoursDecode()
-        generatedTrafficDisruptionsAreRepeatableAndAffectSchedules()
+        generatedRoadDisruptionsAreRepeatableAndAffectSchedules()
         trafficDisruptionFrequencyHasACompatibleCareerDefault()
         futureDetoursShiftOnlyUpcomingVisits()
         passedSegmentsAreNotRewritten()
@@ -13,7 +13,7 @@ struct RouteDetourExecutionSmoke {
         detourDelayPropagatesToFollowingAssignedTrip()
         detourReservationConflictIsAtomic()
         legacySessionsDecodeWithoutTripPlans()
-        print("PASS: generated traffic disruptions are repeatable, persisted, and delay affected trips")
+        print("PASS: generated congestion, roadworks, and accidents are deterministic and delay affected trips")
     }
 
     private static func accidentCauseIsStoredAndLegacyDetoursDecode() {
@@ -52,14 +52,14 @@ struct RouteDetourExecutionSmoke {
         precondition(decodedLegacy.effectiveOrigin == .player)
     }
 
-    private static func generatedTrafficDisruptionsAreRepeatableAndAffectSchedules() {
+    private static func generatedRoadDisruptionsAreRepeatableAndAffectSchedules() {
         let start = Date(timeIntervalSince1970: 1_800_000_000)
         let visits = routeVisits(startingAt: start)
         var counts = [TrafficDisruptionFrequency: Int]()
 
         for frequency in TrafficDisruptionFrequency.allCases {
             counts[frequency] = (1...2_000).reduce(into: 0) { count, seed in
-                let event = SimulationEngine.plannedRoadCongestion(
+                let event = SimulationEngine.plannedRoadDisruption(
                     routeID: "line-1",
                     tripID: "trip-\(seed)",
                     serviceDateKey: 20261025,
@@ -76,8 +76,24 @@ struct RouteDetourExecutionSmoke {
         precondition(counts[.standard]! <= counts[.increased]!)
         precondition(counts[.increased]! > 0)
 
+        let generatedCauses = Set((1...20_000).compactMap { seed in
+            SimulationEngine.plannedRoadDisruption(
+                routeID: "line-1",
+                tripID: "typed-trip-\(seed)",
+                serviceDateKey: 20261025,
+                stopVisits: visits,
+                randomSeed: UInt64(seed),
+                frequency: .increased,
+                existingDetours: []
+            )?.cause
+        })
+        precondition(
+            generatedCauses.isSuperset(of: [.congestion, .roadworks, .accident]),
+            "The game should generate fictional congestion, roadworks, and accidents."
+        )
+
         let seed = (1...20_000).first { seed in
-            SimulationEngine.plannedRoadCongestion(
+            SimulationEngine.plannedRoadDisruption(
                 routeID: "line-1",
                 tripID: "repeatable-trip",
                 serviceDateKey: 20261025,
@@ -88,7 +104,7 @@ struct RouteDetourExecutionSmoke {
             ) != nil
         }
         guard let seed,
-              let event = SimulationEngine.plannedRoadCongestion(
+              let event = SimulationEngine.plannedRoadDisruption(
                   routeID: "line-1",
                   tripID: "repeatable-trip",
                   serviceDateKey: 20261025,
@@ -97,9 +113,9 @@ struct RouteDetourExecutionSmoke {
                   frequency: .increased,
                   existingDetours: []
               ) else {
-            preconditionFailure("The fixed seed range should produce at least one generated congestion event.")
+            preconditionFailure("The fixed seed range should produce at least one generated road disruption.")
         }
-        let repeated = SimulationEngine.plannedRoadCongestion(
+        let repeated = SimulationEngine.plannedRoadDisruption(
             routeID: "line-1",
             tripID: "repeatable-trip",
             serviceDateKey: 20261025,
@@ -109,9 +125,37 @@ struct RouteDetourExecutionSmoke {
             existingDetours: []
         )
         precondition(repeated == event)
-        precondition(event.cause == .congestion)
+        precondition([.congestion, .roadworks, .accident].contains(event.cause!))
         precondition(event.effectiveOrigin == .simulation)
-        precondition((240...840).contains(Int(event.additionalTravelSeconds)))
+        let expectedTitle: String
+        let expectedDelay: ClosedRange<Int>
+        let expectedDuration: TimeInterval
+        switch event.cause! {
+        case .congestion:
+            expectedTitle = "Congestion simulée"
+            expectedDelay = 240...840
+            expectedDuration = 45 * 60
+        case .roadworks:
+            expectedTitle = "Travaux simulés"
+            expectedDelay = 480...1_380
+            expectedDuration = 4 * 60 * 60
+        case .accident:
+            expectedTitle = "Accident routier simulé"
+            expectedDelay = 600...2_100
+            expectedDuration = 90 * 60
+        case .localEvent, .trafficReport, .other:
+            preconditionFailure("A generated road disruption must use a supported fictional traffic cause.")
+        }
+        precondition(RouteDetourEventDetails(event).eventTitle == expectedTitle)
+        let eventSummary = SimulationEvent(
+            sequence: 1,
+            simulatedAt: event.startsAt,
+            kind: .routeDetourScheduled(RouteDetourEventDetails(event), startsAt: event.startsAt)
+        ).summary
+        precondition(eventSummary.lowercased().contains(expectedTitle.lowercased()))
+        precondition(eventSummary.contains(RouteDetourOrigin.simulation.title.lowercased()))
+        precondition(expectedDelay.contains(Int(event.additionalTravelSeconds)))
+        precondition(event.scheduledEndAt.timeIntervalSince(event.startsAt) == expectedDuration)
 
         let application = RouteDetourSchedulePlanner.applying(detours: [event], to: visits)
         precondition(application.appliedDetourIDs == [event.id])
@@ -123,7 +167,7 @@ struct RouteDetourExecutionSmoke {
         precondition(application.visits[changedSegmentIndex + 1].scheduledAt
                      == visits[changedSegmentIndex + 1].scheduledAt.addingTimeInterval(event.additionalTravelSeconds))
 
-        let duplicate = SimulationEngine.plannedRoadCongestion(
+        let duplicate = SimulationEngine.plannedRoadDisruption(
             routeID: "line-1",
             tripID: "repeatable-trip",
             serviceDateKey: 20261025,
