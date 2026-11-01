@@ -800,15 +800,62 @@ enum AccessoryRevenueRules {
         previousCampaignServiceDistanceMeters: Double,
         isServiceDistance: Bool
     ) -> Int {
-        guard let campaign,
-              campaign.isActive(at: date),
-              isServiceDistance,
-              serviceDistanceMeters.isFinite,
-              previousCampaignServiceDistanceMeters.isFinite,
-              serviceDistanceMeters > 0 else { return 0 }
+        estimatedAdvertisingRevenue(
+            campaign: campaign,
+            segmentStartsAt: date,
+            segmentEndsAt: date,
+            serviceDistanceMeters: serviceDistanceMeters,
+            previousCampaignServiceDistanceMeters: previousCampaignServiceDistanceMeters,
+            isServiceDistance: isServiceDistance
+        )
+    }
 
+    static func billableAdvertisingDistanceMeters(
+        campaign: SimulatedAdvertisingCampaign,
+        segmentStartsAt: Date,
+        segmentEndsAt: Date,
+        serviceDistanceMeters: Double
+    ) -> Double {
+        guard serviceDistanceMeters.isFinite,
+              serviceDistanceMeters > 0,
+              segmentStartsAt.timeIntervalSince1970.isFinite,
+              segmentEndsAt.timeIntervalSince1970.isFinite,
+              segmentEndsAt >= segmentStartsAt else { return 0 }
+
+        let segmentDuration = segmentEndsAt.timeIntervalSince(segmentStartsAt)
+        guard segmentDuration > 0 else {
+            return campaign.isActive(at: segmentEndsAt) ? serviceDistanceMeters : 0
+        }
+
+        let activeStart = max(segmentStartsAt, campaign.startedAt)
+        let activeEnd = min(segmentEndsAt, campaign.endedAt ?? segmentEndsAt)
+        let activeDuration = activeEnd.timeIntervalSince(activeStart)
+        guard activeDuration > 0 else { return 0 }
+        return serviceDistanceMeters * min(1, max(0, activeDuration / segmentDuration))
+    }
+
+    static func estimatedAdvertisingRevenue(
+        campaign: SimulatedAdvertisingCampaign?,
+        segmentStartsAt: Date,
+        segmentEndsAt: Date,
+        serviceDistanceMeters: Double,
+        previousCampaignServiceDistanceMeters: Double,
+        isServiceDistance: Bool
+    ) -> Int {
+        guard let campaign,
+              isServiceDistance,
+              previousCampaignServiceDistanceMeters.isFinite,
+              segmentEndsAt.timeIntervalSince1970.isFinite else { return 0 }
+
+        let billableDistanceMeters = billableAdvertisingDistanceMeters(
+            campaign: campaign,
+            segmentStartsAt: segmentStartsAt,
+            segmentEndsAt: segmentEndsAt,
+            serviceDistanceMeters: serviceDistanceMeters
+        )
+        guard billableDistanceMeters > 0 else { return 0 }
         let previousDistance = max(0, previousCampaignServiceDistanceMeters)
-        let accumulatedDistance = previousDistance + serviceDistanceMeters
+        let accumulatedDistance = previousDistance + billableDistanceMeters
         let previousRevenue = Int((previousDistance / 1_000 * estimatedAdvertisingEuroPerVehicleKilometer).rounded())
         let accumulatedRevenue = Int((accumulatedDistance / 1_000 * estimatedAdvertisingEuroPerVehicleKilometer).rounded())
         return max(0, accumulatedRevenue - previousRevenue)

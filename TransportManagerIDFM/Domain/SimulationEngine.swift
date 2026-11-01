@@ -1545,6 +1545,8 @@ struct TripDistanceRecord: Codable, Hashable, Identifiable, Sendable {
     let estimatedServiceRevenueEuro: Int?
     let isServiceDistance: Bool?
     var serviceGeometrySource: ServiceMovementGeometrySource? = nil
+    var segmentStartedAt: Date? = nil
+    var segmentEndedAt: Date? = nil
 
     var id: UInt64 { eventSequence }
 }
@@ -6713,6 +6715,8 @@ final class SimulationEngine: ObservableObject {
         let isServiceDistance: Bool
         let distanceContext: String
         let serviceGeometrySource: ServiceMovementGeometrySource?
+        let segmentStartedAt: Date
+        let segmentEndedAt: Date
         var specialTransportOrder: SimulationSpecialTransportOrder? = nil
         switch event.kind {
         case let .busAtStop(id, vehicle, _, _, _, _, _):
@@ -6721,6 +6725,8 @@ final class SimulationEngine: ObservableObject {
             vehicleID = vehicle
             meters = pathDistance(leg.coordinates)
             isServiceDistance = true
+            segmentStartedAt = leg.startsAt
+            segmentEndedAt = leg.endsAt
             serviceGeometrySource = leg.geometrySource
             switch leg.geometrySource {
             case .gtfsShape, nil:
@@ -6735,6 +6741,8 @@ final class SimulationEngine: ObservableObject {
             vehicleID = vehicle
             meters = distanceMeters
             isServiceDistance = false
+            segmentStartedAt = event.simulatedAt
+            segmentEndedAt = event.simulatedAt
             distanceContext = "acheminement à vide vers le premier arrêt"
             serviceGeometrySource = nil
         case let .busDepotReturnArrived(vehicle, _, _, _, _, distanceMeters):
@@ -6742,6 +6750,8 @@ final class SimulationEngine: ObservableObject {
             vehicleID = vehicle
             meters = distanceMeters
             isServiceDistance = false
+            segmentStartedAt = event.simulatedAt
+            segmentEndedAt = event.simulatedAt
             distanceContext = "retour à vide au dépôt"
             serviceGeometrySource = nil
         case let .busDepotReturnArrivedWithMachinist(returnTripID, vehicle, _, _, _, _, distanceMeters):
@@ -6749,6 +6759,8 @@ final class SimulationEngine: ObservableObject {
             vehicleID = vehicle
             meters = distanceMeters
             isServiceDistance = false
+            segmentStartedAt = event.simulatedAt
+            segmentEndedAt = event.simulatedAt
             distanceContext = "retour à vide au dépôt"
             serviceGeometrySource = nil
         case let .specialTransportCompleted(orderID):
@@ -6762,6 +6774,8 @@ final class SimulationEngine: ObservableObject {
             vehicleID = order.vehicleID
             meters = order.plannedDistanceMeters
             isServiceDistance = true
+            segmentStartedAt = order.startedAt ?? order.startsAt
+            segmentEndedAt = order.completedAt ?? event.simulatedAt
             distanceContext = "transport spécial · distance déclarée dans la commande, estimation de jeu"
             serviceGeometrySource = nil
             specialTransportOrder = order
@@ -6797,27 +6811,40 @@ final class SimulationEngine: ObservableObject {
         let serviceRevenue = (!isServiceDistance || specialTransportOrder != nil || session.cashBalance == nil)
             ? nil
             : max(0, accumulatedServiceRevenue - previousServiceRevenue)
-        let activeAdvertisingCampaign = session.advertisingCampaigns?.last(where: {
-            $0.isActive(at: event.simulatedAt)
-        })
-        let priorAdvertisingServiceDistanceMeters = activeAdvertisingCampaign.map { campaign in
-            records.reduce(into: 0.0) { total, record in
-                guard record.tripID == tripID,
-                      record.vehicleID == vehicleID,
-                      record.tripInstanceID == tripInstanceID,
-                      record.isServiceDistance != false,
-                      record.occurredAt >= campaign.startedAt,
-                      record.occurredAt <= event.simulatedAt else { return }
-                total += record.distanceMeters
+        let advertisingRevenueRecords: [(campaign: SimulatedAdvertisingCampaign, amount: Int, distanceMeters: Double)] = {
+            guard session.cashBalance != nil, isServiceDistance else { return [] }
+            return (session.advertisingCampaigns ?? []).compactMap { campaign in
+                let billableDistance = AccessoryRevenueRules.billableAdvertisingDistanceMeters(
+                    campaign: campaign,
+                    segmentStartsAt: segmentStartedAt,
+                    segmentEndsAt: segmentEndedAt,
+                    serviceDistanceMeters: meters
+                )
+                guard billableDistance > 0 else { return nil }
+
+                let previousCampaignServiceDistanceMeters = records.reduce(into: 0.0) { total, record in
+                    guard record.tripID == tripID,
+                          record.vehicleID == vehicleID,
+                          record.tripInstanceID == tripInstanceID,
+                          record.isServiceDistance != false else { return }
+                    total += AccessoryRevenueRules.billableAdvertisingDistanceMeters(
+                        campaign: campaign,
+                        segmentStartsAt: record.segmentStartedAt ?? record.occurredAt,
+                        segmentEndsAt: record.segmentEndedAt ?? record.occurredAt,
+                        serviceDistanceMeters: record.distanceMeters
+                    )
+                }
+                let amount = AccessoryRevenueRules.estimatedAdvertisingRevenue(
+                    campaign: campaign,
+                    segmentStartsAt: segmentStartedAt,
+                    segmentEndsAt: segmentEndedAt,
+                    serviceDistanceMeters: meters,
+                    previousCampaignServiceDistanceMeters: previousCampaignServiceDistanceMeters,
+                    isServiceDistance: true
+                )
+                return (campaign, amount, billableDistance)
             }
-        } ?? 0
-        let advertisingRevenue = session.cashBalance == nil ? 0 : AccessoryRevenueRules.estimatedAdvertisingRevenue(
-            campaign: activeAdvertisingCampaign,
-            at: event.simulatedAt,
-            serviceDistanceMeters: meters,
-            previousCampaignServiceDistanceMeters: priorAdvertisingServiceDistanceMeters,
-            isServiceDistance: isServiceDistance
-        )
+        }()
         records.append(TripDistanceRecord(
             eventSequence: event.sequence,
             tripID: tripID,
@@ -6829,7 +6856,9 @@ final class SimulationEngine: ObservableObject {
             estimatedEnergyCostEuro: energyCost,
             estimatedServiceRevenueEuro: serviceRevenue,
             isServiceDistance: isServiceDistance,
-            serviceGeometrySource: serviceGeometrySource
+            serviceGeometrySource: serviceGeometrySource,
+            segmentStartedAt: segmentStartedAt,
+            segmentEndedAt: segmentEndedAt
         ))
         session.tripDistanceRecords = records
         let previousVehicleDistanceMeters = max(0, buses[busIndex].distanceTravelledMeters ?? 0)
@@ -6895,13 +6924,13 @@ final class SimulationEngine: ObservableObject {
                 cashDeltaEuro: 0
             ))
         }
-        if advertisingRevenue > 0, let activeAdvertisingCampaign {
+        for advertisingRevenue in advertisingRevenueRecords where advertisingRevenue.amount > 0 {
             ledgerEntries.append(SimulationLedgerEntry(
-                id: "advertising-revenue-\(event.sequence)",
+                id: "advertising-revenue-\(event.sequence)-\(advertisingRevenue.campaign.id)",
                 occurredAt: event.simulatedAt,
                 category: "Recette publicitaire estimée (jeu)",
-                description: "Campagne publicitaire simulée · course \(tripID) · \((meters / 1_000).formatted(.number.precision(.fractionLength(1)))) véhicule-km de service · hypothèse de jeu \(AccessoryRevenueRules.estimatedAdvertisingEuroPerVehicleKilometer.formatted(.currency(code: "EUR").precision(.fractionLength(2))))/km · campagne \(activeAdvertisingCampaign.id)",
-                amount: advertisingRevenue,
+                description: "Campagne publicitaire simulée · course \(tripID) · \((advertisingRevenue.distanceMeters / 1_000).formatted(.number.precision(.fractionLength(1)))) véhicule-km de service pendant la campagne · hypothèse de jeu \(AccessoryRevenueRules.estimatedAdvertisingEuroPerVehicleKilometer.formatted(.currency(code: "EUR").precision(.fractionLength(2))))/km · campagne \(advertisingRevenue.campaign.id)",
+                amount: advertisingRevenue.amount,
                 cashDeltaEuro: 0
             ))
         }
