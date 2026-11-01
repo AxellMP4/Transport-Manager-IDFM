@@ -83,21 +83,21 @@ private struct EmptyMapFleetActionCard: View {
         HStack(spacing: 8) {
             Button(action: onBuyBus) {
                 Image(systemName: "cart.badge.plus")
-                    .frame(width: 40, height: 40)
+                    .frame(width: 44, height: 44)
             }
             .buttonStyle(.borderedProminent)
             .accessibilityLabel("Acheter un bus")
 
             Button(action: onHireDriver) {
                 Image(systemName: "person.badge.plus")
-                    .frame(width: 40, height: 40)
+                    .frame(width: 44, height: 44)
             }
             .buttonStyle(.bordered)
             .accessibilityLabel("Engager un conducteur")
 
             Button(action: onAssignDeparture) {
                 Image(systemName: "arrow.triangle.branch")
-                    .frame(width: 40, height: 40)
+                    .frame(width: 44, height: 44)
             }
             .buttonStyle(.bordered)
             .accessibilityLabel("Affecter un départ")
@@ -811,7 +811,7 @@ struct OperationsDashboardView: View {
             Group {
                 if usesCompactMobileNavigation {
                     Image(systemName: "square.3.layers.3d")
-                        .frame(width: 36, height: 36)
+                        .frame(width: 44, height: 44)
                         .background(.regularMaterial, in: Circle())
                 } else {
                     Label("Couches", systemImage: "square.3.layers.3d")
@@ -3732,6 +3732,83 @@ struct OperationsDashboardView: View {
         }
     }
 
+    @ViewBuilder
+    private func compactStopDetail(for stop: GTFSStopSummary) -> some View {
+        let detail = NetworkStopDetailPopover(
+            stop: stop,
+            visibleRouteIDs: selectedDepotRouteIDs,
+            library: library,
+            simulation: simulation,
+            onPlanDetour: { routeID in
+                routeDetourRequest = RouteDetourRequest(
+                    stop: stop,
+                    routeID: routeID,
+                    sourceObservation: nil
+                )
+            },
+            onCloseWithReplacement: { routeID in
+                presentStopClosureEditor(for: stop, routeID: routeID)
+            }
+        )
+#if os(iOS)
+        if usesCompactMobileNavigation {
+            NavigationStack {
+                ScrollView {
+                    detail
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                }
+                .navigationTitle("Détail de l’arrêt")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Fermer") { selectedStop = nil }
+                            .accessibilityLabel("Fermer le détail de l’arrêt")
+                    }
+                }
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        } else {
+            detail.frame(maxWidth: 360, maxHeight: 500)
+        }
+#else
+        detail.frame(maxWidth: 360, maxHeight: 500)
+#endif
+    }
+
+    @ViewBuilder
+    private func compactBusDetail(for bus: PurchasedBus, session: SimulationSession) -> some View {
+        let detail = BusDetailPopover(
+            bus: bus,
+            fleet: session.ownedBuses ?? [],
+            session: session
+        )
+#if os(iOS)
+        if usesCompactMobileNavigation {
+            NavigationStack {
+                ScrollView {
+                    detail
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                }
+                .navigationTitle("Détail du bus")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Fermer") { selectedBusID = nil }
+                            .accessibilityLabel("Fermer le détail du bus")
+                    }
+                }
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        } else {
+            detail.frame(maxWidth: 380, maxHeight: 500)
+        }
+#else
+        detail.frame(maxWidth: 380, maxHeight: 500)
+#endif
+    }
+
     private var mapPanel: some View {
         Map(position: $cameraPosition, interactionModes: [.pan, .zoom]) {
             routeNetworkMapContent
@@ -3755,17 +3832,18 @@ struct OperationsDashboardView: View {
                             isMobileLinePickerPresented = true
                         } label: {
                             HStack(spacing: 8) {
-                            Image(systemName: "list.bullet").foregroundStyle(.tint)
-                            Text(selectedDepotLineID.map { "Ligne \($0)" } ?? "\(selectedDepotMapLines.count) lignes")
-                                .font(.caption.weight(.semibold))
-                                .lineLimit(1)
+                                Image(systemName: "list.bullet").foregroundStyle(.tint)
+                                Text(selectedDepotLineID.map { "Ligne \($0)" } ?? "\(selectedDepotMapLines.count) lignes")
+                                    .font(.caption.weight(.semibold))
+                                    .lineLimit(1)
                             }
                             .padding(.horizontal, 11)
                             .padding(.vertical, 8)
+                            .frame(minHeight: 44)
                             .background(.regularMaterial, in: Capsule())
                         }
                         .buttonStyle(.plain)
-                    .accessibilityLabel("Choisir une ligne parmi \(selectedDepotMapLines.count) lignes du dépôt \(currentlyDisplayedDepotName)")
+                        .accessibilityLabel("Choisir une ligne parmi \(selectedDepotMapLines.count) lignes du dépôt \(currentlyDisplayedDepotName)")
                     } else {
                         HStack(spacing: 8) {
                             Image(systemName: "map.fill").foregroundStyle(.tint)
@@ -3804,7 +3882,7 @@ struct OperationsDashboardView: View {
                             } label: {
                                 Image(systemName: "exclamationmark.triangle.fill")
                                     .foregroundStyle(.orange)
-                                    .frame(width: 36, height: 36)
+                                    .frame(width: 44, height: 44)
                                     .background(.regularMaterial, in: Circle())
                             }
                             .buttonStyle(.plain)
@@ -3869,26 +3947,7 @@ struct OperationsDashboardView: View {
             Text(routeDetourExtensionError ?? "Une erreur est survenue.")
         }
         .popover(item: $selectedStop) { stop in
-            NetworkStopDetailPopover(
-                stop: stop,
-                visibleRouteIDs: selectedDepotRouteIDs,
-                library: library,
-                simulation: simulation,
-                onPlanDetour: { routeID in
-                    routeDetourRequest = RouteDetourRequest(
-                        stop: stop,
-                        routeID: routeID,
-                        sourceObservation: nil
-                    )
-                },
-                onCloseWithReplacement: { routeID in
-                    presentStopClosureEditor(for: stop, routeID: routeID)
-                }
-            )
-                .frame(
-                    maxWidth: usesCompactMobileNavigation ? .infinity : 360,
-                    maxHeight: usesCompactMobileNavigation ? .infinity : 500
-                )
+            compactStopDetail(for: stop)
         }
         .popover(isPresented: Binding(
             get: { selectedBusID != nil },
@@ -3897,15 +3956,7 @@ struct OperationsDashboardView: View {
             if let session = simulation.session,
                let selectedBusID,
                let bus = session.ownedBuses?.first(where: { $0.id == selectedBusID }) {
-                BusDetailPopover(
-                    bus: bus,
-                    fleet: session.ownedBuses ?? [],
-                    session: session
-                )
-                .frame(
-                    maxWidth: usesCompactMobileNavigation ? .infinity : 380,
-                    maxHeight: usesCompactMobileNavigation ? .infinity : 500
-                )
+                compactBusDetail(for: bus, session: session)
             }
         }
         .accessibilityLabel("Carte d’exploitation, \(visibleBusStops.count) arrêts de bus visibles")
