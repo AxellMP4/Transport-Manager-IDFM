@@ -136,11 +136,11 @@ private enum BundledGTFSArchiveAssemblyError: LocalizedError {
 }
 
 private enum BundledGTFSArchiveAssembler {
-    private static let expectedByteCount: UInt64 = 147_371_580
+    private static let expectedByteCount: UInt64 = 142_972_877
     private static let expectedSHA256 = GTFSImportProvenance.bundledArchiveSHA256
     static func assemble() throws -> URL {
         let destination = FileManager.default.temporaryDirectory
-            .appending(path: "idfm-gtfs-2026-10-30-bundled.zip")
+            .appending(path: "idfm-gtfs-2026-10-31-bundled.zip")
         try? FileManager.default.removeItem(at: destination)
         guard FileManager.default.createFile(atPath: destination.path, contents: nil) else {
             throw CocoaError(.fileWriteUnknown)
@@ -153,7 +153,7 @@ private enum BundledGTFSArchiveAssembler {
             let resources = Bundle.main.urls(forResourcesWithExtension: "bin", subdirectory: nil) ?? []
             let partURLs = try PublicGTFSFeed.orderedFragments(
                 resources,
-                named: "idfm-gtfs-2026-10-30-part"
+                named: "idfm-gtfs-2026-10-31-part"
             )
             for partURL in partURLs {
                 let input = try FileHandle(forReadingFrom: partURL)

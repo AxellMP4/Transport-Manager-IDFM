@@ -921,8 +921,9 @@ struct GTFSImportMetadata: Sendable {
 }
 
 enum GTFSImportProvenance: String, CaseIterable, Identifiable, Sendable {
-    static let bundledArchiveSHA256 = "501a1533cfe37c26795343cbf83a399515692bc87303816b1b0b91891e55e578"
+    static let bundledArchiveSHA256 = "e77435e98732a49c0b1e11581aedfc4ba8f30a5c6b27e0332b69746d5da7908d"
     static let legacyBundledArchiveSHA256s: Set<String> = [
+        "501a1533cfe37c26795343cbf83a399515692bc87303816b1b0b91891e55e578",
         "110c0dfb5fd7771f985943ce05fcb71788aab8edde8bc67be1b0a7db9881cc16",
         "7c5a06711fbe7cafaafd7ef02781ba1548a178e80326250131a63bbb829670bc",
         "6eb741b6eedb6b72d53bb3b76160ad3751aa33939357713759e0ca3ba96f8eb3",

@@ -48,24 +48,24 @@
 		030000000000000000000200 /* docs/data/bords-de-marne-depot-roster-rows.csv in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000200 /* docs/data/bords-de-marne-depot-roster-rows.csv */; };
 		030000000000000000000201 /* docs/data/bords-de-marne-depot-roster-claims.csv in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000201 /* docs/data/bords-de-marne-depot-roster-claims.csv */; };
 		030000000000000000000202 /* docs/data/bords-de-marne-depot-roster-documents.csv in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000202 /* docs/data/bords-de-marne-depot-roster-documents.csv */; };
-		030000000000000000000043 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-00.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000043 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-00.bin */; };
-		030000000000000000000044 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-01.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000044 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-01.bin */; };
-		030000000000000000000100 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-02.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000100 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-02.bin */; };
-		030000000000000000000101 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-03.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000101 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-03.bin */; };
-		030000000000000000000102 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-04.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000102 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-04.bin */; };
-		030000000000000000000103 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-05.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000103 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-05.bin */; };
-		030000000000000000000104 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-06.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000104 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-06.bin */; };
-		030000000000000000000105 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-07.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000105 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-07.bin */; };
-		030000000000000000000106 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-08.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000106 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-08.bin */; };
-		030000000000000000000107 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-09.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000107 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-09.bin */; };
-		030000000000000000000108 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-10.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000108 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-10.bin */; };
-		030000000000000000000109 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-11.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000109 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-11.bin */; };
-		030000000000000000000110 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-12.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000110 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-12.bin */; };
-		030000000000000000000111 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-13.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000111 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-13.bin */; };
-		030000000000000000000112 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-14.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000112 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-14.bin */; };
-		030000000000000000000113 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-15.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000113 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-15.bin */; };
-		030000000000000000000114 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-16.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000114 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-16.bin */; };
-		030000000000000000000115 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-17.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000115 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-17.bin */; };
+		030000000000000000000043 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-00.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000043 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-00.bin */; };
+		030000000000000000000044 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-01.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000044 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-01.bin */; };
+		030000000000000000000100 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-02.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000100 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-02.bin */; };
+		030000000000000000000101 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-03.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000101 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-03.bin */; };
+		030000000000000000000102 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-04.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000102 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-04.bin */; };
+		030000000000000000000103 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-05.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000103 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-05.bin */; };
+		030000000000000000000104 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-06.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000104 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-06.bin */; };
+		030000000000000000000105 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-07.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000105 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-07.bin */; };
+		030000000000000000000106 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-08.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000106 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-08.bin */; };
+		030000000000000000000107 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-09.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000107 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-09.bin */; };
+		030000000000000000000108 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-10.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000108 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-10.bin */; };
+		030000000000000000000109 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-11.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000109 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-11.bin */; };
+		030000000000000000000110 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-12.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000110 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-12.bin */; };
+		030000000000000000000111 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-13.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000111 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-13.bin */; };
+		030000000000000000000112 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-14.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000112 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-14.bin */; };
+		030000000000000000000113 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-15.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000113 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-15.bin */; };
+		030000000000000000000114 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-16.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000114 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-16.bin */; };
+		030000000000000000000115 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-17.bin in Resources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000115 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-17.bin */; };
 		030000000000000000000116 /* DepotFacilityObservation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000116 /* DepotFacilityObservation.swift */; };
 		030000000000000000000117 /* DepotFacilityObservationCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000117 /* DepotFacilityObservationCard.swift */; };
 		030000000000000000000118 /* CATPOwnershipCostReference.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000118 /* CATPOwnershipCostReference.swift */; };
@@ -130,24 +130,24 @@
 		020000000000000000000200 /* docs/data/bords-de-marne-depot-roster-rows.csv */ = {isa = PBXFileReference; lastKnownFileType = text; path = "docs/data/bords-de-marne-depot-roster-rows.csv"; sourceTree = SOURCE_ROOT; };
 		020000000000000000000201 /* docs/data/bords-de-marne-depot-roster-claims.csv */ = {isa = PBXFileReference; lastKnownFileType = text; path = "docs/data/bords-de-marne-depot-roster-claims.csv"; sourceTree = SOURCE_ROOT; };
 		020000000000000000000202 /* docs/data/bords-de-marne-depot-roster-documents.csv */ = {isa = PBXFileReference; lastKnownFileType = text; path = "docs/data/bords-de-marne-depot-roster-documents.csv"; sourceTree = SOURCE_ROOT; };
-		020000000000000000000043 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-00.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "docs/data/gtfs/idfm-gtfs-2026-10-30-part-00.bin"; sourceTree = SOURCE_ROOT; };
-		020000000000000000000044 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-01.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "docs/data/gtfs/idfm-gtfs-2026-10-30-part-01.bin"; sourceTree = SOURCE_ROOT; };
-		020000000000000000000100 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-02.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "docs/data/gtfs/idfm-gtfs-2026-10-30-part-02.bin"; sourceTree = SOURCE_ROOT; };
-		020000000000000000000101 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-03.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "docs/data/gtfs/idfm-gtfs-2026-10-30-part-03.bin"; sourceTree = SOURCE_ROOT; };
-		020000000000000000000102 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-04.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "docs/data/gtfs/idfm-gtfs-2026-10-30-part-04.bin"; sourceTree = SOURCE_ROOT; };
-		020000000000000000000103 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-05.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "docs/data/gtfs/idfm-gtfs-2026-10-30-part-05.bin"; sourceTree = SOURCE_ROOT; };
-		020000000000000000000104 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-06.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "docs/data/gtfs/idfm-gtfs-2026-10-30-part-06.bin"; sourceTree = SOURCE_ROOT; };
-		020000000000000000000105 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-07.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "docs/data/gtfs/idfm-gtfs-2026-10-30-part-07.bin"; sourceTree = SOURCE_ROOT; };
-		020000000000000000000106 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-08.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "docs/data/gtfs/idfm-gtfs-2026-10-30-part-08.bin"; sourceTree = SOURCE_ROOT; };
-		020000000000000000000107 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-09.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "docs/data/gtfs/idfm-gtfs-2026-10-30-part-09.bin"; sourceTree = SOURCE_ROOT; };
-		020000000000000000000108 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-10.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "docs/data/gtfs/idfm-gtfs-2026-10-30-part-10.bin"; sourceTree = SOURCE_ROOT; };
-		020000000000000000000109 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-11.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "docs/data/gtfs/idfm-gtfs-2026-10-30-part-11.bin"; sourceTree = SOURCE_ROOT; };
-		020000000000000000000110 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-12.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "docs/data/gtfs/idfm-gtfs-2026-10-30-part-12.bin"; sourceTree = SOURCE_ROOT; };
-		020000000000000000000111 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-13.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "docs/data/gtfs/idfm-gtfs-2026-10-30-part-13.bin"; sourceTree = SOURCE_ROOT; };
-		020000000000000000000112 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-14.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "docs/data/gtfs/idfm-gtfs-2026-10-30-part-14.bin"; sourceTree = SOURCE_ROOT; };
-		020000000000000000000113 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-15.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "docs/data/gtfs/idfm-gtfs-2026-10-30-part-15.bin"; sourceTree = SOURCE_ROOT; };
-		020000000000000000000114 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-16.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "docs/data/gtfs/idfm-gtfs-2026-10-30-part-16.bin"; sourceTree = SOURCE_ROOT; };
-		020000000000000000000115 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-17.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "docs/data/gtfs/idfm-gtfs-2026-10-30-part-17.bin"; sourceTree = SOURCE_ROOT; };
+		020000000000000000000043 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-00.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "docs/data/gtfs/idfm-gtfs-2026-10-31-part-00.bin"; sourceTree = SOURCE_ROOT; };
+		020000000000000000000044 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-01.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "docs/data/gtfs/idfm-gtfs-2026-10-31-part-01.bin"; sourceTree = SOURCE_ROOT; };
+		020000000000000000000100 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-02.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "docs/data/gtfs/idfm-gtfs-2026-10-31-part-02.bin"; sourceTree = SOURCE_ROOT; };
+		020000000000000000000101 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-03.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "docs/data/gtfs/idfm-gtfs-2026-10-31-part-03.bin"; sourceTree = SOURCE_ROOT; };
+		020000000000000000000102 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-04.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "docs/data/gtfs/idfm-gtfs-2026-10-31-part-04.bin"; sourceTree = SOURCE_ROOT; };
+		020000000000000000000103 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-05.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "docs/data/gtfs/idfm-gtfs-2026-10-31-part-05.bin"; sourceTree = SOURCE_ROOT; };
+		020000000000000000000104 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-06.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "docs/data/gtfs/idfm-gtfs-2026-10-31-part-06.bin"; sourceTree = SOURCE_ROOT; };
+		020000000000000000000105 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-07.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "docs/data/gtfs/idfm-gtfs-2026-10-31-part-07.bin"; sourceTree = SOURCE_ROOT; };
+		020000000000000000000106 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-08.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "docs/data/gtfs/idfm-gtfs-2026-10-31-part-08.bin"; sourceTree = SOURCE_ROOT; };
+		020000000000000000000107 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-09.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "docs/data/gtfs/idfm-gtfs-2026-10-31-part-09.bin"; sourceTree = SOURCE_ROOT; };
+		020000000000000000000108 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-10.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "docs/data/gtfs/idfm-gtfs-2026-10-31-part-10.bin"; sourceTree = SOURCE_ROOT; };
+		020000000000000000000109 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-11.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "docs/data/gtfs/idfm-gtfs-2026-10-31-part-11.bin"; sourceTree = SOURCE_ROOT; };
+		020000000000000000000110 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-12.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "docs/data/gtfs/idfm-gtfs-2026-10-31-part-12.bin"; sourceTree = SOURCE_ROOT; };
+		020000000000000000000111 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-13.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "docs/data/gtfs/idfm-gtfs-2026-10-31-part-13.bin"; sourceTree = SOURCE_ROOT; };
+		020000000000000000000112 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-14.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "docs/data/gtfs/idfm-gtfs-2026-10-31-part-14.bin"; sourceTree = SOURCE_ROOT; };
+		020000000000000000000113 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-15.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "docs/data/gtfs/idfm-gtfs-2026-10-31-part-15.bin"; sourceTree = SOURCE_ROOT; };
+		020000000000000000000114 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-16.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "docs/data/gtfs/idfm-gtfs-2026-10-31-part-16.bin"; sourceTree = SOURCE_ROOT; };
+		020000000000000000000115 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-17.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "docs/data/gtfs/idfm-gtfs-2026-10-31-part-17.bin"; sourceTree = SOURCE_ROOT; };
 		020000000000000000000116 /* DepotFacilityObservation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DepotFacilityObservation.swift; sourceTree = "<group>"; };
 		020000000000000000000117 /* DepotFacilityObservationCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DepotFacilityObservationCard.swift; sourceTree = "<group>"; };
 		020000000000000000000118 /* CATPOwnershipCostReference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CATPOwnershipCostReference.swift; sourceTree = "<group>"; };
@@ -279,24 +279,24 @@
 				020000000000000000000006 /* TransportManagerIDFM.entitlements */,
 				020000000000000000000127 /* TransportManagerIDFM-iOS.entitlements */,
 				010000000000000000000007 /* IDFMSnapshots */,
-				020000000000000000000043 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-00.bin */,
-				020000000000000000000044 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-01.bin */,
-				020000000000000000000100 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-02.bin */,
-				020000000000000000000101 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-03.bin */,
-				020000000000000000000102 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-04.bin */,
-				020000000000000000000103 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-05.bin */,
-				020000000000000000000104 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-06.bin */,
-				020000000000000000000105 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-07.bin */,
-				020000000000000000000106 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-08.bin */,
-				020000000000000000000107 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-09.bin */,
-				020000000000000000000108 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-10.bin */,
-				020000000000000000000109 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-11.bin */,
-				020000000000000000000110 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-12.bin */,
-				020000000000000000000111 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-13.bin */,
-				020000000000000000000112 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-14.bin */,
-				020000000000000000000113 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-15.bin */,
-				020000000000000000000114 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-16.bin */,
-				020000000000000000000115 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-17.bin */,
+				020000000000000000000043 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-00.bin */,
+				020000000000000000000044 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-01.bin */,
+				020000000000000000000100 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-02.bin */,
+				020000000000000000000101 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-03.bin */,
+				020000000000000000000102 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-04.bin */,
+				020000000000000000000103 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-05.bin */,
+				020000000000000000000104 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-06.bin */,
+				020000000000000000000105 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-07.bin */,
+				020000000000000000000106 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-08.bin */,
+				020000000000000000000107 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-09.bin */,
+				020000000000000000000108 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-10.bin */,
+				020000000000000000000109 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-11.bin */,
+				020000000000000000000110 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-12.bin */,
+				020000000000000000000111 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-13.bin */,
+				020000000000000000000112 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-14.bin */,
+				020000000000000000000113 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-15.bin */,
+				020000000000000000000114 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-16.bin */,
+				020000000000000000000115 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-17.bin */,
 				020000000000000000000036 /* docs/data/geometries/idfm-route-geometries-2026-10-20.zip */,
 			);
 			path = Resources;
@@ -379,24 +379,24 @@
 				030000000000000000000026 /* idfm-line-documents-2026-10-20.csv in Resources */,
 				030000000000000000000027 /* idfm-contract-contours-2026-10-20.geojson in Resources */,
 				030000000000000000000028 /* README.md in Resources */,
-				030000000000000000000043 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-00.bin in Resources */,
-				030000000000000000000044 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-01.bin in Resources */,
-				030000000000000000000100 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-02.bin in Resources */,
-				030000000000000000000101 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-03.bin in Resources */,
-				030000000000000000000102 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-04.bin in Resources */,
-				030000000000000000000103 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-05.bin in Resources */,
-				030000000000000000000104 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-06.bin in Resources */,
-				030000000000000000000105 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-07.bin in Resources */,
-				030000000000000000000106 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-08.bin in Resources */,
-				030000000000000000000107 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-09.bin in Resources */,
-				030000000000000000000108 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-10.bin in Resources */,
-				030000000000000000000109 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-11.bin in Resources */,
-				030000000000000000000110 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-12.bin in Resources */,
-				030000000000000000000111 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-13.bin in Resources */,
-				030000000000000000000112 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-14.bin in Resources */,
-				030000000000000000000113 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-15.bin in Resources */,
-				030000000000000000000114 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-16.bin in Resources */,
-				030000000000000000000115 /* docs/data/gtfs/idfm-gtfs-2026-10-30-part-17.bin in Resources */,
+				030000000000000000000043 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-00.bin in Resources */,
+				030000000000000000000044 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-01.bin in Resources */,
+				030000000000000000000100 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-02.bin in Resources */,
+				030000000000000000000101 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-03.bin in Resources */,
+				030000000000000000000102 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-04.bin in Resources */,
+				030000000000000000000103 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-05.bin in Resources */,
+				030000000000000000000104 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-06.bin in Resources */,
+				030000000000000000000105 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-07.bin in Resources */,
+				030000000000000000000106 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-08.bin in Resources */,
+				030000000000000000000107 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-09.bin in Resources */,
+				030000000000000000000108 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-10.bin in Resources */,
+				030000000000000000000109 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-11.bin in Resources */,
+				030000000000000000000110 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-12.bin in Resources */,
+				030000000000000000000111 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-13.bin in Resources */,
+				030000000000000000000112 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-14.bin in Resources */,
+				030000000000000000000113 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-15.bin in Resources */,
+				030000000000000000000114 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-16.bin in Resources */,
+				030000000000000000000115 /* docs/data/gtfs/idfm-gtfs-2026-10-31-part-17.bin in Resources */,
 				030000000000000000000039 /* docs/data/geometries/idfm-route-geometries-2026-10-20.zip in Resources */,
 				030000000000000000000042 /* docs/data/bords-de-marne-depot-roster.csv in Resources */,
 				030000000000000000000200 /* docs/data/bords-de-marne-depot-roster-rows.csv in Resources */,
