@@ -742,6 +742,41 @@ enum SimulationLedgerNature: String, Codable, Hashable, Sendable {
     case settlement
 }
 
+struct SimulatedAdvertisingCampaign: Codable, Hashable, Identifiable, Sendable {
+    let id: String
+    let startedAt: Date
+    var endedAt: Date? = nil
+
+    func isActive(at date: Date) -> Bool {
+        date >= startedAt && (endedAt.map { date < $0 } ?? true)
+    }
+}
+
+enum AccessoryRevenueRules {
+    static let estimatedAdvertisingEuroPerVehicleKilometer = 0.50
+
+    static func estimatedAdvertisingRevenue(
+        campaign: SimulatedAdvertisingCampaign?,
+        at date: Date,
+        serviceDistanceMeters: Double,
+        previousCampaignServiceDistanceMeters: Double,
+        isServiceDistance: Bool
+    ) -> Int {
+        guard let campaign,
+              campaign.isActive(at: date),
+              isServiceDistance,
+              serviceDistanceMeters.isFinite,
+              previousCampaignServiceDistanceMeters.isFinite,
+              serviceDistanceMeters > 0 else { return 0 }
+
+        let previousDistance = max(0, previousCampaignServiceDistanceMeters)
+        let accumulatedDistance = previousDistance + serviceDistanceMeters
+        let previousRevenue = Int((previousDistance / 1_000 * estimatedAdvertisingEuroPerVehicleKilometer).rounded())
+        let accumulatedRevenue = Int((accumulatedDistance / 1_000 * estimatedAdvertisingEuroPerVehicleKilometer).rounded())
+        return max(0, accumulatedRevenue - previousRevenue)
+    }
+}
+
 enum SimulationInvoiceDirection: String, Codable, Hashable, Sendable {
     case receivable
     case payable

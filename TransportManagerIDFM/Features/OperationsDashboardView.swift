@@ -8426,6 +8426,16 @@ private struct DailyOperationsReportView: View {
                     Divider()
                 }
 
+                if let accessoryRevenue = report.estimatedAccessoryRevenueEuro {
+                    HStack {
+                        Label("Publicité simulée · recette estimée", systemImage: "megaphone")
+                        Spacer()
+                        Text(currency(accessoryRevenue))
+                            .font(.subheadline.monospacedDigit().weight(.medium))
+                    }
+                    Divider()
+                }
+
                 if let completionRate = report.contractCompletionRate {
                     HStack {
                         Label("Départs terminés", systemImage: "checkmark.seal")
@@ -8612,6 +8622,15 @@ private struct MonthlyFinancialReportView: View {
         simulation.session?.loans ?? []
     }
 
+    private var advertisingCampaigns: [SimulatedAdvertisingCampaign] {
+        simulation.session?.advertisingCampaigns ?? []
+    }
+
+    private var activeAdvertisingCampaign: SimulatedAdvertisingCampaign? {
+        guard let simulatedAt = simulation.session?.simulatedAt else { return nil }
+        return advertisingCampaigns.last(where: { $0.isActive(at: simulatedAt) })
+    }
+
     private var invoices: [SimulationInvoice] {
         (simulation.session?.invoices ?? []).sorted {
             if $0.isPaid != $1.isPaid { return !$0.isPaid }
@@ -8684,19 +8703,20 @@ private struct MonthlyFinancialReportView: View {
                         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 13))
                     }
 
-                    Text("Le résultat mensuel suit les recettes et charges à leur date d’acquisition; la variation de trésorerie suit les encaissements et paiements. Les montants de service, d’énergie, de réparation et de paie restent des estimations de jeu.")
+                    Text("Le résultat mensuel suit les recettes et charges à leur date d’acquisition; la variation de trésorerie suit les encaissements et paiements. Les montants de service, d’énergie, de publicité, de réparation et de paie restent des estimations de jeu.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
 
                     gameFinancingPanel
+                    accessoryRevenuePanel
                     invoicePanel
 
                     if monthlyReports.allSatisfy({ $0.entries.isEmpty }) {
                         ContentUnavailableView(
                             "Aucune écriture financière",
                             systemImage: "eurosign.square",
-                            description: Text("Les achats, services, coûts d’énergie, réparations et rémunérations apparaîtront ici après leur enregistrement au journal.")
+                            description: Text("Les achats, services, coûts d’énergie, recettes accessoires, réparations et rémunérations apparaîtront ici après leur enregistrement au journal.")
                         )
                     } else {
                         ForEach(monthlyReports) { report in
@@ -8704,7 +8724,7 @@ private struct MonthlyFinancialReportView: View {
                         }
                     }
 
-                    Text("Les soldes mensuels sont reconstitués depuis les mouvements de trésorerie du journal. Les factures de prestation et d’énergie sont émises à la clôture quotidienne puis réglées 30 jours calendaires après, selon une règle de jeu. Le capital emprunté, son remboursement et les intérêts restent des flux de financement distincts. Ces délais, taux et montants ne décrivent pas les conditions réelles de la DSP 45 ou d’un fournisseur.")
+                    Text("Les soldes mensuels sont reconstitués depuis les mouvements de trésorerie du journal. Les factures de prestation, d’énergie et de recettes accessoires sont émises à la clôture quotidienne puis réglées 30 jours calendaires après, selon une règle de jeu. Le capital emprunté, son remboursement et les intérêts restent des flux de financement distincts. Ces délais, taux et montants ne décrivent pas les conditions réelles de la DSP 45 ou d’un fournisseur.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -8731,7 +8751,7 @@ private struct MonthlyFinancialReportView: View {
     private var invoicePanel: some View {
         GroupBox("Factures · règle de jeu") {
             VStack(alignment: .leading, spacing: 10) {
-                Text("La prestation contractuelle et l’énergie sont acquises pendant l’exploitation. Elles sont regroupées à minuit et réglées automatiquement 30 jours calendaires après l’émission.")
+                Text("La prestation contractuelle, l’énergie et les recettes publicitaires simulées sont acquises pendant l’exploitation. Elles sont regroupées à minuit et réglées automatiquement 30 jours calendaires après l’émission.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -8742,7 +8762,7 @@ private struct MonthlyFinancialReportView: View {
                     ContentUnavailableView(
                         "Aucune facture émise",
                         systemImage: "doc.text",
-                        description: Text("Les premières factures apparaîtront à la clôture d’une journée avec une recette contractuelle ou des coûts d’énergie.")
+                        description: Text("Les premières factures apparaîtront à la clôture d’une journée avec une recette ou des coûts d’exploitation.")
                     )
                     .frame(minHeight: 100)
                 } else {
@@ -8932,6 +8952,57 @@ private struct MonthlyFinancialReportView: View {
                 }
             }
             .padding(.vertical, 3)
+        }
+    }
+
+    private var accessoryRevenuePanel: some View {
+        GroupBox("Publicité · recette simulée") {
+            VStack(alignment: .leading, spacing: 11) {
+                HStack(alignment: .top, spacing: 10) {
+                    Label(
+                        activeAdvertisingCampaign == nil ? "Aucune campagne active" : "Campagne en cours",
+                        systemImage: activeAdvertisingCampaign == nil ? "megaphone" : "megaphone.fill"
+                    )
+                    .font(.subheadline.weight(.semibold))
+                    Spacer()
+                    if activeAdvertisingCampaign != nil {
+                        Button(role: .destructive) {
+                            simulation.stopAdvertisingCampaign()
+                        } label: {
+                            Label("Arrêter", systemImage: "stop.circle")
+                        }
+                        .buttonStyle(.bordered)
+                    } else {
+                        Button {
+                            simulation.startAdvertisingCampaign()
+                        } label: {
+                            Label("Lancer", systemImage: "play.circle")
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                }
+
+                if let campaign = activeAdvertisingCampaign {
+                    Text("Démarrée le \(campaign.startedAt.formatted(date: .abbreviated, time: .shortened)).")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else if let lastCampaign = advertisingCampaigns.last {
+                    Text("Dernière campagne terminée le \((lastCampaign.endedAt ?? lastCampaign.startedAt).formatted(date: .abbreviated, time: .shortened)).")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Text("Hypothèse d’équilibrage : \(AccessoryRevenueRules.estimatedAdvertisingEuroPerVehicleKilometer.formatted(.currency(code: "EUR").precision(.fractionLength(2)))) par véhicule-km parcouru en service. La recette est acquise au fil des courses, facturée en fin de journée et encaissée 30 jours après. Aucun revenu n’est calculé sur les trajets à vide.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text("Estimation de jeu uniquement : ce montant ne représente pas les tarifs réels d’un annonceur ni une recette réelle d’exploitant.")
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.vertical, 4)
         }
     }
 

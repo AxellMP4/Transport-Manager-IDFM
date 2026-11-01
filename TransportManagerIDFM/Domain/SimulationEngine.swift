@@ -1544,6 +1544,7 @@ struct DailyOperationsReport: Codable, Hashable, Identifiable, Sendable {
     let contractQualityAdjustmentEuro: Int?
     let preventiveMaintenanceExpenses: Int?
     let closingCashBalance: Int?
+    var estimatedAccessoryRevenueEuro: Int? = nil
     var estimatedStopConnectorDistanceMeters: Double? = nil
     var temporaryDetourDistanceMeters: Double? = nil
     var depotSummaries: [DailyDepotOperationsSummary]? = nil
@@ -1609,6 +1610,7 @@ struct SimulationSession: Codable, Hashable, Identifiable, Sendable {
     var workshopExpansionCompletesAtByDepot: [String: Date]? = nil
     var loans: [SimulationLoan]? = nil
     var invoices: [SimulationInvoice]? = nil
+    var advertisingCampaigns: [SimulatedAdvertisingCampaign]? = nil
     var careerProgression: CareerProgressionState? = nil
 
     var effectiveManagedDepotIDs: Set<String> {
@@ -2160,6 +2162,8 @@ final class SimulationEngine: ObservableObject {
             workshopBayCount: VehicleWorkshopRules.initialRepairBayCount,
             workshopExpansionCompletesAt: nil,
             loans: [],
+            invoices: [],
+            advertisingCampaigns: [],
             careerProgression: CareerProgressionState()
         )
         try SimulationSaveStore.save(newSession)
@@ -3187,6 +3191,33 @@ final class SimulationEngine: ObservableObject {
             absences: session.machinistAbsences ?? [],
             trainings: session.machinistTrainings ?? []
         )
+    }
+
+    func startAdvertisingCampaign() {
+        guard var activeSession = session,
+              activeSession.cashBalance != nil else { return }
+        var campaigns = activeSession.advertisingCampaigns ?? []
+        guard !campaigns.contains(where: { $0.isActive(at: activeSession.simulatedAt) }) else { return }
+        campaigns.append(SimulatedAdvertisingCampaign(
+            id: "advertising-\(UUID().uuidString)",
+            startedAt: activeSession.simulatedAt
+        ))
+        activeSession.advertisingCampaigns = campaigns
+        activeSession.updatedAt = Date.now
+        session = activeSession
+        save()
+    }
+
+    func stopAdvertisingCampaign() {
+        guard var activeSession = session,
+              activeSession.cashBalance != nil,
+              var campaigns = activeSession.advertisingCampaigns,
+              let index = campaigns.lastIndex(where: { $0.isActive(at: activeSession.simulatedAt) }) else { return }
+        campaigns[index].endedAt = activeSession.simulatedAt
+        activeSession.advertisingCampaigns = campaigns
+        activeSession.updatedAt = Date.now
+        session = activeSession
+        save()
     }
 
     @discardableResult
@@ -6299,6 +6330,27 @@ final class SimulationEngine: ObservableObject {
         let serviceRevenue = (!isServiceDistance || session.cashBalance == nil)
             ? nil
             : max(0, accumulatedServiceRevenue - previousServiceRevenue)
+        let activeAdvertisingCampaign = session.advertisingCampaigns?.last(where: {
+            $0.isActive(at: event.simulatedAt)
+        })
+        let priorAdvertisingServiceDistanceMeters = activeAdvertisingCampaign.map { campaign in
+            records.reduce(into: 0.0) { total, record in
+                guard record.tripID == tripID,
+                      record.vehicleID == vehicleID,
+                      record.tripInstanceID == tripInstanceID,
+                      record.isServiceDistance != false,
+                      record.occurredAt >= campaign.startedAt,
+                      record.occurredAt <= event.simulatedAt else { return }
+                total += record.distanceMeters
+            }
+        } ?? 0
+        let advertisingRevenue = session.cashBalance == nil ? 0 : AccessoryRevenueRules.estimatedAdvertisingRevenue(
+            campaign: activeAdvertisingCampaign,
+            at: event.simulatedAt,
+            serviceDistanceMeters: meters,
+            previousCampaignServiceDistanceMeters: priorAdvertisingServiceDistanceMeters,
+            isServiceDistance: isServiceDistance
+        )
         records.append(TripDistanceRecord(
             eventSequence: event.sequence,
             tripID: tripID,
@@ -6361,6 +6413,16 @@ final class SimulationEngine: ObservableObject {
                 category: "Contribution contractuelle estimée (jeu)",
                 description: "Course \(tripID) · \((meters / 1_000).formatted(.number.precision(.fractionLength(1)))) véhicule-km\(serviceGeometrySource == .stopCoordinateEstimate ? " · distance estimée entre coordonnées d’arrêts" : serviceGeometrySource == .temporaryRouteDetour ? " · détour MapKit temporaire, estimation de jeu" : "") · hypothèse de jeu \(rate.formatted(.currency(code: "EUR").precision(.fractionLength(2))))/km",
                 amount: serviceRevenue,
+                cashDeltaEuro: 0
+            ))
+        }
+        if advertisingRevenue > 0, let activeAdvertisingCampaign {
+            ledgerEntries.append(SimulationLedgerEntry(
+                id: "advertising-revenue-\(event.sequence)",
+                occurredAt: event.simulatedAt,
+                category: "Recette publicitaire estimée (jeu)",
+                description: "Campagne publicitaire simulée · course \(tripID) · \((meters / 1_000).formatted(.number.precision(.fractionLength(1)))) véhicule-km de service · hypothèse de jeu \(AccessoryRevenueRules.estimatedAdvertisingEuroPerVehicleKilometer.formatted(.currency(code: "EUR").precision(.fractionLength(2))))/km · campagne \(activeAdvertisingCampaign.id)",
+                amount: advertisingRevenue,
                 cashDeltaEuro: 0
             ))
         }
@@ -6457,6 +6519,7 @@ final class SimulationEngine: ObservableObject {
                 && GTFSServiceDate.key(for: entry.occurredAt, timeZone: GTFSServiceDate.parisTimeZone) == dateKey
         }
         let contractEntries = newAccruals.filter { contractCategories.contains($0.category) }
+        let accessoryEntries = newAccruals.filter { $0.category == "Recette publicitaire estimée (jeu)" }
         let energyEntries = newAccruals.filter { $0.category == "Énergie estimée" }
         let payrollEntries = newAccruals.filter { $0.category == "Rémunération machinistes" }
         let workshopCategories: Set<String> = [
@@ -6484,6 +6547,28 @@ final class SimulationEngine: ObservableObject {
                 issuedAt: issuedAt,
                 dueAt: SimulationInvoiceRules.dueDate(for: issuedAt),
                 lineItems: contractEntries.sorted { $0.occurredAt < $1.occurredAt }.map {
+                    SimulationInvoiceLineItem(
+                        ledgerEntryID: $0.id,
+                        category: $0.category,
+                        description: $0.description,
+                        amountEuro: $0.amount
+                    )
+                }
+            ))
+        }
+
+        let accessoryNet = accessoryEntries.reduce(into: 0) { $0 += $1.amount }
+        let accessoryInvoiceID = "invoice-accessory-\(dateKey)"
+        if accessoryNet > 0,
+           !invoices.contains(where: { $0.id == accessoryInvoiceID }) {
+            newInvoices.append(SimulationInvoice(
+                id: accessoryInvoiceID,
+                title: "Recettes accessoires",
+                counterparty: "Partenaires publicitaires · estimation de jeu",
+                direction: .receivable,
+                issuedAt: issuedAt,
+                dueAt: SimulationInvoiceRules.dueDate(for: issuedAt),
+                lineItems: accessoryEntries.sorted { $0.occurredAt < $1.occurredAt }.map {
                     SimulationInvoiceLineItem(
                         ledgerEntryID: $0.id,
                         category: $0.category,
@@ -6677,6 +6762,15 @@ final class SimulationEngine: ObservableObject {
                 }
             }
         }
+        let accessoryRevenue = session.ledgerEntries.map { entries in
+            entries.reduce(into: 0) { total, entry in
+                if entry.category == "Recette publicitaire estimée (jeu)",
+                   entry.amount > 0,
+                   GTFSServiceDate.key(for: entry.occurredAt, timeZone: GTFSServiceDate.parisTimeZone) == dateKey {
+                    total += entry.amount
+                }
+            }
+        }
         let maintenanceExpenses = session.ledgerEntries.map { entries in
             entries.reduce(into: 0) { total, entry in
                 if entry.category == "Entretien préventif",
@@ -6757,6 +6851,7 @@ final class SimulationEngine: ObservableObject {
             contractQualityAdjustmentEuro: contractQualityAdjustmentEuro,
             preventiveMaintenanceExpenses: maintenanceExpenses,
             closingCashBalance: session.cashBalance,
+            estimatedAccessoryRevenueEuro: accessoryRevenue,
             estimatedStopConnectorDistanceMeters: estimatedStopConnectorDistance,
             temporaryDetourDistanceMeters: temporaryDetourDistance,
             depotSummaries: depotSummaries
