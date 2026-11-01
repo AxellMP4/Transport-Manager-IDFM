@@ -8617,6 +8617,9 @@ private struct MonthlyFinancialReportView: View {
     @State private var selectedLoanTermMonths = 36
     @State private var loanMessage: String?
     @State private var loanError: String?
+    @State private var isSpecialTransportComposerPresented = false
+    @State private var specialTransportMessage: String?
+    @State private var specialTransportError: String?
 
     private var loans: [SimulationLoan] {
         simulation.session?.loans ?? []
@@ -8629,6 +8632,13 @@ private struct MonthlyFinancialReportView: View {
     private var activeAdvertisingCampaign: SimulatedAdvertisingCampaign? {
         guard let simulatedAt = simulation.session?.simulatedAt else { return nil }
         return advertisingCampaigns.last(where: { $0.isActive(at: simulatedAt) })
+    }
+
+    private var specialTransportOrders: [SimulationSpecialTransportOrder] {
+        (simulation.session?.specialTransportOrders ?? []).sorted {
+            if $0.startsAt != $1.startsAt { return $0.startsAt < $1.startsAt }
+            return $0.id < $1.id
+        }
     }
 
     private var invoices: [SimulationInvoice] {
@@ -8710,6 +8720,7 @@ private struct MonthlyFinancialReportView: View {
 
                     gameFinancingPanel
                     accessoryRevenuePanel
+                    specialTransportPanel
                     invoicePanel
 
                     if monthlyReports.allSatisfy({ $0.entries.isEmpty }) {
@@ -8745,13 +8756,19 @@ private struct MonthlyFinancialReportView: View {
                 }
             }
         }
+        .sheet(isPresented: $isSpecialTransportComposerPresented) {
+            SpecialTransportComposerView(simulation: simulation) { order in
+                specialTransportMessage = "Commande prévue le \(order.startsAt.formatted(date: .abbreviated, time: .shortened)) · devis de \(currency(order.quotedAmountEuro))."
+                specialTransportError = nil
+            }
+        }
         .environment(\.timeZone, GTFSServiceDate.parisTimeZone)
     }
 
     private var invoicePanel: some View {
         GroupBox("Factures · règle de jeu") {
             VStack(alignment: .leading, spacing: 10) {
-                Text("La prestation contractuelle, l’énergie et les recettes publicitaires simulées sont acquises pendant l’exploitation. Elles sont regroupées à minuit et réglées automatiquement 30 jours calendaires après l’émission.")
+                Text("La prestation contractuelle, l’énergie, les transports spéciaux et les recettes publicitaires simulées sont acquis selon leur événement. Les factures sont regroupées à minuit et réglées automatiquement 30 jours calendaires après l’émission.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -9006,6 +9023,123 @@ private struct MonthlyFinancialReportView: View {
         }
     }
 
+    private var specialTransportPanel: some View {
+        GroupBox("Transport spécial · devis saisi dans le jeu") {
+            VStack(alignment: .leading, spacing: 11) {
+                HStack(alignment: .top) {
+                    Text("Planifie une navette ponctuelle avec un bus et un machiniste disponibles.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    Spacer(minLength: 12)
+                    Button {
+                        specialTransportError = nil
+                        isSpecialTransportComposerPresented = true
+                    } label: {
+                        Label("Nouvelle commande", systemImage: "plus")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(simulation.session?.cashBalance == nil)
+                }
+
+                if let specialTransportError {
+                    Label(specialTransportError, systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else if let specialTransportMessage {
+                    Label(specialTransportMessage, systemImage: "checkmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.green)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                if specialTransportOrders.isEmpty {
+                    Text("Aucune commande de transport spécial dans cette carrière.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(specialTransportOrders) { order in
+                        specialTransportOrderRow(order)
+                        if order.id != specialTransportOrders.last?.id { Divider() }
+                    }
+                }
+
+                Text("Le devis est fixé par le joueur. À la fin du service, son montant est inscrit comme recette estimée, puis facturé et encaissé selon le délai de jeu de 30 jours. Distance, devis et passagers sont des données de partie; aucun tarif réel IDFM n’est présumé.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.vertical, 4)
+        }
+    }
+
+    @ViewBuilder
+    private func specialTransportOrderRow(_ order: SimulationSpecialTransportOrder) -> some View {
+        let busLabel = simulation.session?.ownedBuses?.first(where: { $0.id == order.vehicleID })?.coquilleNumber
+            .map { "Bus n°\($0)" } ?? order.vehicleID
+        let machinistLabel = simulation.session?.machinists?.first(where: { $0.id == order.machinistID })?.displayName
+            ?? order.machinistID
+
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(order.clientName)
+                    .font(.subheadline.weight(.semibold))
+                Spacer()
+                Text(currency(order.quotedAmountEuro))
+                    .font(.subheadline.monospacedDigit().weight(.semibold))
+            }
+            Text(order.purpose)
+                .font(.subheadline)
+            Text("\(order.startsAt.formatted(date: .abbreviated, time: .shortened)) – \(order.endsAt.formatted(date: .omitted, time: .shortened)) · \(order.plannedDistanceKilometers.formatted(.number.precision(.fractionLength(1)))) km · \(order.passengerCount) passagers prévus")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            HStack {
+                Label("\(busLabel) · \(machinistLabel)", systemImage: "bus")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Label(order.status.title, systemImage: specialTransportStatusSymbol(order.status))
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(specialTransportStatusColor(order.status))
+                if order.status == .scheduled,
+                   (simulation.session?.simulatedAt ?? .distantFuture) < order.startsAt {
+                    Button(role: .destructive) {
+                        do {
+                            try simulation.cancelSpecialTransport(orderID: order.id)
+                            specialTransportError = nil
+                            specialTransportMessage = "Commande annulée; bus et machiniste libérés."
+                        } catch {
+                            specialTransportMessage = nil
+                            specialTransportError = error.localizedDescription
+                        }
+                    } label: {
+                        Text("Annuler")
+                    }
+                    .buttonStyle(.bordered)
+                }
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    private func specialTransportStatusSymbol(_ status: SpecialTransportStatus) -> String {
+        switch status {
+        case .scheduled: "clock"
+        case .inProgress: "arrow.triangle.2.circlepath"
+        case .completed: "checkmark.circle.fill"
+        case .cancelled: "xmark.circle"
+        }
+    }
+
+    private func specialTransportStatusColor(_ status: SpecialTransportStatus) -> Color {
+        switch status {
+        case .scheduled: .blue
+        case .inProgress: .orange
+        case .completed: .green
+        case .cancelled: .secondary
+        }
+    }
+
     private func loanRow(_ loan: SimulationLoan) -> some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack {
@@ -9173,6 +9307,215 @@ private struct MonthlyFinancialReportView: View {
 
     private func currency(_ amount: Int) -> String {
         amount.formatted(.currency(code: "EUR").precision(.fractionLength(0)))
+    }
+}
+
+private struct SpecialTransportComposerView: View {
+    @ObservedObject var simulation: SimulationEngine
+    let onScheduled: (SimulationSpecialTransportOrder) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var clientName = ""
+    @State private var purpose = ""
+    @State private var startsAt: Date
+    @State private var durationMinutes = 60
+    @State private var plannedDistanceKilometers = 12.0
+    @State private var passengerCount = 20
+    @State private var quotedAmountEuro = 600
+    @State private var selectedVehicleID: String
+    @State private var selectedMachinistID: String
+    @State private var errorMessage: String?
+
+    private let durationOptions = [30, 60, 90, 120, 180, 240, 360, 480, 720]
+
+    init(
+        simulation: SimulationEngine,
+        onScheduled: @escaping (SimulationSpecialTransportOrder) -> Void
+    ) {
+        self.simulation = simulation
+        self.onScheduled = onScheduled
+        let session = simulation.session
+        _startsAt = State(initialValue: (session?.simulatedAt ?? .now).addingTimeInterval(3_600))
+        _selectedVehicleID = State(initialValue: session?.ownedBuses?.first?.id ?? "")
+        _selectedMachinistID = State(initialValue: session?.machinists?.first?.id ?? "")
+    }
+
+    private var availableBuses: [PurchasedBus] {
+        guard let session = simulation.session else { return [] }
+        let end = startsAt.addingTimeInterval(TimeInterval(durationMinutes * 60))
+        return (session.ownedBuses ?? []).filter { bus in
+            guard (bus.status == .atDepot || bus.status == .atStop),
+                  bus.currentTripID == nil,
+                  bus.reservedTripKey == nil,
+                  bus.rechargePlanID == nil else { return false }
+            let assignmentConflict = (session.machinistServiceAssignments ?? []).contains { assignment in
+                guard assignment.vehicleID == bus.id else { return false }
+                let assignmentEnd = assignment.actualEndAt ?? assignment.plannedEndAt
+                return startsAt < assignmentEnd && end > assignment.plannedStartAt
+            }
+            let charterConflict = (session.specialTransportOrders ?? []).contains { order in
+                order.vehicleID == bus.id
+                    && (order.status == .scheduled || order.status == .inProgress)
+                    && startsAt < order.endsAt
+                    && end > order.startsAt
+            }
+            return !assignmentConflict && !charterConflict
+        }
+    }
+
+    private var selectedBus: PurchasedBus? {
+        availableBuses.first(where: { $0.id == selectedVehicleID })
+    }
+
+    private var availableMachinists: [Machinist] {
+        guard selectedBus != nil else { return [] }
+        return simulation.availableMachinistsForSpecialTransport(
+            vehicleID: selectedVehicleID,
+            startsAt: startsAt,
+            durationMinutes: durationMinutes
+        )
+    }
+
+    private var passengerCapacity: Int {
+        selectedBus.flatMap { VehicleMarketCatalog.model(id: $0.modelID) }
+            .map(VehicleMarketCatalog.passengerCapacity(for:)) ?? 0
+    }
+
+    private var canSubmit: Bool {
+        !clientName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !purpose.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && plannedDistanceKilometers.isFinite
+            && plannedDistanceKilometers > 0
+            && passengerCount > 0
+            && passengerCount <= passengerCapacity
+            && quotedAmountEuro > 0
+            && selectedBus != nil
+            && availableMachinists.contains(where: { $0.id == selectedMachinistID })
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Client et mission") {
+                    TextField("Client", text: $clientName)
+                    TextField("Motif du transport", text: $purpose)
+                }
+
+                Section("Horaire et ressources") {
+                    DatePicker("Début", selection: $startsAt, in: (simulation.session?.simulatedAt ?? .now)...)
+                    Picker("Durée", selection: $durationMinutes) {
+                        ForEach(durationOptions, id: \.self) { minutes in
+                            Text(minutes >= 60 && minutes.isMultiple(of: 60)
+                                 ? "\(minutes / 60) h"
+                                 : "\(minutes) min")
+                                .tag(minutes)
+                        }
+                    }
+                    Picker("Bus", selection: $selectedVehicleID) {
+                        ForEach(availableBuses) { bus in
+                            let name = VehicleMarketCatalog.model(id: bus.modelID)?.displayName ?? bus.modelID
+                            Text("\(bus.coquilleNumber.map { "n°\($0) · " } ?? "")\(name)")
+                                .tag(bus.id)
+                        }
+                    }
+                    Picker("Machiniste", selection: $selectedMachinistID) {
+                        ForEach(availableMachinists) { machinist in
+                            Text(machinist.displayName).tag(machinist.id)
+                        }
+                    }
+                    if availableBuses.isEmpty || availableMachinists.isEmpty {
+                        Label("Aucun couple bus-machiniste n’est libre sur ce créneau.", systemImage: "exclamationmark.triangle")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
+                }
+
+                Section("Devis et capacité") {
+                    TextField("Distance prévue (km)", value: $plannedDistanceKilometers, format: .number)
+                    Stepper(value: $passengerCount, in: 1...max(1, passengerCapacity)) {
+                        LabeledContent("Passagers prévus", value: passengerCount.formatted())
+                    }
+                    TextField("Devis accepté (€)", value: $quotedAmountEuro, format: .number)
+                    if passengerCapacity > 0 {
+                        Text("Capacité du véhicule dans le catalogue du jeu : \(passengerCapacity) places. Le devis reste celui que tu saisis.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Section {
+                    Text("Le montant est une règle de jeu définie par le joueur, pas un tarif réel IDFM. La recette sera acquise à la fin du transport, puis facturée selon le calendrier de la carrière.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                if let errorMessage {
+                    Section {
+                        Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+            .formStyle(.grouped)
+            .navigationTitle("Nouvelle commande spéciale")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Fermer") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Planifier") { schedule() }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(!canSubmit)
+                }
+            }
+            .onChange(of: selectedVehicleID) { _, _ in
+                if let firstMachinist = availableMachinists.first,
+                   !availableMachinists.contains(where: { $0.id == selectedMachinistID }) {
+                    selectedMachinistID = firstMachinist.id
+                }
+            }
+            .onChange(of: startsAt) { _, _ in
+                refreshSelections()
+            }
+            .onChange(of: durationMinutes) { _, _ in
+                refreshSelections()
+            }
+        }
+        .frame(maxWidth: 680, minHeight: 560)
+        .environment(\.timeZone, GTFSServiceDate.parisTimeZone)
+    }
+
+    private func refreshSelections() {
+        if let firstBus = availableBuses.first,
+           !availableBuses.contains(where: { $0.id == selectedVehicleID }) {
+            selectedVehicleID = firstBus.id
+        }
+        if let firstMachinist = availableMachinists.first,
+           !availableMachinists.contains(where: { $0.id == selectedMachinistID }) {
+            selectedMachinistID = firstMachinist.id
+        }
+    }
+
+    private func schedule() {
+        do {
+            let order = try simulation.scheduleSpecialTransport(
+                clientName: clientName,
+                purpose: purpose,
+                startsAt: startsAt,
+                durationMinutes: durationMinutes,
+                plannedDistanceKilometers: plannedDistanceKilometers,
+                passengerCount: passengerCount,
+                vehicleID: selectedVehicleID,
+                machinistID: selectedMachinistID,
+                quotedAmountEuro: quotedAmountEuro
+            )
+            onScheduled(order)
+            dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 }
 
