@@ -1,3 +1,11 @@
+# Repli compact de la barre vide sur la carte macOS — 1er novembre 2026
+
+- Revue Apple Design à 1 180 points de largeur minimale : dans l’état sans bus, les boutons de la carte comprimaient le texte d’aide jusqu’à le découper presque lettre par lettre et le rapprochaient de la légende. `EmptyMapFleetActionCard` propose maintenant trois présentations selon la largeur disponible : texte complet sur une ligne, message compact avec les mêmes trois actions, puis empilement en dernier recours. Le message ne prend plus une largeur artificiellement minimale quand la carte est étroite.
+- Ce changement suit `windows.md › Best practices` (« adapt fluidly to different sizes ») et `typography.md › Ensuring legibility` : le message court garde son sens et les libellés d’action restent intacts lorsque la fenêtre se resserre.
+- `sh Scripts/validate-passenger-ui-layout.sh`, `sh -n Scripts/validate-passenger-ui-layout.sh`, l’analyse syntaxique de `OperationsDashboardView.swift` et `git diff --check` passent. Le build Debug de la cible macOS via `xcodebuild -project … -target TransportManagerIDFM -sdk macosx` termine au code 0; `lipo -archs` confirme `x86_64 arm64` et l’Info.plist est valide. CoreSimulator reste indisponible, sans empêcher cette compilation macOS.
+- Limite de preuve : le produit reconstruit inclut bien le changement et passe le smoke de structure, mais l’ouverture de ce produit dans la session de contrôle d’interface a expiré. La capture disponible montre l’ancien processus; aucune réussite visuelle du nouveau repli n’est revendiquée. Le passage étroit reste à confirmer après relancement.
+- Les vérifications voyageurs restent ouvertes : aucun bus actif pour contrôler son mouvement, sa jauge et sa fiche; la sauvegarde historique n’a pas été restaurée interactivement. L’indice Voyageurs et son état vide restent visibles dans la fenêtre resserrée.
+
 # Revue visuelle macOS du parcours réseau et des rapports — 1er novembre 2026
 
 - La fenêtre de l’application macOS de diagnostic est redevenue accessible. La revue a porté sur Carte, Lignes et la grille horaire 116, le marché/parc vide, ainsi que les rapports Exploitation, Voyageurs et Finances, en fenêtre de 1 420 × 900 points.
