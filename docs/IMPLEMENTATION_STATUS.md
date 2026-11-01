@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 134752)
-Total output lines: 1777
-
 # Affectation des départs GTFS sur iPhone — 1er novembre 2026
 
 - Nouveauté : l’iPhone dispose maintenant d’un onglet « Courses » qui liste les départs théoriques en attente des lignes de la carrière. Une fiche charge la séquence d’arrêts et permet d’affecter un autobus compatible et un machiniste disponible/qualifié. Pour un bus au dépôt, l’app calcule son trajet MapKit vers le premier arrêt et vérifie l’heure d’arrivée; un bus déjà au premier arrêt peut être affecté sans ce trajet. La validation, la réservation du bus, le bloc de service du machiniste et la sauvegarde restent gérés par le moteur existant; la sauvegarde alimente le mécanisme de synchronisation iCloud déjà présent.
