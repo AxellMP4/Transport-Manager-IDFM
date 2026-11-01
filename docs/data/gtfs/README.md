@@ -1,5 +1,12 @@
 # Archive GTFS IDFM
 
+## Réaudit du flux public du 31 octobre — 1er novembre 2026
+
+- Une archive GTFS courante a été téléchargée depuis le [miroir public IDFM](https://eu.ftp.opendatasoft.com/stif/GTFS/IDFM-gtfs.zip). La [fiche PAN 80921](https://transport.data.gouv.fr/resources/80921?locale=fr) montre une version du 31 octobre, une période de service jusqu’au 30 novembre et une validation PAN le 31 octobre à 07:37 Europe/Paris. Fichier temporaire hors du dépôt : 142 972 877 octets, SHA-256 `e77435e98732a49c0b1e11581aedfc4ba8f30a5c6b27e0332b69746d5da7908d`.
+- L’auditeur `Validation/GTFSArchiveAudit.swift` inspecte le flux complet : 1 970 routes bus, 414 215 courses et horaires, 33 578 arrêts bus géolocalisés, 53 457 lignes d’arrêt, 895 calendriers et couverture du 29 octobre au 30 novembre 2026. Aucun trajet bus n’est sans service actif; aucune séquence ou chronologie invalide ni coordonnée ou fiche d’arrêt manquante n’est relevée.
+- Il relève 16 courses aux horaires incomplets, 16 sans référence de forme, 71 avec une forme indisponible et 8 références de forme invalides. Le sous-ensemble 214/314 compte 257/23 courses, dont 79/23 actives les jours ouvrés à compter du 2 novembre hors 11 novembre; la ligne 314 boucle sur 14 arrêts. Cette présence confirme les services post-réorganisation dans le flux public, sans prouver un export PRIM authentifié ni la géométrie réelle des chaussées.
+- Le ZIP n’est pas copié dans le dépôt. Le snapshot embarqué décrit ci-dessous reste celui du 30 octobre; le téléchargeur intégré peut importer le flux public courant. Le compte PRIM, les formes de référence et les preuves ligne–COB restent des dépendances externes.
+
 ## Snapshot public courant embarqué — 30 octobre 2026
 
 - L’archive de ressource PAN 80921 du 30 octobre a été téléchargée le 31 octobre depuis le [fichier source public](https://transport-data-gouv-fr-resource-history-prod.cellar-c2.services.clever-cloud.com/80921/80921.20261030.064123.879929.zip). Elle fait 147 371 580 octets, passe `unzip -tq` et porte le SHA-256 `501a1533cfe37c26795343cbf83a399515692bc87303816b1b0b91891e55e578`. C’est le flux public, pas un export obtenu avec un compte PRIM authentifié.
