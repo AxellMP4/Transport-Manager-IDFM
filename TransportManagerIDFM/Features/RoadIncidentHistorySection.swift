@@ -34,7 +34,7 @@ struct RoadIncidentHistorySection: View {
                 .help("Déclarer une perturbation de jeu. Aucun accident réel n’est signalé.")
             }
 
-            Text("Les déclarations manuelles choisissent un segment et un détour routier. Le moteur peut aussi générer des congestions fictives selon l’option de carrière; elles ne proviennent ni de PRIM ni d’accidents réels.")
+            Text("Les déclarations manuelles choisissent un segment et un détour routier. Selon l’option de carrière, le jeu peut aussi générer des congestions, travaux ou accidents fictifs. Ils ne proviennent pas de PRIM et ne décrivent pas des événements réels.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
