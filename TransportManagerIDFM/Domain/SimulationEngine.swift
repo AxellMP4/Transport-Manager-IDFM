@@ -316,10 +316,10 @@ enum TrafficDisruptionFrequency: String, Codable, CaseIterable, Hashable, Identi
 
     var explanation: String {
         switch self {
-        case .disabled: "Aucun ralentissement routier aléatoire de jeu."
-        case .reduced: "Risque divisé par deux · règle de jeu reproductible."
-        case .standard: "Risque de référence · congestion fictive, reproductible dans cette carrière."
-        case .increased: "Risque doublé · règle de jeu reproductible."
+        case .disabled: "Aucune perturbation routière générée par le jeu."
+        case .reduced: "Risque divisé par deux pour les congestions, travaux ou accidents fictifs."
+        case .standard: "Risque de référence pour les événements de circulation fictifs de cette carrière."
+        case .increased: "Risque doublé pour les congestions, travaux ou accidents fictifs."
         }
     }
 
@@ -697,7 +697,7 @@ enum RouteDetourCause: String, Codable, CaseIterable, Hashable, Identifiable, Se
 
     var explanation: String {
         switch self {
-        case .accident: "Perturbation de jeu déclarée par le gestionnaire; aucun accident réel n’est annoncé."
+        case .accident: "Accident simulé ou déclaré par le gestionnaire; aucun accident réel n’est annoncé."
         case .roadworks: "Travaux simulés sur le segment sélectionné."
         case .localEvent: "Perturbation simulée liée à un événement local."
         case .congestion: "Retard simulé lié à la circulation sur le segment sélectionné."
@@ -788,7 +788,16 @@ struct RouteDetourEventDetails: Codable, Hashable, Sendable {
     }
 
     var eventTitle: String {
-        if origin == .simulation, cause == .congestion { return "Congestion simulée" }
+        if origin == .simulation {
+            switch cause {
+            case .congestion: return "Congestion simulée"
+            case .roadworks: return "Travaux simulés"
+            case .accident: return "Accident routier simulé"
+            case .localEvent: return "Événement local simulé"
+            case .trafficReport: return "Information trafic simulée"
+            case .other, .none: return "Perturbation routière simulée"
+            }
+        }
         return cause?.title ?? "Déviation"
     }
 }
@@ -5668,7 +5677,7 @@ final class SimulationEngine: ObservableObject {
             detours: existingRouteDetours.filter { $0.routeID == routeID },
             to: sourceStopVisits
         )
-        let generatedCongestion = Self.plannedRoadCongestion(
+        let generatedDisruption = Self.plannedRoadDisruption(
             routeID: routeID,
             tripID: tripID,
             serviceDateKey: serviceDateKey,
@@ -5678,25 +5687,25 @@ final class SimulationEngine: ObservableObject {
             existingDetours: existingRouteDetours
         )
         var routeDetoursForTrip = existingRouteDetours
-        if let generatedCongestion {
-            routeDetoursForTrip.append(generatedCongestion)
+        if let generatedDisruption {
+            routeDetoursForTrip.append(generatedDisruption)
             activeSession.routeDetours = routeDetoursForTrip
-            let details = RouteDetourEventDetails(generatedCongestion)
+            let details = RouteDetourEventDetails(generatedDisruption)
             activeSession.eventHistory.append(SimulationEvent(
                 sequence: activeSession.nextEventSequence,
                 simulatedAt: activeSession.simulatedAt,
-                kind: .routeDetourScheduled(details, startsAt: generatedCongestion.startsAt)
+                kind: .routeDetourScheduled(details, startsAt: generatedDisruption.startsAt)
             ))
             activeSession.nextEventSequence &+= 1
             activeSession.pendingEvents.append(SimulationEvent(
                 sequence: activeSession.nextEventSequence,
-                simulatedAt: generatedCongestion.startsAt,
+                simulatedAt: generatedDisruption.startsAt,
                 kind: .routeDetourStarted(details)
             ))
             activeSession.nextEventSequence &+= 1
             activeSession.pendingEvents.append(SimulationEvent(
                 sequence: activeSession.nextEventSequence,
-                simulatedAt: generatedCongestion.scheduledEndAt,
+                simulatedAt: generatedDisruption.scheduledEndAt,
                 kind: .routeDetourEnded(details)
             ))
             activeSession.nextEventSequence &+= 1
@@ -6521,7 +6530,7 @@ final class SimulationEngine: ObservableObject {
         )
     }
 
-    static func plannedRoadCongestion(
+    static func plannedRoadDisruption(
         routeID: String,
         tripID: String,
         serviceDateKey: Int,
@@ -6566,19 +6575,37 @@ final class SimulationEngine: ObservableObject {
         let distanceKilometers = distanceMeters / 1_000
         guard distanceKilometers.isFinite, distanceKilometers > 0 else { return nil }
 
-        let key = "\(randomSeed)|\(routeID)|\(tripID)|\(serviceDateKey)|road-congestion"
+        let key = "\(randomSeed)|\(routeID)|\(tripID)|\(serviceDateKey)|road-disruption-v1"
         let hazard = 0.0015 * distanceKilometers * frequency.hazardMultiplier
         let probability = min(0.25, 1 - exp(-hazard))
         let roll = deterministicDemandHash(seed: randomSeed, key: key) % 1_000_000
         guard Double(roll) / 1_000_000 < probability else { return nil }
+
+        let causeRoll = deterministicDemandHash(seed: randomSeed, key: key + "|cause") % 100
+        let cause: RouteDetourCause
+        let durationSeconds: TimeInterval
+        let delayRange: ClosedRange<Int>
+        if causeRoll < 55 {
+            cause = .congestion
+            durationSeconds = 45 * 60
+            delayRange = 240...840
+        } else if causeRoll < 80 {
+            cause = .roadworks
+            durationSeconds = 4 * 60 * 60
+            delayRange = 480...1_380
+        } else {
+            cause = .accident
+            durationSeconds = 90 * 60
+            delayRange = 600...2_100
+        }
 
         let segmentOffset = Int(deterministicDemandHash(seed: randomSeed, key: key + "|segment") % UInt64(segmentIndices.count))
         let segmentIndex = segmentIndices[segmentOffset]
         let fromVisit = stopVisits[segmentIndex]
         let toVisit = stopVisits[segmentIndex + 1]
         let startsAt = fromVisit.departureAt ?? fromVisit.scheduledAt
-        let scheduledEndAt = startsAt.addingTimeInterval(45 * 60)
-        let id = "generated-congestion-\(serviceDateKey)-\(String(deterministicDemandHash(seed: randomSeed, key: key + "|id"), radix: 16))"
+        let scheduledEndAt = startsAt.addingTimeInterval(durationSeconds)
+        let id = "generated-road-disruption-\(cause.rawValue)-\(serviceDateKey)-\(String(deterministicDemandHash(seed: randomSeed, key: key + "|id"), radix: 16))"
         guard !existingDetours.contains(where: { detour in
             detour.id == id || (
                 detour.endedAt == nil
@@ -6598,7 +6625,9 @@ final class SimulationEngine: ObservableObject {
         let coordinates = fromVisit.movementToNext.flatMap { geometry in
             validRouteDetourCoordinates(geometry, from: fromVisit, to: toVisit) ? geometry : nil
         } ?? endpoints
-        let delaySeconds = 240 + Int(deterministicDemandHash(seed: randomSeed, key: key + "|delay") % 601)
+        let delaySpan = delayRange.upperBound - delayRange.lowerBound + 1
+        let delaySeconds = delayRange.lowerBound
+            + Int(deterministicDemandHash(seed: randomSeed, key: key + "|delay") % UInt64(delaySpan))
 
         return SimulatedRouteDetour(
             id: id,
@@ -6613,7 +6642,7 @@ final class SimulationEngine: ObservableObject {
             scheduledEndAt: scheduledEndAt,
             replacementCoordinates: coordinates,
             additionalTravelSeconds: TimeInterval(delaySeconds),
-            cause: .congestion,
+            cause: cause,
             origin: .simulation
         )
     }
