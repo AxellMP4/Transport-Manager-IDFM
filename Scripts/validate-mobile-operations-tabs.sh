@@ -79,6 +79,16 @@ if ! rg -Fq 'accessibilityLabel("Options de carrière et sauvegarde")' "$dashboa
     exit 1
 fi
 
+if ! rg -Fq '@State private var pendingSaveImportData: Data?' "$dashboard_source" \
+    || ! rg -Fq 'if simulation.session != nil {' "$dashboard_source" \
+    || ! rg -Fq 'pendingSaveImportData = saveData' "$dashboard_source" \
+    || ! rg -Fq '.confirmationDialog(' "$dashboard_source" \
+    || ! rg -Fq '"Remplacer la carrière actuelle ?"' "$dashboard_source" \
+    || ! rg -Fq 'importCareerSave(pendingSaveImportData)' "$dashboard_source"; then
+    echo "Importing a save over an active career must wait for explicit confirmation in the shared dashboard." >&2
+    exit 1
+fi
+
 if ! rg -Fq 'CareerGuideView(' "$project_root/TransportManagerIDFM/Features/GameLaunchMenuView.swift" \
     || ! rg -Fq 'onOpenGuideDestination: { destination in' "$dashboard_source"; then
     echo "The optional career guide must remain available from the shared launch menu." >&2
@@ -212,5 +222,3 @@ if len(guarded_inline_titles) != 2:
 PY
 then
     echo "Compact dispatch must guard iOS-only navigation title APIs from the macOS build." >&2
-    exit 1
-fi
