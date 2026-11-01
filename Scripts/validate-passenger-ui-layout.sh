@@ -22,8 +22,8 @@ if [ "$adaptive_layout_count" -lt 3 ]; then
     exit 1
 fi
 
-if ! rg -q 'ViewThatFits\\(in: \.horizontal\\)' "$dashboard_source" \
-    || ! rg -q '\\.frame\\(minWidth: 940\\)' "$dashboard_source" \
+if ! rg -q 'ViewThatFits\(in: \.horizontal\)' "$dashboard_source" \
+    || ! rg -q '\.frame\(minWidth: 940\)' "$dashboard_source" \
     || ! rg -q 'compactStatus' "$dashboard_source" \
     || ! rg -q 'EmptyMapFleetActionCard' "$dashboard_source"; then
     echo "FAIL: the empty-map actions do not provide a stacked compact-width fallback" >&2
