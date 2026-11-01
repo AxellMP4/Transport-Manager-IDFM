@@ -1,3 +1,10 @@
+# Revue visuelle macOS du parcours réseau et des rapports — 1er novembre 2026
+
+- La fenêtre de l’application macOS de diagnostic est redevenue accessible. La revue a porté sur Carte, Lignes et la grille horaire 116, le marché/parc vide, ainsi que les rapports Exploitation, Voyageurs et Finances, en fenêtre de 1 420 × 900 points.
+- La carte montre les 30 lignes et 13 arrêts du dépôt, sa légende et l’avertissement de rattachement à confirmer. La grille 116 affiche ses groupes de courses, la date de service et le défilement horizontal des arrêts. Le marché explique l’état vide du parc sans masquer l’énergie, les règles d’atelier et les offres disponibles.
+- Les rapports Exploitation et Voyageurs rendent lisibles leurs états sans données; le bilan financier affiche les soldes d’ouverture et de clôture ainsi que les écritures classées. La carrière était en pause et n’a pas été modifiée pendant cette navigation.
+- Limites de cette revue : aucun autobus n’est présent et la simulation est en pause; le mouvement, la jauge de charge et la fiche d’un bus ne pouvaient donc pas être inspectés. La disposition étroite et la restauration interactive d’une ancienne sauvegarde restent à vérifier. Cette revue partielle ne coche pas l’acceptation visuelle complète du système voyageurs.
+
 # Bilan financier iPhone et guide de carrière macOS/iPhone — 1er novembre 2026
 
 - Nouveauté iPhone : l’onglet de premier niveau « Finances » présente la trésorerie, la dette, les crédits de jeu, la campagne publicitaire, les factures et un relevé mensuel. Le bilan lit et modifie la même instance de `SimulationEngine` que les autres onglets; ses sauvegardes continuent d’emprunter le flux iCloud existant. Les intérêts, délais et autres montants restent des règles de simulation, non des conditions DSP 45 ou fournisseurs.
