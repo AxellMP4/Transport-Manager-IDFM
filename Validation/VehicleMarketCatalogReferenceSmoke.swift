@@ -51,6 +51,46 @@ struct VehicleMarketCatalogReferenceSmoke {
             )
         }
 
-        print("PASS : le Crealis 18 m est catalogué comme référence CATP sourcée, sans offre régionale inventée.")
+        let crosswayID = "iveco-crossway-line-gnc-my2024-reference"
+        guard let crossway = VehicleMarketCatalog.model(id: crosswayID),
+              let crosswayVariants = crossway.technicalVariants,
+              crosswayVariants.count == 2 else {
+            fatalError("La référence Iveco Crossway doit distinguer les variantes constructeur 12 m et 13 m.")
+        }
+        let crossway12m = crosswayVariants.first { $0.id == "iveco-crossway-line-gnc-12m-my2024" }
+        let crossway13m = crosswayVariants.first { $0.id == "iveco-crossway-line-gnc-13m-my2024" }
+        precondition(
+            crossway.regionalEvidenceYear == 2024
+                && crossway.fleetEvidenceURL == "https://www.iledefrance-mobilites.fr/medias/portail-idfm/Zn0R95bWFbowe7qq_RAA_158-1.pdf"
+                && crossway.fleetEvidenceTitle.contains("16 autocars IVECO Crossway")
+                && crossway.displayEnergyTitle.contains("non établie"),
+            "La preuve IDFM doit rester distincte de la motorisation régionale inconnue."
+        )
+        precondition(
+            crossway12m?.lengthMeters == 12.097
+                && crossway12m?.maximumPowerKilowatts == 265
+                && crossway12m?.maximumCapacity == 55
+                && crossway12m?.fuelTankCapacitiesLiters == [1_260]
+                && crossway13m?.lengthMeters == 12.962
+                && crossway13m?.maximumPowerKilowatts == 265
+                && crossway13m?.maximumCapacity == 61
+                && crossway13m?.fuelTankCapacitiesLiters == [1_260]
+                && crosswayVariants.allSatisfy { $0.widthMeters == 2.55 && $0.heightMeters == 3.46 },
+            "Les variantes constructeur doivent conserver les valeurs de la fiche MY2024."
+        )
+        precondition(
+            crossway.technicalEvidenceURL == "https://www.ivecobus.com/france/-/media/IvecoBus/France/pdf/schede-tecniche/crossway/FR_CRW_NF_LINE_CNG_MY2024.pdf?rev=-1"
+                && crossway.marketAvailabilityNote != nil
+                && !VehicleMarketCatalog.marketableModels.contains(where: { $0.id == crosswayID }),
+            "La fiche Crossway doit identifier sa source technique et rester non achetable."
+        )
+        for year in [2024, 2026] {
+            precondition(
+                !VehicleMarketCatalog.offers(for: year).contains(where: { $0.modelID == crosswayID }),
+                "Aucune offre Crossway ne doit être inventée sans prix ni configuration de flotte attestés."
+            )
+        }
+
+        print("PASS : les références Crealis et Crossway sont sourcées sans inventer de variante régionale ou d’offre.")
     }
 }
