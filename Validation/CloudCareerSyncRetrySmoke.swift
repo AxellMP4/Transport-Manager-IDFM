@@ -6,6 +6,7 @@ struct CloudCareerSyncRetrySmoke {
     @MainActor
     static func main() async {
         await choosingCloudPreservesLocalCareerBeforeDownload()
+        downloadedVersionRemainsTheCheckpointWhenCloudAdvancesDuringImport()
         var policyFailures: [String] = []
         if let failure = await choosingCloudPreservesSameLocalCareerBeforeDownload() {
             policyFailures.append(failure)
@@ -22,6 +23,26 @@ struct CloudCareerSyncRetrySmoke {
         await aNewerRequestRunsAfterTheActiveSync()
         precondition(policyFailures.isEmpty, policyFailures.joined(separator: "\n"))
         print("PASS: throttled retries and in-flight synchronization coalescing are deterministic")
+    }
+
+    private static func downloadedVersionRemainsTheCheckpointWhenCloudAdvancesDuringImport() {
+        let decision = CloudCareerSyncPolicy.downloadCheckpointDecision(
+            downloadedChangeTag: "cloud-v1",
+            latestChangeTag: "cloud-v2"
+        )
+        precondition(
+            decision == .remoteAdvanced(downloadedChangeTag: "cloud-v1"),
+            "If CloudKit advances during import, checkpoint only the version that was imported and request another sync."
+        )
+
+        let stableDecision = CloudCareerSyncPolicy.downloadCheckpointDecision(
+            downloadedChangeTag: "cloud-v2",
+            latestChangeTag: "cloud-v2"
+        )
+        precondition(
+            stableDecision == .stable(downloadedChangeTag: "cloud-v2"),
+            "An unchanged CloudKit record should finish the download without another sync."
+        )
     }
 
     @MainActor

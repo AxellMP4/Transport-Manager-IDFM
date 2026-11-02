@@ -1,9 +1,18 @@
+# Course entre l’import local et la publication CloudKit — 2 novembre 2026
+
+- Nouveauté : après un téléchargement iCloud, le checkpoint conserve maintenant le change tag de l’enregistrement réellement importé. Si le serveur a publié un autre enregistrement pendant l’installation du réseau, l’app programme une nouvelle synchronisation au lieu de marquer la copie distante plus récente comme déjà appliquée.
+- Vérification test-first : `sh Scripts/validate-cloud-career-sync-retry.sh` échoue avant le correctif car la décision de checkpoint manque, puis passe après; le smoke couvre version stable et publication concurrente. `swiftc -frontend -parse`, `sh -n` et `git diff --check` passent.
+- Le build Debug générique macOS termine au code 0; `lipo` confirme `x86_64 arm64` et `plutil -lint` valide l’Info.plist. Les avertissements CoreSimulator et profil mobile invalide n’empêchent pas cette cible macOS non signée.
+- L’archive jouable locale a été reconstruite depuis ce build, signée ad hoc et extraite à neuf. `unzip -tq`, `codesign --verify --deep --strict`, Info.plist, architectures, comparaison du binaire extrait, les 18 fragments GTFS du 31 octobre et l’absence d’AppleDouble passent. Les copies racine et `build/Debug` concordent : 173 462 556 octets, SHA-256 `165b0073431320b37cd94c29aa97c0e650ee0f12d941e0d0f9f1b8bdde316b09`. Pas de Developer ID ni de notarisation; le ZIP reste local.
+- L’essai CloudKit entre deux appareils reste externe : capacité/provisionnement valide et connexion au même compte iCloud nécessaires. Dernier audit macro : 3/9 jalons complets (33,3 % des jalons seulement, pas un pourcentage global du jeu); estimation historique de 25–45 jours d’ingénierie concentrée (environ 5–9 semaines pour une personne), non recalibrée par cette correction.
+
 # Import GTFS avec un tampon d’horaires unique — 2 novembre 2026
 
 - L’inspection convertit les heures d’arrêt collectées en horaires triés en vidant leur dictionnaire d’origine, puis partage les buffers d’horaires avec les diagnostics. Cela réduit les copies temporaires des millions de passages sans modifier les horaires produits.
 - RED/GREEN : `Scripts/validate-gtfs-stop-time-storage.sh` échoue avant l’extracteur consommant puis passe; il vérifie l’ordre des arrêts, la libération des lignes brutes, le départ au premier arrêt et l’absence de double émission. `validate-gtfs-provenance.sh` passe aussi.
 - L’audit complet post-changement termine par `AUDIT_COMPLETE` : 1 970 routes, 414 215 courses/horaires, 53 457 lignes d’arrêt, 33 578 arrêts bus géolocalisés, 895 calendriers; les 87 anomalies observées restent documentées.
 - Build Debug macOS générique : code 0, binaire universel `x86_64 arm64`, Info.plist valide. Le paquet jouable local signé ad hoc est vérifié à neuf; 18 fragments GTFS, sans AppleDouble. Taille 173 458 270 octets; SHA-256 `3efbbd6758235d31f0afb44ca7a6c31dcd780bb5be900c179fa0bc0cc95c921e`. ZIP exclu de la publication; aucune signature Developer ID ou notarisation.
+- La correction source, son smoke, son script de validation et ce suivi de l’import GTFS ont été publiés dans le commit `ca355fba` sur `main` (quatre chemins); l’archive jouable reste locale.
 - Aucun chiffre de mémoire post-changement n’est revendiqué : l’outil système a refusé l’interrogation RSS; les 1,22 Go précédemment mesurés restent historiques. Les limites externes PRIM, lignes–COB, DSP45, CloudKit provisionné et contrôle visuel restent ouvertes.
 - Progression macro inchangée : 3/9 jalons, ratio de jalons uniquement; estimation historique 25–45 jours d’ingénierie (5–9 semaines solo), hors dépendances externes.
 

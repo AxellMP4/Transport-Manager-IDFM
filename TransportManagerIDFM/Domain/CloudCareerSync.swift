@@ -22,6 +22,12 @@ private struct CloudCareerSaveTimestamp: Decodable {
 }
 
 enum CloudCareerSyncPolicy {
+    enum DownloadCheckpointDecision: Equatable {
+        case stable(downloadedChangeTag: String)
+        case remoteAdvanced(downloadedChangeTag: String)
+        case missingDownloadedChangeTag
+    }
+
     static func sourceUpdatedAt(from saveData: Data) throws -> Date {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
@@ -30,6 +36,17 @@ enum CloudCareerSyncPolicy {
 
     static func remoteIsNewer(remoteUpdatedAt: Date, localUpdatedAt: Date) -> Bool {
         remoteUpdatedAt > localUpdatedAt
+    }
+
+    static func downloadCheckpointDecision(
+        downloadedChangeTag: String?,
+        latestChangeTag: String?
+    ) -> DownloadCheckpointDecision {
+        guard let downloadedChangeTag else { return .missingDownloadedChangeTag }
+        guard let latestChangeTag, latestChangeTag != downloadedChangeTag else {
+            return .stable(downloadedChangeTag: downloadedChangeTag)
+        }
+        return .remoteAdvanced(downloadedChangeTag: downloadedChangeTag)
     }
 
     static func serverRetryAfterSeconds(for error: CKError) -> TimeInterval? {
@@ -589,11 +606,21 @@ final class CloudCareerSyncManager: ObservableObject {
         try engine.importSaveData(saveData, replacingExistingCareer: true)
         await library.reloadSnapshotsFromDisk()
 
-        let checkpointRecord = try await fetchSharedRecord() ?? record
-        storeCheckpoint(checkpointRecord, sessionID: envelope.sessionID, localUpdatedAt: engine.session?.updatedAt ?? envelope.sourceUpdatedAt)
+        let latestRecord = try await fetchSharedRecord()
+        let decision = CloudCareerSyncPolicy.downloadCheckpointDecision(
+            downloadedChangeTag: record.recordChangeTag,
+            latestChangeTag: latestRecord?.recordChangeTag
+        )
+        storeCheckpoint(record, sessionID: envelope.sessionID, localUpdatedAt: engine.session?.updatedAt ?? envelope.sourceUpdatedAt)
         throttleRetryScheduler.cancel()
         hasConflict = false
-        statusMessage = "Carrière et réseau récupérés depuis iCloud"
+        switch decision {
+        case .stable, .missingDownloadedChangeTag:
+            statusMessage = "Carrière et réseau récupérés depuis iCloud"
+        case .remoteAdvanced:
+            statusMessage = "Une version iCloud plus récente est apparue pendant le transfert; son chargement est programmé"
+            scheduleSynchronization(with: engine, library: library)
+        }
         lastSyncedAt = Date()
     }
 
