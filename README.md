@@ -29,6 +29,10 @@ L’app du paquet porte une signature **ad hoc**, sans identité Developer ID, e
 
 Le paquet local `TransportManagerIDFM-iOS-26-Simulator.zip` contient `TransportManagerIDFM.app`, compilée avec le SDK iOS 26.2 pour simulateur iPhone Intel (`x86_64`). Décompresser l’archive et glisser l’app dans une fenêtre du simulateur iPhone pour jouer. Le paquet vise iOS 17 ou ultérieur et n’est pas une IPA pour appareil physique; une installation sur iPhone demande une compilation Xcode signée pour cet appareil.
 
+## Audit de couverture régionale IDFM
+
+Le rapport daté du 2 novembre 2026 rapproche 2 060 références de lignes valides avec les routes et courses GTFS, les formes, les tracés commerciaux et les documents publiés. Il trouve une route GTFS unique pour 1 970 références et un tracé commercial pour 1 940. Les sources utilisées sont datées; ce rapport ne prouve ni les rues réellement parcourues ni les rattachements de lignes aux COB. Méthode, résultats complets et limites : [matrice régionale](docs/data/coverage/README.md).
+
 ## Données réseau et limites de provenance
 
 - Le snapshot GTFS embarqué dans les **sources** est l’archive publique du 31 octobre 2026, téléchargée depuis le miroir associé à la ressource PAN 80921. Elle fait 142 972 877 octets; SHA-256 `e77435e98732a49c0b1e11581aedfc4ba8f30a5c6b27e0332b69746d5da7908d`. Les 18 fragments `idfm-gtfs-2026-10-31-part-00.bin` à `-17.bin` sont assemblés et vérifiés avant import; les empreintes antérieures restent reconnues pour les sauvegardes historiques. Détails et attribution : [audit GTFS](docs/data/gtfs/README.md).
