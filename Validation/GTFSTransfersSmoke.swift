@@ -488,6 +488,53 @@ struct GTFSTransfersSmoke {
         precondition(sourceTripIDs == ["TRIP-TIMED-FROM"])
         precondition(delaySeconds == 150)
 
+        var retimedSession = engine.session!
+        let retimedSourceDeparture = start.addingTimeInterval(420)
+        guard let incomingEventIndex = retimedSession.pendingEvents.firstIndex(where: { event in
+            guard case let .passengerDemand(demand) = event.kind else { return false }
+            return demand.tripID == "TRIP-TIMED-FROM"
+        }), case var .passengerDemand(retimedIncomingDemand) = retimedSession.pendingEvents[incomingEventIndex].kind else {
+            preconditionFailure("The incoming course should remain scheduled after target assignment.")
+        }
+        retimedIncomingDemand.departureAt = retimedSourceDeparture
+        retimedSession.pendingEvents[incomingEventIndex] = SimulationEvent(
+            sequence: retimedSession.pendingEvents[incomingEventIndex].sequence,
+            simulatedAt: retimedSourceDeparture,
+            kind: .passengerDemand(retimedIncomingDemand)
+        )
+        precondition(SimulationEngine.replanActiveDispatchedTrips(in: &retimedSession))
+
+        guard let retimedTargetDemand = retimedSession.pendingEvents.compactMap({ event -> PassengerStopDemand? in
+            guard case let .passengerDemand(demand) = event.kind,
+                  demand.tripID == "TRIP-TIMED-TO",
+                  demand.stopSequence == 1 else { return nil }
+            return demand
+        }).first else {
+            preconditionFailure("The target course's pending demand should survive timetable replanning.")
+        }
+        precondition(retimedTargetDemand.departureAt == start.addingTimeInterval(480))
+        precondition(retimedSession.pendingEvents.contains {
+            if case let .busMovementStarted(_, leg) = $0.kind {
+                return leg.startsAt == start.addingTimeInterval(480)
+            }
+            return false
+        }, "A later incoming-course departure must move the target bus's first trip leg.")
+        guard let retimedTargetPlan = retimedSession.dispatchedTripRoutePlans?.first(where: {
+            $0.tripID == "TRIP-TIMED-TO"
+        }) else {
+            preconditionFailure("The target course should retain its execution plan after replanning.")
+        }
+        precondition(retimedTargetPlan.stopVisits.last?.scheduledAt == start.addingTimeInterval(1_050))
+        let retimedTargetAssignment = retimedSession.machinistServiceAssignments?.first(where: {
+            $0.id == retimedTargetPlan.tripKey
+        })
+        precondition(retimedTargetAssignment?.plannedEndAt == start.addingTimeInterval(1_050))
+        precondition(retimedSession.ownedBuses?.first?.reservedUntil == start.addingTimeInterval(1_050))
+        guard case let .timedTransferHeld(_, _, _, _, incrementalDelay)? = retimedSession.eventHistory.last?.kind else {
+            preconditionFailure("Replanning should record the additional timed-transfer hold.")
+        }
+        precondition(incrementalDelay == 300)
+
         let noTimedRulePlan = PassengerConnectionRules.applyingTimedTransferHolds(
             to: targetVisits,
             targetTripID: "TRIP-TIMED-TO",

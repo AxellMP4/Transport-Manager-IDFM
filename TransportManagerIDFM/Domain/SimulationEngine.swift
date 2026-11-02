@@ -9145,6 +9145,266 @@ final class SimulationEngine: ObservableObject {
             plans[planIndex] = plan
         }
 
+        var updatedSession = session
+        updatedSession.dispatchedTripRoutePlans = plans
+        updatedSession.pendingEvents = pendingEvents
+        updatedSession.nextEventSequence = nextEventSequence
+        updatedSession.machinistServiceAssignments = assignments
+        updatedSession.ownedBuses = buses
+        updatedSession.machinistDutyBlocks = dutyBlocks
+        updatedSession.eventHistory = eventHistory
+        if !incidents.isEmpty { updatedSession.vehicleIncidents = incidents }
+        guard Self.replanTimedTransferHolds(in: &updatedSession) else { return false }
+        session = updatedSession
+        return true
+    }
+
+    private static func replanTimedTransferHolds(in session: inout SimulationSession) -> Bool {
+        guard var plans = session.dispatchedTripRoutePlans,
+              !plans.isEmpty,
+              let transferRuleIndex = Self.transferRuleIndex(forGTFSVersionID: session.networkVersions.gtfsID) else {
+            return true
+        }
+        var pendingEvents = session.pendingEvents
+        var assignments = session.machinistServiceAssignments ?? []
+        var buses = session.ownedBuses ?? []
+        var dutyBlocks = session.machinistDutyBlocks ?? []
+        var incidents = session.vehicleIncidents ?? []
+        var eventHistory = session.eventHistory
+        var nextEventSequence = session.nextEventSequence
+        let reliefs = session.plannedMachinistReliefs ?? []
+
+        for planIndex in plans.indices {
+            let originalPlan = plans[planIndex]
+            let holdPlan = PassengerConnectionRules.applyingTimedTransferHolds(
+                to: originalPlan.stopVisits,
+                targetTripID: originalPlan.tripID,
+                targetRouteID: originalPlan.routeID,
+                pendingEvents: pendingEvents,
+                transferRuleIndex: transferRuleIndex
+            )
+            guard holdPlan.visits != originalPlan.stopVisits,
+                  let assignmentIndex = assignments.firstIndex(where: {
+                      $0.id == originalPlan.tripKey && $0.actualEndAt == nil
+                  }),
+                  let busIndex = buses.firstIndex(where: {
+                      $0.id == originalPlan.vehicleID && $0.reservedTripKey == originalPlan.tripKey
+                  }),
+                  let newLastStop = holdPlan.visits.last else {
+                continue
+            }
+
+            let assignment = assignments[assignmentIndex]
+            let activeReliefs = reliefs.filter {
+                $0.outgoingAssignmentID == originalPlan.tripKey && $0.cancelledAt == nil
+            }
+            let relatedAssignmentIDs = Set([originalPlan.tripKey] + activeReliefs.map(\.incomingAssignmentID))
+            let newServiceEndAt = newLastStop.scheduledAt
+            guard newServiceEndAt >= assignment.plannedEndAt,
+                  Self.propagateDetourDelay(
+                      from: assignment,
+                      newEndAt: newServiceEndAt,
+                      simulatedAt: session.simulatedAt,
+                      plans: &plans,
+                      pendingEvents: &pendingEvents,
+                      assignments: &assignments,
+                      buses: &buses,
+                      dutyBlocks: &dutyBlocks,
+                      reliefs: reliefs,
+                      incidents: &incidents,
+                      eventHistory: &eventHistory,
+                      nextEventSequence: &nextEventSequence
+                  ) else {
+                return false
+            }
+
+            let reservationsConflict = assignments.enumerated().contains { index, other in
+                guard index != assignmentIndex,
+                      !relatedAssignmentIDs.contains(other.id),
+                      other.actualEndAt == nil,
+                      other.vehicleID == originalPlan.vehicleID || other.machinistID == originalPlan.machinistID else {
+                    return false
+                }
+                return Self.periodsOverlap(
+                    assignment.plannedStartAt,
+                    newServiceEndAt,
+                    other.plannedStartAt,
+                    other.actualEndAt ?? other.plannedEndAt
+                )
+            }
+            guard !reservationsConflict,
+                  Self.machinistDutyBlockAssignmentPlan(
+                      originalPlan.machinistID,
+                      from: assignment.plannedStartAt,
+                      to: newServiceEndAt,
+                      assignments: assignments.filter { !relatedAssignmentIDs.contains($0.id) },
+                      dutyBlocks: dutyBlocks,
+                      breaks: session.machinistBreaks ?? [],
+                      absences: session.machinistAbsences ?? [],
+                      trainings: session.machinistTrainings ?? [],
+                      allowReopeningSettledBlocks: true
+                  ) != nil else {
+                return false
+            }
+
+            let passengerDemands = Self.estimatedPassengerDemands(
+                tripID: originalPlan.tripID,
+                routeID: originalPlan.routeID,
+                vehicleID: originalPlan.vehicleID,
+                serviceDateKey: originalPlan.serviceDateKey,
+                stopVisits: holdPlan.visits,
+                capacity: originalPlan.passengerCapacity,
+                capacityIsEstimated: originalPlan.capacityIsEstimated,
+                randomSeed: session.randomSeed
+            )
+            let demandsBySequence = Dictionary(uniqueKeysWithValues: zip(holdPlan.visits, passengerDemands).map {
+                ($0.0.stopSequence, $0.1)
+            })
+            var plan = plans[planIndex]
+            let oldVisits = plan.stopVisits
+            plan.stopVisits = holdPlan.visits
+            plans[planIndex] = plan
+
+            for visit in holdPlan.visits.dropFirst() {
+                guard let sequence = plan.stopEventSequencesByStopSequence[visit.stopSequence],
+                      let eventIndex = pendingEvents.firstIndex(where: { $0.sequence == sequence }),
+                      case .busAtStop = pendingEvents[eventIndex].kind else { continue }
+                guard visit.scheduledAt >= session.simulatedAt else { return false }
+                pendingEvents[eventIndex] = SimulationEvent(
+                    sequence: sequence,
+                    simulatedAt: visit.scheduledAt,
+                    kind: .busAtStop(
+                        tripID: plan.tripID,
+                        vehicleID: plan.vehicleID,
+                        stopID: visit.stopID,
+                        stopName: visit.stopName,
+                        stopSequence: visit.stopSequence,
+                        latitude: visit.latitude,
+                        longitude: visit.longitude
+                    )
+                )
+            }
+
+            for (stopSequence, sequence) in plan.demandEventSequencesByStopSequence {
+                guard let demand = demandsBySequence[stopSequence],
+                      let eventIndex = pendingEvents.firstIndex(where: { $0.sequence == sequence }),
+                      case .passengerDemand = pendingEvents[eventIndex].kind else { continue }
+                let eventAt = demand.departureAt ?? demand.occurredAt
+                guard eventAt >= session.simulatedAt else { return false }
+                pendingEvents[eventIndex] = SimulationEvent(
+                    sequence: sequence,
+                    simulatedAt: eventAt,
+                    kind: .passengerDemand(demand)
+                )
+            }
+
+            for (fromStopSequence, sequence) in Array(plan.movementEventSequencesByFromStopSequence) {
+                guard let startIndex = holdPlan.visits.firstIndex(where: { $0.stopSequence == fromStopSequence }),
+                      startIndex + 1 < holdPlan.visits.count,
+                      let eventIndex = pendingEvents.firstIndex(where: { $0.sequence == sequence }) else { continue }
+                guard let leg = Self.movementLeg(from: holdPlan.visits[startIndex], to: holdPlan.visits[startIndex + 1]) else {
+                    pendingEvents.remove(at: eventIndex)
+                    plan.movementEventSequencesByFromStopSequence.removeValue(forKey: fromStopSequence)
+                    continue
+                }
+                guard leg.startsAt >= session.simulatedAt else { return false }
+                pendingEvents[eventIndex] = SimulationEvent(
+                    sequence: sequence,
+                    simulatedAt: leg.startsAt,
+                    kind: .busMovementStarted(vehicleID: plan.vehicleID, leg: leg)
+                )
+            }
+
+            if let sequence = plan.completionEventSequence,
+               let eventIndex = pendingEvents.firstIndex(where: { $0.sequence == sequence }),
+               case .busServiceCompleted = pendingEvents[eventIndex].kind {
+                guard newLastStop.scheduledAt >= session.simulatedAt else { return false }
+                pendingEvents[eventIndex] = SimulationEvent(
+                    sequence: sequence,
+                    simulatedAt: newLastStop.scheduledAt,
+                    kind: .busServiceCompleted(
+                        tripID: plan.tripID,
+                        vehicleID: plan.vehicleID,
+                        stopID: newLastStop.stopID,
+                        stopName: newLastStop.stopName,
+                        latitude: newLastStop.latitude,
+                        longitude: newLastStop.longitude
+                    )
+                )
+            }
+
+            for relief in activeReliefs {
+                guard let visit = holdPlan.visits.first(where: { $0.stopSequence == relief.stopSequence }),
+                      let eventIndex = pendingEvents.firstIndex(where: { $0.sequence == relief.eventSequence }),
+                      case let .machinistRelieved(tripID, vehicleID, routeID, outgoingName, incomingName, _) = pendingEvents[eventIndex].kind else {
+                    continue
+                }
+                guard visit.scheduledAt >= session.simulatedAt else { return false }
+                pendingEvents[eventIndex] = SimulationEvent(
+                    sequence: relief.eventSequence,
+                    simulatedAt: visit.scheduledAt,
+                    kind: .machinistRelieved(
+                        tripID: tripID,
+                        vehicleID: vehicleID,
+                        routeID: routeID,
+                        outgoingMachinistName: outgoingName,
+                        incomingMachinistName: incomingName,
+                        stopName: visit.stopName
+                    )
+                )
+            }
+
+            for eventIndex in pendingEvents.indices {
+                guard case .vehicleBreakdown(var incident) = pendingEvents[eventIndex].kind,
+                      incident.tripID == plan.tripID,
+                      incident.vehicleID == plan.vehicleID,
+                      let oldVisit = oldVisits.first(where: { $0.stopSequence == incident.stopSequence }),
+                      let newVisit = holdPlan.visits.first(where: { $0.stopSequence == incident.stopSequence }) else {
+                    continue
+                }
+                let shift = newVisit.scheduledAt.timeIntervalSince(oldVisit.scheduledAt)
+                incident.occurredAt = incident.occurredAt.addingTimeInterval(shift)
+                incident.repairCompletedAt = incident.repairCompletedAt.addingTimeInterval(shift)
+                if let incidentIndex = incidents.firstIndex(where: { $0.id == incident.id }) {
+                    incidents[incidentIndex].occurredAt = incident.occurredAt
+                    incidents[incidentIndex].repairCompletedAt = incident.repairCompletedAt
+                }
+                pendingEvents[eventIndex] = SimulationEvent(
+                    sequence: pendingEvents[eventIndex].sequence,
+                    simulatedAt: incident.occurredAt,
+                    kind: .vehicleBreakdown(incident)
+                )
+            }
+
+            buses[busIndex].reservedUntil = assignments
+                .filter { $0.vehicleID == plan.vehicleID && $0.actualEndAt == nil }
+                .map(\.plannedEndAt)
+                .max() ?? newServiceEndAt
+            let affectedDutyBlockIDs = Set(assignments.filter {
+                relatedAssignmentIDs.contains($0.id)
+            }.compactMap(\.dutyBlockID))
+            for blockIndex in dutyBlocks.indices where affectedDutyBlockIDs.contains(dutyBlocks[blockIndex].id) {
+                let blockID = dutyBlocks[blockIndex].id
+                dutyBlocks[blockIndex].plannedEndAt = assignments
+                    .filter { $0.dutyBlockID == blockID }
+                    .map { $0.actualEndAt ?? $0.plannedEndAt }
+                    .max() ?? newServiceEndAt
+            }
+            eventHistory.append(SimulationEvent(
+                sequence: nextEventSequence,
+                simulatedAt: session.simulatedAt,
+                kind: .timedTransferHeld(
+                    tripID: plan.tripID,
+                    routeID: plan.routeID,
+                    stopName: holdPlan.holds.map(\.stopName).joined(separator: ", "),
+                    sourceTripIDs: Array(Set(holdPlan.holds.flatMap(\.sourceTripIDs))).sorted(),
+                    delaySeconds: holdPlan.holds.reduce(0) { $0 + $1.delaySeconds }
+                )
+            ))
+            nextEventSequence &+= 1
+        }
+
+        pendingEvents.sort(by: Self.eventOrder)
         session.dispatchedTripRoutePlans = plans
         session.pendingEvents = pendingEvents
         session.nextEventSequence = nextEventSequence
