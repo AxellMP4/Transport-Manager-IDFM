@@ -272,9 +272,9 @@ enum GTFSFeedInspector {
         }
 
         progress?(GTFSFeedInspectionProgress(stage: .readingCalendars))
-        let busTripSchedules = stopRouteCollector.tripSchedules
+        let busTripSchedules = stopRouteCollector.takeTripSchedules()
         let tripIDs = Set(tripCollector.tripByID.keys)
-        let schedulesByTripID = stopRouteCollector.collectedStopTimesByTripID
+        let schedulesByTripID = Dictionary(uniqueKeysWithValues: busTripSchedules.map { ($0.tripID, $0.stops) })
         let geolocatedStopIDs = Set(stopCollector.stops.map(\.stopID))
         let stopIDsInFeed = stopCollector.stopIDsInFeed
         let availableShapeIDs = Set(busTripShapes.shapes.map(\.shapeID))
@@ -635,7 +635,7 @@ private final class BusTripCollector {
     }
 }
 
-private struct BusTripReference {
+struct BusTripReference {
     let routeID: String
     let serviceID: String
     let directionID: String
@@ -753,7 +753,7 @@ private final class BusRouteShapeCollector {
     }
 }
 
-private final class BusStopRouteCollector {
+final class BusStopRouteCollector {
     private let tripByID: [String: BusTripReference]
     private var routeIDsByStopIDStorage: [String: Set<String>] = [:]
     private var routeDirectionsByStopIDStorage: [String: [BusStopDirectionKey: BusStopDirectionSchedule]] = [:]
@@ -765,7 +765,9 @@ private final class BusStopRouteCollector {
     private(set) var missingStopIDRowsByTripID: [String: Int] = [:]
 
     var routeIDsByStopID: [String: Set<String>] { routeIDsByStopIDStorage }
-    var collectedStopTimesByTripID: [String: [GTFSServiceTripStopTime]] { stopTimesByTripID }
+    var retainedStopTimeRowCount: Int {
+        stopTimesByTripID.values.reduce(into: 0) { $0 += $1.count }
+    }
     var tripDepartures: [GTFSServiceTripDeparture] {
         firstStopByTripID.compactMap { tripID, firstStop in
             guard let trip = tripByID[tripID], !trip.serviceID.isEmpty,
@@ -782,23 +784,28 @@ private final class BusStopRouteCollector {
             return $0.tripID < $1.tripID
         }
     }
-    var tripSchedules: [GTFSServiceTripSchedule] {
-        stopTimesByTripID.compactMap { tripID, stops in
-            guard let trip = tripByID[tripID], !trip.serviceID.isEmpty, !stops.isEmpty else { return nil }
-            return GTFSServiceTripSchedule(
+    func takeTripSchedules() -> [GTFSServiceTripSchedule] {
+        var schedules: [GTFSServiceTripSchedule] = []
+        schedules.reserveCapacity(stopTimesByTripID.count)
+        while let tripID = stopTimesByTripID.keys.first,
+              var stops = stopTimesByTripID.removeValue(forKey: tripID) {
+            guard let trip = tripByID[tripID], !trip.serviceID.isEmpty, !stops.isEmpty else { continue }
+            stops.sort {
+                if $0.stopSequence != $1.stopSequence { return $0.stopSequence < $1.stopSequence }
+                return $0.stopID < $1.stopID
+            }
+            schedules.append(GTFSServiceTripSchedule(
                 tripID: tripID,
                 routeID: trip.routeID,
                 serviceID: trip.serviceID,
                 directionID: trip.directionID.isEmpty ? nil : trip.directionID,
                 headsign: trip.headsign.isEmpty ? nil : trip.headsign,
-                stops: stops.sorted {
-                    if $0.stopSequence != $1.stopSequence { return $0.stopSequence < $1.stopSequence }
-                    return $0.stopID < $1.stopID
-                },
+                stops: stops,
                 shapeID: trip.shapeID
-            )
+            ))
         }
-        .sorted { $0.tripID < $1.tripID }
+        schedules.sort { $0.tripID < $1.tripID }
+        return schedules
     }
     var routeDirectionsByStopID: [String: [GTFSStopRouteDirection]] {
         routeDirectionsByStopIDStorage.mapValues { directions in

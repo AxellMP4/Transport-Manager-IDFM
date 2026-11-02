@@ -1,3 +1,12 @@
+# Import GTFS avec un tampon d’horaires unique — 2 novembre 2026
+
+- L’inspection convertit les heures d’arrêt collectées en horaires triés en vidant leur dictionnaire d’origine, puis partage les buffers d’horaires avec les diagnostics. Cela réduit les copies temporaires des millions de passages sans modifier les horaires produits.
+- RED/GREEN : `Scripts/validate-gtfs-stop-time-storage.sh` échoue avant l’extracteur consommant puis passe; il vérifie l’ordre des arrêts, la libération des lignes brutes, le départ au premier arrêt et l’absence de double émission. `validate-gtfs-provenance.sh` passe aussi.
+- L’audit complet post-changement termine par `AUDIT_COMPLETE` : 1 970 routes, 414 215 courses/horaires, 53 457 lignes d’arrêt, 33 578 arrêts bus géolocalisés, 895 calendriers; les 87 anomalies observées restent documentées.
+- Build Debug macOS générique : code 0, binaire universel `x86_64 arm64`, Info.plist valide. Le paquet jouable local signé ad hoc est vérifié à neuf; 18 fragments GTFS, sans AppleDouble. Taille 173 458 270 octets; SHA-256 `3efbbd6758235d31f0afb44ca7a6c31dcd780bb5be900c179fa0bc0cc95c921e`. ZIP exclu de la publication; aucune signature Developer ID ou notarisation.
+- Aucun chiffre de mémoire post-changement n’est revendiqué : l’outil système a refusé l’interrogation RSS; les 1,22 Go précédemment mesurés restent historiques. Les limites externes PRIM, lignes–COB, DSP45, CloudKit provisionné et contrôle visuel restent ouvertes.
+- Progression macro inchangée : 3/9 jalons, ratio de jalons uniquement; estimation historique 25–45 jours d’ingénierie (5–9 semaines solo), hors dépendances externes.
+
 # Recherche unifiée du catalogue de véhicules — 2 novembre 2026
 
 - Nouveauté : le marché propose une recherche native par constructeur, modèle, énergie, gabarit et années attestées. Elle filtre ensemble les offres de la carrière et les références régionales hors marché; lorsque la recherche est active, les résultats prennent la place des bilans secondaires, et un état vide suggère d’autres termes. Aucun prix, achat, stock ou état de partie ne change. Cette décision suit `searching.md › Best practices` (scope explicite) et `layout.md › Visual hierarchy` (contenu principal en premier plan).
