@@ -62,7 +62,7 @@
 - [x] On iPhone, present the map at full width and expose the line list as a dismissible sheet; retain the current split map/sidebar on macOS and wide iPad.
 - [x] Keep legends and disruption notices in dismissible sheets; make compact empty-fleet controls 44 points and bus/stop details scrollable with an explicit close action.
 - [x] Verify workspace selection, line selection, camera fitting, and layer controls with the navigation smoke.
-- [ ] Run a compact-width visual UI pass on a simulator or iPhone; CoreSimulator is unavailable in this session.
+- [ ] Run a compact-width visual UI pass on a simulator or iPhone. On 2 Nov the exact-device build failed before compilation when `CoreSimulatorService`/`simdiskimaged` disconnected. The generic iOS Simulator Debug build succeeded for `arm64` and `x86_64` with iOS 17.0 minimum, but `simctl install` failed on the same service error. Captures showed SpringBoard or a black surface rather than the app, so no visual pass is claimed; the Mac UI session is locked.
 
 ### Task 3: Adapt all existing workspaces and simulation controls
 
@@ -98,9 +98,9 @@
 - [x] Move the first iCloud-restore gate into `CareerRestorePresentation`, consumed by the shared launch menu, and retarget the restore smoke to that active flow.
 - [x] Document the five-tab mapping, full mobile workflows, CloudKit entitlement and team requirements for cross-device sync.
 - [x] Run the focused mobile-tab, career-restore, and career-guide smokes plus Swift and shell syntax checks for the changed files.
-- [ ] Run `git diff --check` across all pre-existing tracked changes; the path-filtered check for the four files changed in this continuation passes. The worktree scheme still hits the Xcode operation-group hang, though both platform builds pass from a temporary copy.
-- [ ] Run the compact iPhone UI visually in Simulator or on a connected iPhone; CoreSimulator remains unavailable.
-- [ ] Install and launch on a connected iPhone when Apple Development signing and CoreDevice are available.
+- [x] Run `git diff --check` across all tracked changes in the workspace; it passes in the 2 November continuation. Debug macOS, generic iPhoneOS and generic iOS Simulator builds pass; the simulator runtime/install and visual checks remain tracked separately below.
+- [ ] Run the compact iPhone UI visually in Simulator or on a connected iPhone; see Task 2 for the 2 Nov generic build success and failed simulator installation/capture.
+- [ ] Install and launch on a connected iPhone when Apple Development signing and CoreDevice are available; neither a physical device nor a valid provisioning profile was available during the 2 Nov attempt.
 
 ## Execution Note
 

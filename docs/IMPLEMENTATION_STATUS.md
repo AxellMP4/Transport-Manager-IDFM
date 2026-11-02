@@ -1,3 +1,12 @@
+# Nouvelle tentative de recette iPhone — 2 novembre 2026
+
+- Nouveauté de cette reprise : validation de la build générique iOS Simulator depuis le worktree courant (`arm64` et `x86_64`, iOS minimum 17.0). Aucun changement de fonctionnalité du jeu n’a été nécessaire; le point prioritaire était la recette visuelle compacte.
+- L’iPhone 17 Pro du simulateur apparaissait booté, puis `CoreSimulatorService`/`simdiskimaged` a cessé de répondre pendant le build sur la destination exacte et de nouveau lors de `simctl install`. Le build exact n’a pas atteint la compilation; l’installation du build générique a échoué avant l’installation. Une capture a montré SpringBoard ou une surface noire, pas l’app rendue : elle ne constitue pas une preuve visuelle. L’outil UI signale également que la session Mac est verrouillée. La revue selon `apple-design` (hiérarchie, lisibilité compacte, cibles tactiles et états de synchronisation) reste donc ouverte.
+- Le build Debug macOS de cette reprise termine au code 0 avec `ONLY_ACTIVE_ARCH=NO`, dans `/private/tmp/TransitCityForegroundCloudSyncDebug`; `lipo` confirme `arm64 x86_64` et Info.plist est valide. La synchronisation de carrière reste sur le même conteneur iCloud macOS/iOS. L’audit indépendant confirme que la course publication–téléchargement est déjà protégée par le change tag de l’enregistrement réellement importé; la smoke couvre la version stable et la publication concurrente.
+- Le plan iPhone compte actuellement 24/27 cases cochées (88,9 % de ce plan uniquement; ce n’est pas le pourcentage global du jeu). Restent la recette visuelle compacte et l’installation sur un vrai iPhone signé; le contrôle macOS interactif des états de déplacement/chargement et la reprise visuelle multi-dépôt restent également ouverts.
+- Le dernier repère macro du suivi reste 3/9 jalons, sans le présenter comme une progression globale. L’estimation historique demeure 25–45 jours d’ingénierie concentrée (5–9 semaines pour une personne); cette tentative de validation ne justifie pas de la resserrer.
+
+
 # Synchronisation iCloud au retour à l’avant-plan — 2 novembre 2026
 
 - Nouveauté : le tableau de bord enregistre la carrière au passage en arrière-plan et programme une synchronisation CloudKit quand la scène redevient active. Le joueur retrouve ainsi une réconciliation avec l’autre appareil sans mettre la simulation en pause. Le gestionnaire existant applique son délai de coalescence de 10 secondes.
