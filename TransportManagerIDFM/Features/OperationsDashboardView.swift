@@ -1487,6 +1487,11 @@ struct OperationsDashboardView: View {
                 isIncidentResponsePresented = true
             }
         }
+        .onChange(of: simulation.session?.effectiveActiveDepotID) { _, activeDepotID in
+            guard let activeDepotID else { return }
+            selectedDepotID = activeDepotID
+            selectedWorkspaceTab = .network
+        }
         .onChange(of: selectedWorkspaceTab) { _, workspace in
             mobileWorkspaceSelection.selectWorkspace(workspaceKey: workspace.rawValue)
         }

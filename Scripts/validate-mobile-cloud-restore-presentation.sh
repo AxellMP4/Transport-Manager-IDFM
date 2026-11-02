@@ -26,6 +26,26 @@ require_source 'careerRestorePresentation.canImportSave' "$launch_menu_source"
 require_source 'await cloudSync.synchronize(with: simulation, library: library)' "$dashboard_source"
 require_source 'Pour choisir, reprends la partie locale puis ouvre le menu iCloud dans la barre supérieure du tableau de bord.' "$launch_menu_source"
 
+python3 - "$dashboard_source" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+source = Path(sys.argv[1]).read_text()
+pattern = re.compile(
+    r"\\.onChange\\(of:\\s*simulation\\.session\\?\\.effectiveActiveDepotID\\)\\s*"
+    r"\\{\\s*_,\\s*activeDepotID\\s+in(?P<body>.*?)\\n\\s*\\.onChange\\(of:\\s*selectedWorkspaceTab\\)",
+    re.DOTALL,
+)
+match = pattern.search(source)
+if match is None:
+    raise SystemExit("FAIL : le tableau de bord doit suivre le dépôt actif de la carrière restaurée.")
+if "selectedDepotID = activeDepotID" not in match.group("body"):
+    raise SystemExit("FAIL : une restauration iCloud doit sélectionner le dépôt actif récupéré.")
+if "selectedWorkspaceTab = .network" not in match.group("body"):
+    raise SystemExit("FAIL : une restauration iCloud doit revenir à l’espace Réseau du dépôt.")
+PY
+
 swiftc -frontend -parse \
     "$app_source" \
     "$launch_menu_source" \
