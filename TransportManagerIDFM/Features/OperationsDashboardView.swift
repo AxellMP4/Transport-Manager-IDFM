@@ -244,6 +244,49 @@ private struct MachinistRestWindow {
     }
 }
 
+private struct MachinistWorkRulesSummaryCard: View {
+    private var rows: [MachinistServiceRuleRow] {
+        MachinistServiceRuleSummary.rows(
+            maximumGap: MachinistWorkRules.maximumGapWithinServiceBlock,
+            maximumServiceBlock: MachinistWorkRules.maximumServiceBlockDuration,
+            minimumRest: MachinistWorkRules.minimumRestBetweenDutyBlocks
+        )
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            ForEach(rows) { row in
+                HStack(alignment: .top, spacing: 9) {
+                    Image(systemName: row.symbol)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 18)
+                    VStack(alignment: .leading, spacing: 3) {
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Text(row.title)
+                                .font(.subheadline.weight(.semibold))
+                            Spacer(minLength: 4)
+                            Text(row.limit)
+                                .font(.subheadline.weight(.semibold).monospacedDigit())
+                                .foregroundStyle(.tint)
+                        }
+                        Text(row.explanation)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .accessibilityElement(children: .combine)
+            }
+            Text("Règles de jeu; aucune conformité réglementaire n’est vérifiée.")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(12)
+        .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 10))
+    }
+}
+
 private struct MachinistPlannedReliefMenu: View {
     let options: [MachinistPlannedReliefOption]
     let machinistName: String
@@ -8038,6 +8081,7 @@ private struct MachinistManagementView: View {
                             .font(.caption.weight(.bold))
                             .tracking(0.7)
                             .foregroundStyle(.secondary)
+                        MachinistWorkRulesSummaryCard()
                         if machinists.isEmpty {
                             ContentUnavailableView(
                                 "Aucun machiniste recruté",
@@ -9576,10 +9620,7 @@ private struct TripDispatchView: View {
                     }
 
                     GroupBox("Machiniste qualifié et disponible") {
-                        Text("Les courses espacées de 2 h au plus peuvent partager un bloc de 10 h maximum ; le repos minimal de 11 h s’applique entre blocs.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
+                        MachinistWorkRulesSummaryCard()
                         if selectedVehicle == nil {
                             Text("Choisissez d’abord le bus de cette course.")
                                 .font(.callout)
