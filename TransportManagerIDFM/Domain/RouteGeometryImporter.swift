@@ -37,21 +37,7 @@ enum RouteGeometryStore {
     }
 
     static func importGeoJSON(data sourceData: Data, originalFilename: String) throws -> RouteGeometryImportResult {
-        let collection: GeoJSONFeatureCollection
-        do {
-            collection = try JSONDecoder().decode(GeoJSONFeatureCollection.self, from: sourceData)
-        } catch {
-            throw RouteGeometryImportError.unreadableGeoJSON
-        }
-
-        guard collection.type == "FeatureCollection" else {
-            throw RouteGeometryImportError.unreadableGeoJSON
-        }
-
-        let geometries = try collection.features.enumerated().map { index, feature in
-            try makeGeometry(from: feature, index: index)
-        }
-        guard !geometries.isEmpty else { throw RouteGeometryImportError.noLineFeatures }
+        let geometries = try parseGeoJSON(data: sourceData)
 
         let digest = SHA256.hash(data: sourceData).map { String(format: "%02x", $0) }.joined()
         let folder = String(digest.prefix(20))
@@ -103,6 +89,25 @@ enum RouteGeometryStore {
         manifestEncoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         try manifestEncoder.encode(version).write(to: directory.appending(path: "manifest.json"), options: .atomic)
         return RouteGeometryImportResult(catalog: catalog, geometries: geometries)
+    }
+
+    static func parseGeoJSON(data sourceData: Data) throws -> [NetworkRouteGeometry] {
+        let collection: GeoJSONFeatureCollection
+        do {
+            collection = try JSONDecoder().decode(GeoJSONFeatureCollection.self, from: sourceData)
+        } catch {
+            throw RouteGeometryImportError.unreadableGeoJSON
+        }
+
+        guard collection.type == "FeatureCollection" else {
+            throw RouteGeometryImportError.unreadableGeoJSON
+        }
+
+        let geometries = try collection.features.enumerated().map { index, feature in
+            try makeGeometry(from: feature, index: index)
+        }
+        guard !geometries.isEmpty else { throw RouteGeometryImportError.noLineFeatures }
+        return geometries
     }
 
     static func loadGeometries(for version: NetworkGeometryVersion) throws -> [NetworkRouteGeometry] {

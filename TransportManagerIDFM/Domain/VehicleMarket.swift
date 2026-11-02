@@ -1749,7 +1749,6 @@ enum VehicleMarketCatalog {
             marketAvailabilityNote: "La délibération IDFM de 2024 atteste la fourniture de 16 autocars Crossway à la RATP pour la ligne 352, mais pas leur longueur, motorisation ou configuration. La fiche GNC MY2024 est une référence technique distincte. Aucun prix individuel ni disponibilité actuelle à l’achat n’est documenté; aucune offre n’est créée."
         ),
         model(
-        model(
             id: "bluebus-12m-electric",
             manufacturer: "Bluebus",
             commercialName: "12 m",

@@ -984,7 +984,7 @@ struct SimulationEvent: Codable, Hashable, Identifiable, Sendable {
         case let .followingServiceDelayed(fromTripID, toTripID, routeID, delaySeconds):
             "Retard propagé de la course \(fromTripID) à la course \(toTripID) · ligne \(routeID) · +\(Int((delaySeconds / 60).rounded())) min"
         case let .timedTransferHeld(tripID, routeID, stopName, sourceTripIDs, delaySeconds):
-            "Départ de la course \(tripID) retardé de \(Int((delaySeconds / 60).rounded())) min sur la ligne \(routeID) pour la correspondance à \(stopName) depuis \(sourceTripIDs.joined(separator: \", \"))"
+            "Départ de la course \(tripID) retardé de \(Int((delaySeconds / 60).rounded())) min sur la ligne \(routeID) pour la correspondance à \(stopName) depuis \(sourceTripIDs.joined(separator: ", "))"
         case let .routeDetourExtended(details):
             "\(details.eventTitle) prolongée · \(details.origin?.title.lowercased() ?? "origine antérieure inconnue") · ligne \(details.routeID), \(details.fromStopName) → \(details.toStopName) · fin \(details.scheduledEndAt.formatted(date: .omitted, time: .shortened))"
         case let .routeDetourEnded(details):
@@ -1217,94 +1217,6 @@ struct TimedTransferHoldPlan: Hashable, Sendable {
     let visits: [ScheduledTripStopVisit]
     let holds: [TimedTransferHold]
 }
-
-enum PassengerConnectionRules {
-    static let estimatedAlightingTransferShare = 0.20
-    static let minimumTransferTime: TimeInterval = 5 * 60
-    static let maximumConnectionWait: TimeInterval = 30 * 60
-
-    static func estimatedTransferCount(from alightedCount: Int) -> Int {
-        max(0, Int((Double(max(0, alightedCount)) * estimatedAlightingTransferShare).rounded()))
-    }
-
-    static func applyingTimedTransferHolds(
-        to sourceVisits: [ScheduledTripStopVisit],
-        targetTripID: String,
-        targetRouteID: String,
-        pendingEvents: [SimulationEvent],
-        transferRuleIndex: GTFSServiceTransferIndex?
-    ) -> TimedTransferHoldPlan {
-        var visits = sourceVisits
-        guard let transferRuleIndex, !visits.isEmpty else {
-            return TimedTransferHoldPlan(visits: visits, holds: [])
-        }
-        let incomingDemands = pendingEvents.compactMap { event -> PassengerStopDemand? in
-            guard case let .passengerDemand(demand) = event.kind,
-                  demand.tripID != targetTripID else { return nil }
-            return demand
-        }
-        var holds: [TimedTransferHold] = []
-
-        for visitIndex in visits.indices {
-            let visit = visits[visitIndex]
-            let scheduledDepartureAt = visit.departureAt ?? visit.scheduledAt
-            let eligibleConnections = incomingDemands.compactMap { demand -> (tripID: String, readyAt: Date)? in
-                guard let rule = transferRuleIndex.rule(
-                    fromStopID: demand.stopID,
-                    toStopID: visit.stopID,
-                    fromRouteID: demand.routeID,
-                    toRouteID: targetRouteID,
-                    fromTripID: demand.tripID,
-                    toTripID: targetTripID
-                ), rule.transferType == 1 else { return nil }
-                let sourceDepartureAt = demand.departureAt ?? demand.occurredAt
-                let minimumTransferTime = TimeInterval(max(0, rule.minimumTransferTime ?? 0))
-                let readyAt = sourceDepartureAt.addingTimeInterval(minimumTransferTime)
-                guard readyAt.timeIntervalSince1970.isFinite else { return nil }
-                return (demand.tripID, readyAt)
-            }
-            guard let latestConnectionReadyAt = eligibleConnections.map(\.readyAt).max(),
-                  latestConnectionReadyAt > scheduledDepartureAt else { continue }
-
-            let sourceTripIDs = eligibleConnections
-                .filter { $0.readyAt == latestConnectionReadyAt }
-                .map(\.tripID)
-                .sorted()
-            let delay = latestConnectionReadyAt.timeIntervalSince(scheduledDepartureAt)
-            visits[visitIndex] = ScheduledTripStopVisit(
-                stopID: visit.stopID,
-                stopName: visit.stopName,
-                stopSequence: visit.stopSequence,
-                latitude: visit.latitude,
-                longitude: visit.longitude,
-                scheduledAt: visit.scheduledAt,
-                departureAt: latestConnectionReadyAt,
-                movementToNext: visit.movementToNext,
-                movementGeometrySource: visit.movementGeometrySource
-            )
-            for subsequentIndex in visits.indices where subsequentIndex > visitIndex {
-                let subsequent = visits[subsequentIndex]
-                visits[subsequentIndex] = ScheduledTripStopVisit(
-                    stopID: subsequent.stopID,
-                    stopName: subsequent.stopName,
-                    stopSequence: subsequent.stopSequence,
-                    latitude: subsequent.latitude,
-                    longitude: subsequent.longitude,
-                    scheduledAt: subsequent.scheduledAt.addingTimeInterval(delay),
-                    departureAt: subsequent.departureAt?.addingTimeInterval(delay),
-                    movementToNext: subsequent.movementToNext,
-                    movementGeometrySource: subsequent.movementGeometrySource
-                )
-            }
-            holds.append(TimedTransferHold(
-                stopName: visit.stopName,
-                sourceTripIDs: sourceTripIDs,
-                scheduledDepartureAt: scheduledDepartureAt,
-                heldDepartureAt: latestConnectionReadyAt
-            ))
-        }
-        return TimedTransferHoldPlan(visits: visits, holds: holds)
-    }
 
 enum PassengerConnectionRules {
     static let estimatedAlightingTransferShare = 0.20

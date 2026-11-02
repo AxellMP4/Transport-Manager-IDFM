@@ -6,6 +6,11 @@ struct LineDocumentImportResult: Sendable {
     let documents: [NetworkLineDocument]
 }
 
+struct LineDocumentCSVParseResult: Sendable {
+    let documents: [NetworkLineDocument]
+    let issues: [NetworkLineDocumentImportIssue]
+}
+
 enum LineDocumentImportError: LocalizedError {
     case unreadableCSV
     case missingIdentifierColumn
@@ -98,32 +103,10 @@ enum LineDocumentStore {
     }
 
     static func importCSV(data sourceData: Data, originalFilename: String) throws -> LineDocumentImportResult {
-        var documents: [NetworkLineDocument] = []
-        var issues: [NetworkLineDocumentImportIssue] = []
-        var sourceRecordNumber = 0
-        let table = CSVTableReader(columnsOfInterest: [], captureAllColumns: true) { row in
-            sourceRecordNumber += 1
-            switch parseDocument(row, sourceRecordNumber: sourceRecordNumber) {
-            case .document(let document):
-                documents.append(document)
-            case .issue(let issue):
-                issues.append(issue)
-            }
-        }
-        do {
-            try table.consume(sourceData)
-            table.finish()
-        } catch {
-            throw LineDocumentImportError.unreadableCSV
-        }
+        let parsed = try parseCSV(data: sourceData)
+        let documents = parsed.documents
+        let issues = parsed.issues
 
-        guard table.hasColumn("id_line") || table.hasColumn("idline") else {
-            throw LineDocumentImportError.missingIdentifierColumn
-        }
-        guard (table.hasColumn("document_name") || table.hasColumn("documentname"))
-                && table.hasColumn("url") else {
-            throw LineDocumentImportError.missingDocumentColumn
-        }
         let digest = SHA256.hash(data: sourceData).map { String(format: "%02x", $0) }.joined()
         let versionFolder = String(digest.prefix(20))
         let relativePath = "line-documents/\(versionFolder)/idfm-line-documents.csv"
@@ -176,6 +159,36 @@ enum LineDocumentStore {
         }
         try NetworkVersionStore.saveCatalog(catalog)
         return LineDocumentImportResult(catalog: catalog, documents: documents)
+    }
+
+    static func parseCSV(data sourceData: Data) throws -> LineDocumentCSVParseResult {
+        var documents: [NetworkLineDocument] = []
+        var issues: [NetworkLineDocumentImportIssue] = []
+        var sourceRecordNumber = 0
+        let table = CSVTableReader(columnsOfInterest: [], captureAllColumns: true) { row in
+            sourceRecordNumber += 1
+            switch parseDocument(row, sourceRecordNumber: sourceRecordNumber) {
+            case .document(let document):
+                documents.append(document)
+            case .issue(let issue):
+                issues.append(issue)
+            }
+        }
+        do {
+            try table.consume(sourceData)
+            table.finish()
+        } catch {
+            throw LineDocumentImportError.unreadableCSV
+        }
+
+        guard table.hasColumn("id_line") || table.hasColumn("idline") else {
+            throw LineDocumentImportError.missingIdentifierColumn
+        }
+        guard (table.hasColumn("document_name") || table.hasColumn("documentname"))
+                && table.hasColumn("url") else {
+            throw LineDocumentImportError.missingDocumentColumn
+        }
+        return LineDocumentCSVParseResult(documents: documents, issues: issues)
     }
 
     static func loadDocuments(for version: NetworkLineDocumentVersion) throws -> [NetworkLineDocument] {

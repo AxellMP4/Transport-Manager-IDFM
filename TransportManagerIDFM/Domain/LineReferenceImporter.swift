@@ -89,24 +89,7 @@ enum LineReferenceStore {
         originalFilename: String,
         sourceDataProcessedAt: Date? = nil
     ) throws -> LineReferenceImportResult {
-        var rows: [[String: String]] = []
-        let table = CSVTableReader(columnsOfInterest: [], captureAllColumns: true) {
-            rows.append($0)
-        }
-        do {
-            try table.consume(sourceData)
-            table.finish()
-        } catch {
-            throw LineReferenceImportError.unreadableCSV
-        }
-
-        guard table.hasColumn("id_line") || table.hasColumn("idline") else {
-            throw LineReferenceImportError.missingIdentifierColumn
-        }
-        let references = rows.enumerated().compactMap { index, row in
-            makeReference(row, index: index)
-        }
-        guard !references.isEmpty else { throw LineReferenceImportError.noLineRecords }
+        let references = try parseCSV(data: sourceData)
 
         let digest = SHA256.hash(data: sourceData).map { String(format: "%02x", $0) }.joined()
         let folder = String(digest.prefix(20))
@@ -169,6 +152,28 @@ enum LineReferenceStore {
         )
         try NetworkVersionStore.saveCatalog(catalog)
         return LineReferenceImportResult(catalog: catalog, references: references)
+    }
+
+    static func parseCSV(data sourceData: Data) throws -> [NetworkLineReference] {
+        var rows: [[String: String]] = []
+        let table = CSVTableReader(columnsOfInterest: [], captureAllColumns: true) {
+            rows.append($0)
+        }
+        do {
+            try table.consume(sourceData)
+            table.finish()
+        } catch {
+            throw LineReferenceImportError.unreadableCSV
+        }
+
+        guard table.hasColumn("id_line") || table.hasColumn("idline") else {
+            throw LineReferenceImportError.missingIdentifierColumn
+        }
+        let references = rows.enumerated().compactMap { index, row in
+            makeReference(row, index: index)
+        }
+        guard !references.isEmpty else { throw LineReferenceImportError.noLineRecords }
+        return references
     }
 
     static func loadReferences(for version: NetworkLineReferenceVersion) throws -> [NetworkLineReference] {
