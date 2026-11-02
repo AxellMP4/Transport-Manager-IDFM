@@ -27,6 +27,7 @@ struct GTFSTransfersSmoke {
         typeThreeForbidsTransfer(versionID: withTransfersVersionID)
         parentStationsApplyToChildStops(versionID: withTransfersVersionID)
         recommendedAndTimedTransfersUseTheirSemantics(versionID: withTransfersVersionID)
+        try timedTransfersHoldTheTargetSchedule(versionID: withTransfersVersionID)
         unprovenLinkedTripsAreNotExecuted(versionID: withTransfersVersionID)
         typeFourInSeatPassengersStayOnTheLinkedVehicle(versionID: withTransfersVersionID)
         try malformedTransferRowsAreIgnored(archiveURL: URL(fileURLWithPath: CommandLine.arguments[1]))
@@ -374,7 +375,132 @@ struct GTFSTransfersSmoke {
         ), case let .passengersExchanged(timedExchange) = timedResolved.kind else {
             preconditionFailure("Type 1 should allow a timed transfer before the scheduled target departure.")
         }
-        precondition(timedExchange.transferReadyAt == start)
+        precondition(timedExchange.transferReadyAt == start.addingTimeInterval(60))
+    }
+
+    private static func timedTransfersHoldTheTargetSchedule(versionID: String) throws {
+        let start = Date(timeIntervalSince1970: 1_798_055_000)
+        var incomingDemand = demand(
+            tripID: "TRIP-TIMED-FROM",
+            routeID: "R14",
+            stopID: "TIMED_FROM",
+            at: start
+        )
+        incomingDemand.departureAt = start.addingTimeInterval(120)
+        let incomingEvent = SimulationEvent(
+            sequence: 80,
+            simulatedAt: incomingDemand.departureAt!,
+            kind: .passengerDemand(incomingDemand)
+        )
+        let targetVisits = [
+            ScheduledTripStopVisit(
+                stopID: "TIMED_TO",
+                stopName: "Timed to",
+                stopSequence: 1,
+                latitude: 48.878,
+                longitude: 2.328,
+                scheduledAt: start,
+                departureAt: start.addingTimeInterval(30),
+                movementToNext: [
+                    BusMovementCoordinate(latitude: 48.878, longitude: 2.328),
+                    BusMovementCoordinate(latitude: 48.879, longitude: 2.329)
+                ],
+                movementGeometrySource: .stopCoordinateEstimate
+            ),
+            ScheduledTripStopVisit(
+                stopID: "TIMED_DEST_END",
+                stopName: "Timed destination end",
+                stopSequence: 2,
+                latitude: 48.879,
+                longitude: 2.329,
+                scheduledAt: start.addingTimeInterval(600),
+                departureAt: nil,
+                movementToNext: nil,
+                movementGeometrySource: nil
+            )
+        ]
+        guard let transferRules = try NetworkVersionStore.loadTransferRuleIndex(forGTFSVersionID: versionID) else {
+            preconditionFailure("The timed-transfer fixture should load its transfer index.")
+        }
+        let plan = PassengerConnectionRules.applyingTimedTransferHolds(
+            to: targetVisits,
+            targetTripID: "TRIP-TIMED-TO",
+            targetRouteID: "R15",
+            pendingEvents: [incomingEvent],
+            transferRuleIndex: transferRules
+        )
+        precondition(plan.holds.count == 1)
+        precondition(plan.holds[0].sourceTripIDs == ["TRIP-TIMED-FROM"])
+        precondition(plan.holds[0].heldDepartureAt == start.addingTimeInterval(180))
+        precondition(plan.visits[0].scheduledAt == start, "Holding at a stop must preserve its arrival time.")
+        precondition(plan.visits[0].departureAt == start.addingTimeInterval(180))
+        precondition(plan.visits[1].scheduledAt == start.addingTimeInterval(750))
+
+        var targetSession = makeSession(at: start, gtfsVersionID: versionID)
+        targetSession.ownedBuses?[0].currentStopID = "TIMED_TO"
+        targetSession.operatedRouteIDs = (targetSession.operatedRouteIDs ?? []) + ["R15"]
+        targetSession.machinists = [Machinist(
+            id: "driver-timed-transfer",
+            employeeNumber: 15,
+            qualification: .standard,
+            hiredAt: start,
+            depotID: "depot-1"
+        )]
+        targetSession.pendingEvents = [
+            SimulationEvent(
+                sequence: 90,
+                simulatedAt: start,
+                kind: .scheduledServiceDeparture(
+                    tripID: "TRIP-TIMED-TO",
+                    routeID: "R15",
+                    serviceDateKey: 20261102
+                )
+            ),
+            incomingEvent
+        ]
+        let engine = SimulationEngine(initialSession: targetSession)
+        try engine.dispatchScheduledDeparture(
+            eventSequence: 90,
+            vehicleID: "bus-1",
+            machinistID: "driver-timed-transfer",
+            stopVisits: targetVisits
+        )
+        let dispatchedEvents = engine.session?.pendingEvents ?? []
+        let dispatchedFirstStopDemand = dispatchedEvents.compactMap { event -> PassengerStopDemand? in
+            guard case let .passengerDemand(demand) = event.kind,
+                  demand.tripID == "TRIP-TIMED-TO",
+                  demand.stopSequence == 1 else { return nil }
+            return demand
+        }.first
+        precondition(dispatchedFirstStopDemand?.departureAt == start.addingTimeInterval(180))
+        precondition(dispatchedEvents.contains {
+            if case let .busMovementStarted(_, leg) = $0.kind {
+                return leg.startsAt == start.addingTimeInterval(180)
+            }
+            return false
+        }, "The target bus must remain at the stop until the timed transfer is ready.")
+        guard case let .timedTransferHeld(heldTripID, heldRouteID, _, sourceTripIDs, delaySeconds)? =
+                engine.session?.eventHistory.last?.kind else {
+            preconditionFailure("The dispatch history should report the timed-transfer hold.")
+        }
+        precondition(heldTripID == "TRIP-TIMED-TO")
+        precondition(heldRouteID == "R15")
+        precondition(sourceTripIDs == ["TRIP-TIMED-FROM"])
+        precondition(delaySeconds == 150)
+
+        let noTimedRulePlan = PassengerConnectionRules.applyingTimedTransferHolds(
+            to: targetVisits,
+            targetTripID: "TRIP-TIMED-TO",
+            targetRouteID: "R15",
+            pendingEvents: [event(sequence: 81, demand: demand(
+                tripID: "TRIP-FROM",
+                routeID: "R1",
+                stopID: "FROM",
+                at: start.addingTimeInterval(120)
+            ))],
+            transferRuleIndex: transferRules
+        )
+        precondition(noTimedRulePlan.holds.isEmpty, "A type-2 transfer must not hold the target service.")
     }
 
     private static func feedsWithoutTransfersKeepTheLegacyFallback(versionID: String) {
