@@ -1196,6 +1196,7 @@ struct PassengerTransferQueueEntry: Codable, Hashable, Sendable {
 struct PassengerConnectionCandidate: Sendable {
     let demand: PassengerStopDemand
     let minimumTransferTime: TimeInterval
+    let transferType: Int?
 }
 
 enum PassengerConnectionRules {
@@ -1221,16 +1222,21 @@ enum PassengerConnectionRules {
                   session.stopClosures?.contains(where: {
                       $0.affects(stopID: candidate.stopID, routeID: candidate.routeID, at: candidate.occurredAt)
                   }) != true,
-                  let minimumTransferTime = Self.requiredTransferTime(
+                  let transfer = Self.requiredTransferTime(
                       from: demand,
                       to: candidate,
                       using: transferRuleIndex,
                       in: session
                   ),
-                  (candidate.departureAt ?? candidate.occurredAt) <= connectionAvailableAt.addingTimeInterval(
-                      minimumTransferTime + maximumConnectionWait
-                  ) else { return nil }
-            return PassengerConnectionCandidate(demand: candidate, minimumTransferTime: minimumTransferTime)
+                  transfer.transferType == 4
+                    || (candidate.departureAt ?? candidate.occurredAt) <= connectionAvailableAt.addingTimeInterval(
+                        transfer.minimumTransferTime + maximumConnectionWait
+                    ) else { return nil }
+            return PassengerConnectionCandidate(
+                demand: candidate,
+                minimumTransferTime: transfer.minimumTransferTime,
+                transferType: transfer.transferType
+            )
         }
         .sorted {
             let leftDepartureAt = $0.demand.departureAt ?? $0.demand.occurredAt
@@ -1249,7 +1255,7 @@ enum PassengerConnectionRules {
         to departingDemand: PassengerStopDemand,
         using index: GTFSServiceTransferIndex?,
         in session: SimulationSession
-    ) -> TimeInterval? {
+    ) -> (minimumTransferTime: TimeInterval, transferType: Int?)? {
         let rule = index?.rule(
             fromStopID: arrivingDemand.stopID,
             toStopID: departingDemand.stopID,
@@ -1261,16 +1267,22 @@ enum PassengerConnectionRules {
         if let rule {
             switch rule.transferType {
             case 0:
-                return TimeInterval(rule.minimumTransferTime ?? Int(minimumTransferTime))
+                return (TimeInterval(rule.minimumTransferTime ?? Int(minimumTransferTime)), 0)
             case 1:
-                return TimeInterval(rule.minimumTransferTime ?? 0)
+                return (TimeInterval(rule.minimumTransferTime ?? 0), 1)
             case 2:
                 guard let seconds = rule.minimumTransferTime, seconds >= 0 else { return nil }
-                return TimeInterval(seconds)
-            case 3, 4:
-                // Type 4 passengers stay onboard; the current exchange model cannot
-                // represent them without first keeping them aboard through the link.
+                return (TimeInterval(seconds), 2)
+            case 3:
                 return nil
+            case 4:
+                guard hasProvenLinkedContinuation(
+                    from: arrivingDemand,
+                    to: departingDemand,
+                    rule: rule,
+                    in: session
+                ) else { return nil }
+                return (0, 4)
             case 5:
                 guard hasProvenLinkedContinuation(
                     from: arrivingDemand,
@@ -1278,7 +1290,7 @@ enum PassengerConnectionRules {
                     rule: rule,
                     in: session
                 ) else { return nil }
-                return TimeInterval(rule.minimumTransferTime ?? Int(minimumTransferTime))
+                return (TimeInterval(rule.minimumTransferTime ?? Int(minimumTransferTime)), 5)
             default:
                 return nil
             }
@@ -1286,7 +1298,7 @@ enum PassengerConnectionRules {
 
         guard arrivingDemand.stopID == departingDemand.stopID,
               arrivingDemand.routeID != departingDemand.routeID else { return nil }
-        return minimumTransferTime
+        return (minimumTransferTime, nil)
     }
 
     private static func hasProvenLinkedContinuation(
@@ -1430,6 +1442,8 @@ struct PassengerStopExchange: Codable, Hashable, Sendable {
     var connectingRouteID: String? = nil
     var connectingVehicleID: String? = nil
     var connectingTripID: String? = nil
+    var inSeatTransferTripID: String? = nil
+    var inSeatTransferPassengerCount: Int? = nil
     var connectingTripAttemptCount: Int? = nil
     var connectingTripBoardedCount: Int? = nil
     var connectingStopID: String? = nil
@@ -1463,6 +1477,9 @@ private extension PassengerStopExchange {
         let transferEffect = (estimatedTransferPassengerCount ?? 0) > 0
             ? " · \(estimatedTransferPassengerCount ?? 0) voyageur(s) estimé(s) en correspondance vers \(connectingRouteID ?? "une autre ligne") (règle de jeu)"
             : ""
+        let inSeatTransferEffect = (inSeatTransferPassengerCount ?? 0) > 0
+            ? " · \(inSeatTransferPassengerCount ?? 0) voyageur(s) restent à bord vers la course \(inSeatTransferTripID ?? "suivante") (transfert en place GTFS type 4)"
+            : ""
         let missedConnectionEffect = (missedConnectionCount ?? 0) > 0
             ? " · \(missedConnectionCount ?? 0) correspondance(s) estimée(s) manquée(s) vers la course \(missedConnectionToTripID ?? "inconnue")"
             : ""
@@ -1477,7 +1494,7 @@ private extension PassengerStopExchange {
             let replacementName = replacementStopName.map { "\($0) (\(replacementStopID))" } ?? replacementStopID
             return "Arrêt fermé · \(redirectedPassengerCount ?? 0) voyageur(s) redirigé(s) vers \(replacementName) · \(replacementWaitingAfterCount ?? 0) en attente\(validationSummary)\(informationEffect)\(localEventEffect)\(transferEffect)\(missedConnectionEffect)\(transferBoardingEffect)"
         }
-        return "Voyageurs estimés à \(stopName) · +\(boardedCount), −\(alightedCount), +\(newlyLeftBehindCount ?? leftBehindCount) laissés, \(waitingAfterCount ?? leftBehindCount) en attente\(validationSummary)\(informationEffect)\(localEventEffect)\(transferEffect)\(missedConnectionEffect)\(transferBoardingEffect)"
+        return "Voyageurs estimés à \(stopName) · +\(boardedCount), −\(alightedCount), +\(newlyLeftBehindCount ?? leftBehindCount) laissés, \(waitingAfterCount ?? leftBehindCount) en attente\(validationSummary)\(informationEffect)\(localEventEffect)\(transferEffect)\(inSeatTransferEffect)\(missedConnectionEffect)\(transferBoardingEffect)"
     }
 }
 
@@ -7169,11 +7186,23 @@ final class SimulationEngine: ObservableObject {
         })
         let replacementGuide = activeClosure?.replacementGuidesByRouteID?[demand.routeID]
         let stopWasClosed = activeClosure != nil
-        let alighted = stopWasClosed
+        let totalAlighted = stopWasClosed
             ? 0
             : (demand.isTerminal
                 ? onboardBefore
                 : min(onboardBefore, Int((Double(onboardBefore) * demand.alightingShare).rounded())))
+        let transferRuleIndex = Self.transferRuleIndex(forGTFSVersionID: session.networkVersions.gtfsID)
+        let nextConnection = !stopWasClosed
+            ? PassengerConnectionRules.nextConnection(
+                from: demand,
+                in: session,
+                transferRuleIndex: transferRuleIndex
+            )
+            : nil
+        let inSeatTransferPassengerCount = nextConnection?.transferType == 4
+            ? PassengerConnectionRules.estimatedTransferCount(from: totalAlighted)
+            : 0
+        let alighted = max(0, totalAlighted - inSeatTransferPassengerCount)
         let onboardAfterAlighting = max(0, onboardBefore - alighted)
         let remainingCapacity = max(0, demand.capacity - onboardAfterAlighting)
         let boarded = (stopWasClosed || demand.isTerminal) ? 0 : min(boardableWaiting, remainingCapacity)
@@ -7209,15 +7238,8 @@ final class SimulationEngine: ObservableObject {
             stopSequence: demand.stopSequence ?? 0,
             randomSeed: session.randomSeed
         )
-        let transferRuleIndex = Self.transferRuleIndex(forGTFSVersionID: session.networkVersions.gtfsID)
-        let nextConnection = !stopWasClosed
-            ? PassengerConnectionRules.nextConnection(
-                from: demand,
-                in: session,
-                transferRuleIndex: transferRuleIndex
-            )
-            : nil
-        let estimatedTransferPassengerCount = nextConnection.map { _ in
+        let platformConnection = nextConnection?.transferType == 4 ? nil : nextConnection
+        let estimatedTransferPassengerCount = platformConnection.map { _ in
             PassengerConnectionRules.estimatedTransferCount(from: alighted)
         } ?? 0
         let exchange = PassengerStopExchange(
@@ -7230,7 +7252,9 @@ final class SimulationEngine: ObservableObject {
             boardedCount: boarded,
             alightedCount: alighted,
             leftBehindCount: queueAfter,
-            onboardAfterExchange: (demand.isTerminal && !stopWasClosed) ? 0 : onboardAfterAlighting + boarded,
+            onboardAfterExchange: (demand.isTerminal && !stopWasClosed)
+                ? inSeatTransferPassengerCount
+                : onboardAfterAlighting + boarded,
             capacity: demand.capacity,
             capacityIsEstimated: demand.capacityIsEstimated,
             estimatedArrivalsCount: estimatedArrivals,
@@ -7254,6 +7278,10 @@ final class SimulationEngine: ObservableObject {
             connectingRouteID: estimatedTransferPassengerCount > 0 ? nextConnection?.demand.routeID : nil,
             connectingVehicleID: estimatedTransferPassengerCount > 0 ? nextConnection?.demand.vehicleID : nil,
             connectingTripID: estimatedTransferPassengerCount > 0 ? nextConnection?.demand.tripID : nil,
+            inSeatTransferTripID: inSeatTransferPassengerCount > 0 ? nextConnection?.demand.tripID : nil,
+            inSeatTransferPassengerCount: inSeatTransferPassengerCount > 0
+                ? inSeatTransferPassengerCount
+                : nil,
             connectingTripAttemptCount: totalTransfersIntendedForThisTrip,
             connectingTripBoardedCount: min(readyTransfersIntendedForThisTrip, estimatedTransferBoarded),
             connectingStopID: estimatedTransferPassengerCount > 0 ? nextConnection?.demand.stopID : nil,

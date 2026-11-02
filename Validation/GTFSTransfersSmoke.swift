@@ -28,6 +28,7 @@ struct GTFSTransfersSmoke {
         parentStationsApplyToChildStops(versionID: withTransfersVersionID)
         recommendedAndTimedTransfersUseTheirSemantics(versionID: withTransfersVersionID)
         unprovenLinkedTripsAreNotExecuted(versionID: withTransfersVersionID)
+        typeFourInSeatPassengersStayOnTheLinkedVehicle(versionID: withTransfersVersionID)
         try malformedTransferRowsAreIgnored(archiveURL: URL(fileURLWithPath: CommandLine.arguments[1]))
         feedsWithoutTransfersKeepTheLegacyFallback(versionID: legacyVersionID)
         oldTransferJSONStillDecodes()
@@ -255,6 +256,90 @@ struct GTFSTransfersSmoke {
         precondition(typeFiveExchange.transferReadyAt == start.addingTimeInterval(300))
     }
 
+    private static func typeFourInSeatPassengersStayOnTheLinkedVehicle(versionID: String) {
+        let start = Date(timeIntervalSince1970: 1_798_070_000)
+        let source = demand(
+            tripID: "TRIP-LINK4-FROM",
+            routeID: "R8",
+            stopID: "LINK4_END",
+            at: start,
+            isTerminal: true
+        )
+        let target = demand(
+            tripID: "TRIP-LINK4-TO",
+            routeID: "R9",
+            stopID: "LINK4_TO",
+            at: start.addingTimeInterval(31 * 60),
+            isFirstStop: true
+        )
+        var session = makeSession(at: start, gtfsVersionID: versionID)
+        session.pendingEvents = [event(sequence: 81, demand: target)]
+        guard let resolvedSource = SimulationEngine.resolvePassengerDemand(
+            event(sequence: 80, demand: source),
+            in: session
+        ), case let .passengersExchanged(sourceExchange) = resolvedSource.kind else {
+            preconditionFailure("A proven GTFS type-4 link should resolve at the source terminus.")
+        }
+
+        precondition(sourceExchange.alightedCount == 16, "The estimated in-seat passengers must not be recorded as alighting.")
+        precondition(sourceExchange.onboardAfterExchange == 4, "GTFS type-4 passengers should remain aboard the linked vehicle.")
+        precondition(sourceExchange.inSeatTransferPassengerCount == 4)
+        precondition(sourceExchange.inSeatTransferTripID == target.tripID)
+        SimulationEngine.applyVehicleEvent(resolvedSource, to: &session)
+        precondition(session.ownedBuses?.first?.onboardPassengerCount == 4)
+        precondition(session.passengerTransferQueueEntries?.isEmpty == true, "In-seat transfers do not enter the platform transfer queue.")
+
+        guard let resolvedTarget = SimulationEngine.resolvePassengerDemand(
+            event(sequence: 81, demand: target),
+            in: session
+        ), case let .passengersExchanged(targetExchange) = resolvedTarget.kind else {
+            preconditionFailure("The linked target course should resolve with the existing onboard riders.")
+        }
+        precondition(targetExchange.boardedCount == 0, "In-seat passengers must not be counted as newly boarding at the target course.")
+        precondition(targetExchange.onboardAfterExchange == 4)
+        SimulationEngine.applyVehicleEvent(resolvedTarget, to: &session)
+        precondition(session.ownedBuses?.first?.onboardPassengerCount == 4)
+
+        let differentVehicleTarget = demand(
+            tripID: "TRIP-LINK4-TO",
+            routeID: "R9",
+            stopID: "LINK4_TO",
+            at: start.addingTimeInterval(120),
+            vehicleID: "bus-2",
+            isFirstStop: true
+        )
+        var differentVehicleSession = makeSession(at: start, gtfsVersionID: versionID)
+        differentVehicleSession.pendingEvents = [event(sequence: 83, demand: differentVehicleTarget)]
+        guard let differentVehicleSource = SimulationEngine.resolvePassengerDemand(
+            event(sequence: 82, demand: source),
+            in: differentVehicleSession
+        ), case let .passengersExchanged(differentVehicleExchange) = differentVehicleSource.kind else {
+            preconditionFailure("The source course should resolve when a linked target uses another vehicle.")
+        }
+        precondition(differentVehicleExchange.inSeatTransferPassengerCount == nil)
+        precondition(differentVehicleExchange.onboardAfterExchange == 0, "A different vehicle cannot inherit the source passengers.")
+
+        let interveningDemand = demand(
+            tripID: "TRIP-LINK4-INTERVENING",
+            routeID: "R12",
+            stopID: "LINK4_TO",
+            at: start.addingTimeInterval(60)
+        )
+        var interveningSession = makeSession(at: start, gtfsVersionID: versionID)
+        interveningSession.pendingEvents = [
+            event(sequence: 85, demand: interveningDemand),
+            event(sequence: 86, demand: target)
+        ]
+        guard let interveningSource = SimulationEngine.resolvePassengerDemand(
+            event(sequence: 84, demand: source),
+            in: interveningSession
+        ), case let .passengersExchanged(interveningExchange) = interveningSource.kind else {
+            preconditionFailure("The source course should resolve when another trip is scheduled between linked trips.")
+        }
+        precondition(interveningExchange.inSeatTransferPassengerCount == nil)
+        precondition(interveningExchange.onboardAfterExchange == 0, "An intervening trip prevents the linked-course in-seat transfer.")
+    }
+
     private static func recommendedAndTimedTransfersUseTheirSemantics(versionID: String) {
         let start = Date(timeIntervalSince1970: 1_798_055_000)
         let recommendedSource = demand(tripID: "TRIP-ZERO-FROM", routeID: "R12", stopID: "ZERO_FROM", at: start)
@@ -317,6 +402,8 @@ struct GTFSTransfersSmoke {
         let legacyExchangeJSON = #"{"tripID":"old-trip","vehicleID":"old-bus","routeID":"old-route","stopID":"old-stop","stopName":"Ancien arrêt","occurredAt":1798000000,"boardedCount":1,"alightedCount":1,"leftBehindCount":0,"onboardAfterExchange":0,"capacity":40,"capacityIsEstimated":true,"estimatedArrivalsCount":1,"waitingBeforeCount":0,"waitingAfterCount":0,"newlyLeftBehindCount":0,"connectingTripID":"old-target"}"#
         let exchange = try! JSONDecoder().decode(PassengerStopExchange.self, from: Data(legacyExchangeJSON.utf8))
         precondition(exchange.connectingStopID == nil)
+        precondition(exchange.inSeatTransferTripID == nil)
+        precondition(exchange.inSeatTransferPassengerCount == nil)
         precondition(exchange.tripID == "old-trip")
 
         let legacyQueueJSON = #"{"sourceTripID":"old-source","targetRouteID":"old-route","intendedTripID":"old-target","stopID":"old-stop","passengerCount":1,"readyAt":1798000300}"#
@@ -374,7 +461,7 @@ struct GTFSTransfersSmoke {
             stopName: stopID,
             occurredAt: date,
             estimatedArrivalsCount: 0,
-            alightingShare: 0.5,
+            alightingShare: isFirstStop ? 0 : 0.5,
             isTerminal: isTerminal,
             isFirstStop: isFirstStop,
             capacity: 40,

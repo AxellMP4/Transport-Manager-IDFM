@@ -1588,7 +1588,7 @@ struct OperationsDashboardView: View {
                 Text(isCareerPreparationMode ? "Préparer une carrière" : scenario.name)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .layoutPriority(1)
 

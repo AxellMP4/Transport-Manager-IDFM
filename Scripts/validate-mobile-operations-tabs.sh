@@ -79,6 +79,12 @@ if ! rg -Fq 'accessibilityLabel("Options de carrière et sauvegarde")' "$dashboa
     exit 1
 fi
 
+career_context=$(sed -n '/Text(isCareerPreparationMode ? "Préparer une carrière" : scenario.name)/,/\.layoutPriority(1)/p' "$dashboard_source")
+if printf '%s\n' "$career_context" | rg -Fq '.lineLimit(1)'; then
+    echo "The active career or scenario context must wrap instead of truncating in the compact iPhone header." >&2
+    exit 1
+fi
+
 if ! rg -Fq '@State private var pendingSaveImportData: Data?' "$dashboard_source" \
     || ! rg -Fq 'if simulation.session != nil {' "$dashboard_source" \
     || ! rg -Fq 'pendingSaveImportData = saveData' "$dashboard_source" \
