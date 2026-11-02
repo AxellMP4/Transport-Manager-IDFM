@@ -87,6 +87,7 @@
 		030000000000000000000136 /* RoadIncidentHistorySection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000136 /* RoadIncidentHistorySection.swift */; };
 		030000000000000000000137 /* MobileSimulationPlaybackAccessory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000137 /* MobileSimulationPlaybackAccessory.swift */; };
 		030000000000000000000138 /* CareerGuideModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000138 /* CareerGuideModel.swift */; };
+		030000000000000000000139 /* CareerDifficulty.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000139 /* CareerDifficulty.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -172,6 +173,7 @@
 		020000000000000000000136 /* RoadIncidentHistorySection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoadIncidentHistorySection.swift; sourceTree = "<group>"; };
 		020000000000000000000137 /* MobileSimulationPlaybackAccessory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileSimulationPlaybackAccessory.swift; sourceTree = "<group>"; };
 		020000000000000000000138 /* CareerGuideModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CareerGuideModel.swift; sourceTree = "<group>"; };
+		020000000000000000000139 /* CareerDifficulty.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CareerDifficulty.swift; sourceTree = "<group>"; };
 		040000000000000000000001 /* TransportManagerIDFM.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TransportManagerIDFM.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -226,6 +228,7 @@
 				020000000000000000000012 /* ContractGeometryImporter.swift */,
 				020000000000000000000013 /* LineReferenceImporter.swift */,
 				020000000000000000000014 /* SimulationEngine.swift */,
+				020000000000000000000139 /* CareerDifficulty.swift */,
 				020000000000000000000129 /* PassengerValidation.swift */,
 				020000000000000000000130 /* PassengerAnalytics.swift */,
 				020000000000000000000126 /* CloudCareerSync.swift */,
@@ -439,6 +442,7 @@
 				030000000000000000000010 /* ContractGeometryImporter.swift in Sources */,
 				030000000000000000000011 /* LineReferenceImporter.swift in Sources */,
 				030000000000000000000012 /* SimulationEngine.swift in Sources */,
+				030000000000000000000139 /* CareerDifficulty.swift in Sources */,
 				030000000000000000000129 /* PassengerValidation.swift in Sources */,
 				030000000000000000000130 /* PassengerAnalytics.swift in Sources */,
 				030000000000000000000013 /* DepotAssignmentRegistry.swift in Sources */,

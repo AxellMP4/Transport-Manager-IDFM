@@ -1,6 +1,6 @@
-# Repos avancés des machinistes — cadrage à approuver
+# Repos avancés des machinistes — cadrage produit
 
-**État : brouillon à faire approuver.** Aucun comportement de simulation n’est modifié par ce document. Les règles de jeu existantes ne sont pas présentées comme des normes de droit du travail.
+**État : périmètre limité approuvé le 1er novembre 2026.** Rendre lisibles les règles de jeu déjà présentes et garder leur contrôle commun. Ne pas ajouter de repos hebdomadaire, de limite de jours consécutifs ni de seuil présenté comme légal. Les règles existantes restent des règles de simulation.
 
 ## Intention
 
@@ -32,15 +32,14 @@ Sources de vérification : `docs/Plan_recreation_Transport_Manager_IDFM.md` (sec
 - Inférer les heures de travail non enregistrées par le jeu ou générer un planning de poste qui n’existe pas.
 - Ajouter des seuils de repos hebdomadaire, des limites de jours consécutifs ou une période de référence sans décision produit explicite.
 
-## Décisions nécessaires avant une implémentation
+## Décision approuvée
 
-1. **Portée :** veut-on uniquement mieux présenter et contrôler les repos déjà modélisés, ou ajouter une nouvelle règle de repos hebdomadaire / jours consécutifs ? Le cahier des charges ne tranche pas.
-2. **Période :** si une nouvelle règle hebdomadaire est voulue, quelle fenêtre de calcul faut-il utiliser (période glissante ou semaine calendaire), et quelles activités enregistrées comptent comme du travail ?
-3. **Application :** une violation éventuelle doit-elle bloquer l’action, avertir le joueur avec possibilité de continuer, ou rester informative ?
-4. **Historique :** lorsqu’une correction autorisée rouvre un bloc ancien, doit-elle être évaluée contre les règles actuelles ou seulement contre les règles en vigueur à la date du service ?
+Présenter le temps restant et la date/heure de fin du repos de jeu dans la liste du personnel, en indiquant s’il suit un service ou une formation. Le moteur conserve ses contrôles bloquants actuels : battement maximal de 2 h dans un bloc, présence maximale de 10 h et repos minimal de jeu de 11 h entre blocs et autour des formations. Paie, activité passée et compatibilité des anciennes sauvegardes gardent leur comportement.
 
-Ces réponses changent le modèle de dates, la validation des actions, l’explication de l’interface et la couverture de compatibilité des sauvegardes. En leur absence, un développeur ne doit ni ajouter un seuil ni choisir silencieusement une fenêtre ou un comportement de blocage.
+## Portée laissée ouverte
+
+Toute future extension au repos hebdomadaire, aux jours consécutifs, à une nouvelle période de référence ou à de nouveaux comportements de blocage demande une nouvelle décision produit. Elle devra préciser les activités comptées et le traitement des corrections historiques avant tout changement de simulation.
 
 ## Critères de préparation du plan
 
-Après approbation des décisions ci-dessus, le plan d’implémentation devra préciser : les intervalles exacts concernés, la source d’horloge simulée, la politique sur événements passés et blocs soldés, les effets nuls ou non sur la paie, la persistance/migration, l’équivalence des sélecteurs et des validations moteur, ainsi que des cas de sauvegardes historiques. Les seuils devront être présentés comme des règles de jeu à moins qu’une source officielle et une revue spécialisée ne justifient une autre qualification.
+Le changement limité d’interface utilise l’horloge simulée et les fins de service/formation déjà persistées. Il ne modifie pas les événements passés, les blocs soldés, la paie, la persistance ou les sélecteurs d’affectation. Les validations moteur restent la référence pour les actions.

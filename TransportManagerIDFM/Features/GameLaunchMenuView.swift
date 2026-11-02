@@ -340,7 +340,7 @@ struct GameLaunchMenuView: View {
                     )
                     actionRow(
                         title: "Options",
-                        detail: "Fréquence des pannes et synchronisation iCloud",
+                        detail: "Réglages de carrière et synchronisation iCloud",
                         symbol: "gearshape",
                         action: { page = .options }
                     )
@@ -480,7 +480,18 @@ struct GameLaunchMenuView: View {
 
     private var optionsPage: some View {
         VStack(alignment: .leading, spacing: 18) {
-            pageHeader("Options", subtitle: "Ces réglages s’appliquent aux nouvelles carrières.")
+            pageHeader(
+                "Options",
+                subtitle: activeCareer == nil
+                    ? "Choisis la difficulté dans la préparation d’une nouvelle carrière."
+                    : "Ces fréquences règlent les risques de la carrière active et restent modifiables."
+            )
+            if activeCareer == nil {
+                Text("La difficulté de départ fixe le capital initial et les deux risques de jeu. Tu pourras ajuster les fréquences depuis ces options après le démarrage.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
             GroupBox("Fréquence des pannes") {
                 VStack(alignment: .leading, spacing: 8) {
                     Picker("Fréquence", selection: $breakdownFrequency) {
@@ -519,6 +530,7 @@ struct GameLaunchMenuView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+            }
             }
 
             GroupBox("Carrière et synchronisation") {

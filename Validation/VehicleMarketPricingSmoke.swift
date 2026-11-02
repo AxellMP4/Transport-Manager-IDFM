@@ -70,6 +70,38 @@ struct VehicleMarketPricingSmoke {
             "L’ajout de la fiche technique ne doit pas créer une offre d’achat non attestée."
         )
 
+        guard let gx127 = VehicleMarketCatalog.model(id: "heuliez-gx127-diesel"),
+              let gx127Variants = gx127.technicalVariants,
+              gx127Variants.count == 4 else {
+            fatalError("Le GX 127 doit conserver ses quatre aménagements constructeur documentés.")
+        }
+        let heuliezGX127URL = "https://www.heuliezbus.com/eng/fichiers/ft_gx127_2-3p_eng.pdf"
+        precondition(
+            gx127.technicalEvidenceURL == heuliezGX127URL
+                && gx127Variants.allSatisfy { $0.evidenceURL == heuliezGX127URL },
+            "Les données GX 127 doivent pointer vers le PDF officiel Heuliez."
+        )
+        precondition(
+            gx127.maximumCapacity == nil
+                && gx127Variants.allSatisfy { $0.maximumCapacity == nil },
+            "Les aménagements Heuliez ne doivent pas être ramenés à une capacité totale non unique."
+        )
+        let twoDoorGX127Variants = gx127Variants.filter { $0.id.contains("two-door") }
+        let threeDoorGX127Variants = gx127Variants.filter { $0.id.contains("three-door") }
+        precondition(
+            twoDoorGX127Variants.count == 2
+                && twoDoorGX127Variants.allSatisfy {
+                    $0.fuelTankCapacitiesLiters == [160]
+                        && $0.applicabilityNote.contains("16,5 L d’AdBlue")
+                }
+                && threeDoorGX127Variants.count == 2
+                && threeDoorGX127Variants.allSatisfy {
+                    $0.fuelTankCapacitiesLiters == [200]
+                        && $0.applicabilityNote.contains("19 L d’AdBlue")
+                },
+            "Les volumes de réservoir et d’AdBlue doivent suivre la variante 2 ou 3 portes."
+        )
+
         guard let eCitaro = VehicleMarketCatalog.model(id: "mercedes-ecitaro-12m-catp-2024"),
               let catpVariant = eCitaro.technicalVariants?.first(where: {
                   $0.id == "mercedes-ecitaro-12m-catp-2023-27"

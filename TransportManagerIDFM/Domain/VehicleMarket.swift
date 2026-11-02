@@ -1319,8 +1319,8 @@ enum VehicleMarketCatalog {
             priceReferenceYear: 2024,
             priceEstimateNote: "Estimation de jeu à faible confiance : la CATP donne 293 400 € HT pour un autobus diesel standard 12 m ; le jeu applique un facteur de gabarit midibus de 0,8, soit environ 235 000 € en base 2024. Ce calcul n’est ni un prix historique ou individuel du GX 127 ni une offre de vente.",
             technicalTitle: "Heuliez Bus · descriptif technique GX 127 (mai 2010)",
-            technicalURL: "https://wikibus.blob.core.windows.net/sources2561/Heuliez%20GX%20127%20Descriptif%20technique.pdf",
-            technicalDataNote: "Le descriptif constructeur couvre plusieurs implantations : deux ou trois portes, deux longueurs et plusieurs hauteurs selon configuration, avec des aménagements différents. Les 9 GX 127 recensés dans le parc Bords de Marne par TC Infos ne sont pas qualifiés individuellement par la fiche constructeur. Aucun prix individuel ni état de marché n’est établi.",
+            technicalURL: "https://www.heuliezbus.com/eng/fichiers/ft_gx127_2-3p_eng.pdf",
+            technicalDataNote: "La fiche constructeur couvre plusieurs implantations : deux ou trois portes, deux longueurs et plusieurs hauteurs selon configuration. Elle indique 160 L de gazole et 16,5 L d’AdBlue pour les versions à deux portes, ou 200 L de gazole et 19 L d’AdBlue pour celles à trois portes. Les 9 GX 127 recensés dans le parc Bords de Marne par TC Infos ne sont pas qualifiés individuellement par la fiche constructeur. Aucun prix individuel ni état de marché n’est établi.",
             technicalVariants: [
                 VehicleTechnicalVariant(
                     id: "heuliez-gx127-two-door-16-seat-2010",
@@ -1333,9 +1333,10 @@ enum VehicleMarketCatalog {
                     maximumCapacity: nil,
                     seatedCapacity: 16,
                     rangeKilometers: nil,
-                    applicabilityNote: "Heuliez donne 16 assises + conducteur + 1 espace UFR + 55 debout. La hauteur constructeur varie de 2,885 à 3,265 m selon équipement ; la capacité totale n’est pas ramenée à un chiffre unique. Cette implantation n’est pas attribuée aux véhicules du dépôt.",
-                    evidenceTitle: "Heuliez Bus · descriptif technique GX 127, version France (mai 2010)",
-                    evidenceURL: "https://wikibus.blob.core.windows.net/sources2561/Heuliez%20GX%20127%20Descriptif%20technique.pdf"
+                    fuelTankCapacitiesLiters: [160],
+                    applicabilityNote: "Heuliez donne 16 assises + conducteur + 1 espace UFR + 55 debout. La fiche indique 160 L de gazole et 16,5 L d’AdBlue pour les versions à deux portes. La hauteur constructeur varie de 2,885 à 3,265 m selon équipement ; la capacité totale n’est pas ramenée à un chiffre unique. Cette implantation n’est pas attribuée aux véhicules du dépôt.",
+                    evidenceTitle: "Heuliez Bus · fiche technique GX 127 2/3 portes (mai 2010)",
+                    evidenceURL: "https://www.heuliezbus.com/eng/fichiers/ft_gx127_2-3p_eng.pdf"
                 ),
                 VehicleTechnicalVariant(
                     id: "heuliez-gx127-two-door-12-seat-2010",
@@ -1348,9 +1349,10 @@ enum VehicleMarketCatalog {
                     maximumCapacity: nil,
                     seatedCapacity: 12,
                     rangeKilometers: nil,
-                    applicabilityNote: "Heuliez donne 12 assises + conducteur + 1 espace UFR + 58 debout. La hauteur constructeur varie de 2,885 à 3,265 m selon équipement ; la capacité totale n’est pas ramenée à un chiffre unique. Cette implantation n’est pas attribuée aux véhicules du dépôt.",
-                    evidenceTitle: "Heuliez Bus · descriptif technique GX 127, version France (mai 2010)",
-                    evidenceURL: "https://wikibus.blob.core.windows.net/sources2561/Heuliez%20GX%20127%20Descriptif%20technique.pdf"
+                    fuelTankCapacitiesLiters: [160],
+                    applicabilityNote: "Heuliez donne 12 assises + conducteur + 1 espace UFR + 58 debout. La fiche indique 160 L de gazole et 16,5 L d’AdBlue pour les versions à deux portes. La hauteur constructeur varie de 2,885 à 3,265 m selon équipement ; la capacité totale n’est pas ramenée à un chiffre unique. Cette implantation n’est pas attribuée aux véhicules du dépôt.",
+                    evidenceTitle: "Heuliez Bus · fiche technique GX 127 2/3 portes (mai 2010)",
+                    evidenceURL: "https://www.heuliezbus.com/eng/fichiers/ft_gx127_2-3p_eng.pdf"
                 ),
                 VehicleTechnicalVariant(
                     id: "heuliez-gx127-three-door-18-seat-2010",
@@ -1363,9 +1365,10 @@ enum VehicleMarketCatalog {
                     maximumCapacity: nil,
                     seatedCapacity: 18,
                     rangeKilometers: nil,
-                    applicabilityNote: "Heuliez donne 18 assises + conducteur + 1 espace UFR + 49 debout. La hauteur constructeur varie de 2,885 à 3,265 m selon équipement ; la capacité totale n’est pas ramenée à un chiffre unique. Cette implantation n’est pas attribuée aux véhicules du dépôt.",
-                    evidenceTitle: "Heuliez Bus · descriptif technique GX 127, version France (mai 2010)",
-                    evidenceURL: "https://wikibus.blob.core.windows.net/sources2561/Heuliez%20GX%20127%20Descriptif%20technique.pdf"
+                    fuelTankCapacitiesLiters: [200],
+                    applicabilityNote: "Heuliez donne 18 assises + conducteur + 1 espace UFR + 49 debout. La fiche indique 200 L de gazole et 19 L d’AdBlue pour les versions à trois portes. La hauteur constructeur varie de 2,885 à 3,265 m selon équipement ; la capacité totale n’est pas ramenée à un chiffre unique. Cette implantation n’est pas attribuée aux véhicules du dépôt.",
+                    evidenceTitle: "Heuliez Bus · fiche technique GX 127 2/3 portes (mai 2010)",
+                    evidenceURL: "https://www.heuliezbus.com/eng/fichiers/ft_gx127_2-3p_eng.pdf"
                 ),
                 VehicleTechnicalVariant(
                     id: "heuliez-gx127-three-door-19-seat-2010",
@@ -1378,9 +1381,10 @@ enum VehicleMarketCatalog {
                     maximumCapacity: nil,
                     seatedCapacity: 19,
                     rangeKilometers: nil,
-                    applicabilityNote: "Heuliez donne 19 assises + conducteur + 1 espace UFR + 46 debout. La hauteur constructeur varie de 2,885 à 3,265 m selon équipement ; la capacité totale n’est pas ramenée à un chiffre unique. Cette implantation n’est pas attribuée aux véhicules du dépôt.",
-                    evidenceTitle: "Heuliez Bus · descriptif technique GX 127, version France (mai 2010)",
-                    evidenceURL: "https://wikibus.blob.core.windows.net/sources2561/Heuliez%20GX%20127%20Descriptif%20technique.pdf"
+                    fuelTankCapacitiesLiters: [200],
+                    applicabilityNote: "Heuliez donne 19 assises + conducteur + 1 espace UFR + 46 debout. La fiche indique 200 L de gazole et 19 L d’AdBlue pour les versions à trois portes. La hauteur constructeur varie de 2,885 à 3,265 m selon équipement ; la capacité totale n’est pas ramenée à un chiffre unique. Cette implantation n’est pas attribuée aux véhicules du dépôt.",
+                    evidenceTitle: "Heuliez Bus · fiche technique GX 127 2/3 portes (mai 2010)",
+                    evidenceURL: "https://www.heuliezbus.com/eng/fichiers/ft_gx127_2-3p_eng.pdf"
                 )
             ],
             fleetTitle: "Parc Bords de Marne · 9 GX 127 recensés par TC Infos (source secondaire)",

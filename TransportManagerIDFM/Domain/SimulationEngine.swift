@@ -1778,6 +1778,7 @@ struct SimulationSession: Codable, Hashable, Identifiable, Sendable {
     var primTrafficAlerts: [PRIMTrafficAlert]? = nil
     var breakdownFrequency: VehicleIncidentFrequency? = nil
     var trafficDisruptionFrequency: TrafficDisruptionFrequency? = nil
+    var careerDifficulty: CareerDifficulty? = nil
     var workshopBayCount: Int? = nil
     var workshopExpansionCompletesAt: Date? = nil
     var workshopBayCountsByDepot: [String: Int]? = nil
@@ -1868,6 +1869,10 @@ struct SimulationSession: Codable, Hashable, Identifiable, Sendable {
 
     var effectiveBreakdownFrequency: VehicleIncidentFrequency {
         breakdownFrequency ?? .standard
+    }
+
+    var effectiveCareerDifficulty: CareerDifficulty {
+        careerDifficulty ?? .standard
     }
 
     var effectiveTrafficDisruptionFrequency: TrafficDisruptionFrequency {
@@ -2397,8 +2402,7 @@ final class SimulationEngine: ObservableObject {
         operatedRouteIDsByDepot: [String: [String]]? = nil,
         scheduledDepartures: [ScheduledServiceDeparture] = [],
         timetableHorizonEnd: Date? = nil,
-        breakdownFrequency: VehicleIncidentFrequency = .standard,
-        trafficDisruptionFrequency: TrafficDisruptionFrequency = .standard
+        careerDifficulty: CareerDifficulty = .standard
     ) throws {
         let pinnedRouteIDs = Array(Set(operatedRouteIDs)).sorted()
         let pinnedAssignmentIDs = Array(Set(assignmentRecordIDs)).sorted()
@@ -2457,7 +2461,9 @@ final class SimulationEngine: ObservableObject {
             operatedRouteIDs: pinnedRouteIDs,
             operatedRouteIDsByDepot: operatedRouteIDsByDepot,
             assignmentRecordIDs: pinnedAssignmentIDs,
-            cashBalance: VehicleMarketCatalog.initialCareerCapital - VehicleWorkshopPartCatalog.initialStockCostEuro,
+            cashBalance: careerDifficulty.startingCashBalance(
+                afterStockCostEuro: VehicleWorkshopPartCatalog.initialStockCostEuro
+            ),
             ownedBuses: [],
             machinists: [],
             machinistServiceAssignments: [],
@@ -2489,8 +2495,9 @@ final class SimulationEngine: ObservableObject {
             vehicleMaintenanceRecords: [],
             stopClosures: [],
             routeClosures: [],
-            breakdownFrequency: breakdownFrequency,
-            trafficDisruptionFrequency: trafficDisruptionFrequency,
+            breakdownFrequency: VehicleIncidentFrequency(rawValue: careerDifficulty.breakdownFrequencyRawValue) ?? .standard,
+            trafficDisruptionFrequency: TrafficDisruptionFrequency(rawValue: careerDifficulty.trafficDisruptionFrequencyRawValue) ?? .standard,
+            careerDifficulty: careerDifficulty,
             workshopBayCount: VehicleWorkshopRules.initialRepairBayCount,
             workshopExpansionCompletesAt: nil,
             loans: [],
@@ -6123,6 +6130,17 @@ final class SimulationEngine: ObservableObject {
         session = activeSession
         save()
         return true
+    }
+
+    func updateEventFrequencies(
+        breakdownFrequency: VehicleIncidentFrequency,
+        trafficDisruptionFrequency: TrafficDisruptionFrequency
+    ) {
+        guard var activeSession = session else { return }
+        activeSession.breakdownFrequency = breakdownFrequency
+        activeSession.trafficDisruptionFrequency = trafficDisruptionFrequency
+        session = activeSession
+        save()
     }
 
     func save() {

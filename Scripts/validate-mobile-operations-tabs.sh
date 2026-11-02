@@ -222,3 +222,5 @@ if len(guarded_inline_titles) != 2:
 PY
 then
     echo "Compact dispatch must guard iOS-only navigation title APIs from the macOS build." >&2
+    exit 1
+fi

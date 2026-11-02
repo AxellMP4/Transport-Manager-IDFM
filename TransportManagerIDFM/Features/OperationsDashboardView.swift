@@ -230,6 +230,20 @@ private struct MachinistPlannedReliefOption: Identifiable {
     var id: String { "\(stop.eventSequence)-\(candidate.id)" }
 }
 
+private struct MachinistRestWindow {
+    let sourceTitle: String
+    let activityEnd: Date
+
+    var availableAt: Date {
+        activityEnd.addingTimeInterval(MachinistWorkRules.minimumRestBetweenDutyBlocks)
+    }
+
+    func remainingText(at simulatedAt: Date) -> String {
+        let minutes = max(0, Int(ceil(availableAt.timeIntervalSince(simulatedAt) / 60)))
+        return "\(minutes / 60) h \(minutes % 60) min restantes"
+    }
+}
+
 private struct MachinistPlannedReliefMenu: View {
     let options: [MachinistPlannedReliefOption]
     let machinistName: String
@@ -415,6 +429,7 @@ struct OperationsDashboardView: View {
     @AppStorage("transportManager.selectedDepotID") private var selectedDepotID = "saint-maur"
     @State private var careerStartMoment = Date.now
     @State private var selectedCandidateCareerLineIDs = Set<String>()
+    @AppStorage("transportManager.careerDifficulty") private var careerDifficultyRaw = CareerDifficulty.standard.rawValue
     @AppStorage("transportManager.breakdownFrequency") private var breakdownFrequencyRaw = VehicleIncidentFrequency.standard.rawValue
     @AppStorage("transportManager.trafficDisruptionFrequency") private var trafficDisruptionFrequencyRaw = TrafficDisruptionFrequency.standard.rawValue
     @State private var careerStartError: String?
@@ -526,24 +541,65 @@ struct OperationsDashboardView: View {
     }
 
     private var breakdownFrequency: VehicleIncidentFrequency {
-        VehicleIncidentFrequency(rawValue: breakdownFrequencyRaw) ?? .standard
+        simulation.session?.effectiveBreakdownFrequency
+            ?? VehicleIncidentFrequency(rawValue: breakdownFrequencyRaw)
+            ?? .standard
     }
 
     private var breakdownFrequencyBinding: Binding<VehicleIncidentFrequency> {
         Binding(
-            get: { VehicleIncidentFrequency(rawValue: breakdownFrequencyRaw) ?? .standard },
-            set: { breakdownFrequencyRaw = $0.rawValue }
+            get: {
+                simulation.session?.effectiveBreakdownFrequency
+                    ?? VehicleIncidentFrequency(rawValue: breakdownFrequencyRaw)
+                    ?? .standard
+            },
+            set: { frequency in
+                guard let session = simulation.session else {
+                    breakdownFrequencyRaw = frequency.rawValue
+                    return
+                }
+                simulation.updateEventFrequencies(
+                    breakdownFrequency: frequency,
+                    trafficDisruptionFrequency: session.effectiveTrafficDisruptionFrequency
+                )
+            }
         )
     }
 
     private var trafficDisruptionFrequency: TrafficDisruptionFrequency {
-        TrafficDisruptionFrequency(rawValue: trafficDisruptionFrequencyRaw) ?? .standard
+        simulation.session?.effectiveTrafficDisruptionFrequency
+            ?? TrafficDisruptionFrequency(rawValue: trafficDisruptionFrequencyRaw)
+            ?? .standard
     }
 
     private var trafficDisruptionFrequencyBinding: Binding<TrafficDisruptionFrequency> {
         Binding(
-            get: { TrafficDisruptionFrequency(rawValue: trafficDisruptionFrequencyRaw) ?? .standard },
-            set: { trafficDisruptionFrequencyRaw = $0.rawValue }
+            get: {
+                simulation.session?.effectiveTrafficDisruptionFrequency
+                    ?? TrafficDisruptionFrequency(rawValue: trafficDisruptionFrequencyRaw)
+                    ?? .standard
+            },
+            set: { frequency in
+                guard let session = simulation.session else {
+                    trafficDisruptionFrequencyRaw = frequency.rawValue
+                    return
+                }
+                simulation.updateEventFrequencies(
+                    breakdownFrequency: session.effectiveBreakdownFrequency,
+                    trafficDisruptionFrequency: frequency
+                )
+            }
+        )
+    }
+
+    private var careerDifficulty: CareerDifficulty {
+        CareerDifficulty(rawValue: careerDifficultyRaw) ?? .standard
+    }
+
+    private var careerDifficultyBinding: Binding<CareerDifficulty> {
+        Binding(
+            get: { CareerDifficulty(rawValue: careerDifficultyRaw) ?? .standard },
+            set: { careerDifficultyRaw = $0.rawValue }
         )
     }
 
@@ -1596,18 +1652,12 @@ struct OperationsDashboardView: View {
 
         if isCareerPreparationMode {
             Divider()
-            Picker("Fréquence des pannes", selection: breakdownFrequencyBinding) {
-                ForEach(VehicleIncidentFrequency.allCases) { frequency in
-                    Text(frequency.title).tag(frequency)
+            Picker("Difficulté de départ", selection: careerDifficultyBinding) {
+                ForEach(CareerDifficulty.allCases) { difficulty in
+                    Text(difficulty.title).tag(difficulty)
                 }
             }
-            Text(breakdownFrequency.explanation)
-            Picker("Congestion routière simulée", selection: trafficDisruptionFrequencyBinding) {
-                ForEach(TrafficDisruptionFrequency.allCases) { frequency in
-                    Text(frequency.title).tag(frequency)
-                }
-            }
-            Text(trafficDisruptionFrequency.explanation)
+            Text(careerDifficulty.explanation)
         }
         } label: {
             Image(systemName: "ellipsis.circle")
@@ -1714,19 +1764,12 @@ struct OperationsDashboardView: View {
                 }
                 if isCareerPreparationMode {
                     Divider()
-                    Picker("Fréquence des pannes", selection: breakdownFrequencyBinding) {
-                        ForEach(VehicleIncidentFrequency.allCases) { frequency in
-                            Text(frequency.title).tag(frequency)
+                    Picker("Difficulté de départ", selection: careerDifficultyBinding) {
+                        ForEach(CareerDifficulty.allCases) { difficulty in
+                            Text(difficulty.title).tag(difficulty)
                         }
                     }
-                    Text(breakdownFrequency.explanation)
-                        .font(.caption)
-                    Picker("Congestion routière simulée", selection: trafficDisruptionFrequencyBinding) {
-                        ForEach(TrafficDisruptionFrequency.allCases) { frequency in
-                            Text(frequency.title).tag(frequency)
-                        }
-                    }
-                    Text(trafficDisruptionFrequency.explanation)
+                    Text(careerDifficulty.explanation)
                         .font(.caption)
                 }
             } label: {
@@ -2819,8 +2862,7 @@ struct OperationsDashboardView: View {
                     operatedRouteIDsByDepot: [depotID: Array(operatedRouteIDs)],
                     scheduledDepartures: departures,
                     timetableHorizonEnd: initialHorizonEnd,
-                    breakdownFrequency: breakdownFrequency,
-                    trafficDisruptionFrequency: trafficDisruptionFrequency
+                    careerDifficulty: careerDifficulty
                 )
                 selectedWorkspaceTab = .network
                 isPreparingNewCareer = false
@@ -3128,27 +3170,23 @@ struct OperationsDashboardView: View {
                 )
                 .datePickerStyle(.compact)
                 .environment(\.timeZone, GTFSServiceDate.parisTimeZone)
-                VStack(alignment: .leading, spacing: 5) {
-                    Picker("Fréquence des pannes", selection: breakdownFrequencyBinding) {
-                        ForEach(VehicleIncidentFrequency.allCases) { frequency in
-                            Text(frequency.title).tag(frequency)
+                GroupBox("Difficulté de départ") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Picker("Difficulté de départ", selection: careerDifficultyBinding) {
+                            ForEach(CareerDifficulty.allCases) { difficulty in
+                                Text(difficulty.title).tag(difficulty)
+                            }
                         }
+#if os(macOS)
+                        .pickerStyle(.radioGroup)
+#else
+                        .pickerStyle(.menu)
+#endif
+                        Text(careerDifficulty.explanation)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
-                    .pickerStyle(.menu)
-                    Text(breakdownFrequency.explanation)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-                VStack(alignment: .leading, spacing: 5) {
-                    Picker("Congestion routière simulée", selection: trafficDisruptionFrequencyBinding) {
-                        ForEach(TrafficDisruptionFrequency.allCases) { frequency in
-                            Text(frequency.title).tag(frequency)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    Text(trafficDisruptionFrequency.explanation)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
                 }
                 if catalog.activeVersion != nil && !isCareerStartWithinNetworkValidity {
                     Text("Choisissez une date comprise dans la période de validité du GTFS actif.")
@@ -3160,6 +3198,9 @@ struct OperationsDashboardView: View {
                     eyebrow("PARTIE EN COURS")
                     Text("Démarrée le \(session.createdAt.formatted(date: .abbreviated, time: .omitted))")
                         .font(.caption)
+                    Text("Difficulté de départ : \(session.effectiveCareerDifficulty.title)")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
                     Text("Fréquence des pannes : \(session.effectiveBreakdownFrequency.title.lowercased()) · \(session.effectiveBreakdownFrequency.explanation.lowercased())")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
@@ -7910,18 +7951,19 @@ private struct MachinistManagementView: View {
         let training = (session?.machinistTrainings ?? []).first(where: {
             $0.machinistID == machinist.id && $0.isPending
         })
-        let serviceRestUntil = (session?.machinistServiceAssignments ?? [])
+        let serviceRestWindow = (session?.machinistServiceAssignments ?? [])
             .filter { $0.machinistID == machinist.id }
             .compactMap { $0.actualEndAt }
             .max()
-            .map { $0.addingTimeInterval(MachinistWorkRules.minimumRestBetweenDutyBlocks) }
-            .flatMap { $0 > now ? $0 : nil }
-        let trainingRestUntil = (session?.machinistTrainings ?? [])
+            .map { MachinistRestWindow(sourceTitle: "le dernier service", activityEnd: $0) }
+        let trainingRestWindow = (session?.machinistTrainings ?? [])
             .filter { $0.machinistID == machinist.id && $0.cancelledAt == nil && $0.endsAt <= now }
-            .map { $0.endsAt.addingTimeInterval(MachinistWorkRules.minimumRestBetweenDutyBlocks) }
-            .filter { $0 > now }
-            .max()
-        let restUntil = [serviceRestUntil, trainingRestUntil].compactMap { $0 }.max()
+            .map { MachinistRestWindow(sourceTitle: "la dernière formation", activityEnd: $0.endsAt) }
+            .max { $0.activityEnd < $1.activityEnd }
+        let restWindow = [serviceRestWindow, trainingRestWindow]
+            .compactMap { $0 }
+            .filter { $0.availableAt > now }
+            .max { $0.availableAt < $1.availableAt }
 
         return HStack(spacing: 11) {
             Image(systemName: "person.fill")
@@ -7999,15 +8041,22 @@ private struct MachinistManagementView: View {
                 Label("Absence prévue", systemImage: "calendar")
                     .font(.caption.weight(.medium))
                     .foregroundStyle(.orange)
-            } else if let restUntil {
+            } else if let restWindow {
                 VStack(alignment: .trailing, spacing: 3) {
-                    Text("Repos jusqu’à \(restUntil.formatted(date: .omitted, time: .shortened))")
+                    Label("Repos de jeu · \(restWindow.remainingText(at: now))", systemImage: "moon.zzz")
                         .font(.caption.weight(.medium))
+                        .foregroundStyle(.orange)
+                    Text("Disponible le \(restWindow.availableAt.formatted(date: .abbreviated, time: .shortened))")
+                        .font(.caption.monospacedDigit())
                         .foregroundStyle(.secondary)
-                    Text("Minimum de jeu · \(MachinistWorkRules.minimumRestHours) h")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                    Text("\(MachinistWorkRules.minimumRestHours) h après \(restWindow.sourceTitle) · règle de jeu")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityElement(children: .combine)
+                .accessibilityHint("Le repos minimum est une règle de simulation, pas une vérification réglementaire.")
+                .help("Repos de jeu calculé après le dernier service ou la dernière formation terminée.")
             } else {
                 Label("Disponible", systemImage: "checkmark.circle")
                     .font(.caption.weight(.medium))
