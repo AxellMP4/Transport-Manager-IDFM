@@ -1,3 +1,13 @@
+# Référence technique CATP du Crealis 18 m — 2 novembre 2026
+
+- Nouveauté : ajout au catalogue d’une fiche de référence Iveco Bus Crealis articulé 18 m BHNS mild-hybrid GNV. La fiche CATP du lot 16 (accord-cadre 2023–2032) documente 18,480 × 2,50 × 3,30 m, 43 places assises, 169 voyageurs, moteur thermique 265 kW, hybridation 48 V, batterie 1 kWh et réservoirs de 1 280/1 610/1 940 L. [Fiche technique CATP](https://www.catp.fr/wp-content/uploads/2024/06/FP-IVECO-autobus-GNV-Mild-Hybrid-18m-BHNS.pdf) · [notice CATP](https://www.catp.fr/bus_et_cars/autobus-articule-gnv-mild-hybride-bhns-iveco-bus-crealis-18m).
+- Le CATP établit une référence d’achat, pas son exploitation en Île-de-France. Aucun prix unitaire ni disponibilité à la vente n’est documenté : aucune offre n’est créée et le critère de complétude du catalogue régional reste ouvert.
+- Vérification test-first : `sh Scripts/validate-vehicle-market-catalog-reference.sh` échouait avant l’entrée du modèle puis passe; le smoke vérifie la source, les données techniques et l’absence d’offre en 2024/2026. Analyse syntaxique Swift, syntaxe shell et `git diff --check` passent.
+- Le build Debug macOS universel, destination `platform=macOS`, termine au code 0 dans `/private/tmp/TransitCityContinuationDebug`; `lipo` confirme `x86_64 arm64` et Info.plist est valide.
+- Le paquet jouable local a été rebâti depuis ce produit, signé ad hoc et extrait à neuf. `unzip -tq`, `codesign --verify --deep --strict`, Info.plist, `lipo`, comparaison du binaire extrait et les 18 fragments GTFS passent; aucune entrée AppleDouble n’est incluse. Les archives racine et `build/Debug` sont identiques : 173 434 800 octets, SHA-256 `e3f31efe13301c45ff8208bd1858cd465de3935e4db4aa6311879a917be78da2`. Signature ad hoc uniquement; pas de Developer ID ni de notarisation.
+- Le code, le smoke, son validateur et cette mise à jour sont publiés sur `main`. Aucun changement carburant n’est réalisé tant que la proposition de règle de jeu est sans réponse.
+- Le dernier repère macro reste 3/9 jalons (33,3 % de ces jalons uniquement, pas un pourcentage global); l’estimation historique du travail restant reste 25–45 jours d’ingénierie concentrée (5–9 semaines pour une personne).
+
 # Nouvelle tentative de recette iPhone — 2 novembre 2026
 
 - Nouveauté de cette reprise : validation de la build générique iOS Simulator depuis le worktree courant (`arm64` et `x86_64`, iOS minimum 17.0). Aucun changement de fonctionnalité du jeu n’a été nécessaire; le point prioritaire était la recette visuelle compacte.
