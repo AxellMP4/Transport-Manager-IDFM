@@ -156,6 +156,10 @@ struct PassengerOperationsReportView: View {
 
     private var satisfactionSection: some View {
         let satisfaction = snapshot.satisfaction
+        let leftBehindCount = satisfaction.access.leftBehindArrivals
+        let leftBehindDescription = leftBehindCount == 1
+            ? "voyageur laissé à quai"
+            : "voyageurs laissés à quai"
         return GroupBox("Satisfaction voyageurs · estimation") {
             VStack(alignment: .leading, spacing: 12) {
                 ViewThatFits(in: .horizontal) {
@@ -174,7 +178,7 @@ struct PassengerOperationsReportView: View {
                 satisfactionComponentRow(
                     title: "Accès à bord",
                     score: satisfaction.access.score,
-                    detail: "\(satisfaction.access.boardedArrivals.formatted()) montées / \(satisfaction.access.observedArrivalCount.formatted()) arrivées documentées · \(satisfaction.access.sampleCount.formatted()) arrêts · montées ÷ (montées + laissés à quai)"
+                    detail: "\(satisfaction.access.boardedArrivals.formatted()) montées · \(leftBehindCount.formatted()) \(leftBehindDescription) · \(satisfaction.access.sampleCount.formatted()) arrêts observés · montées ÷ (montées + laissés à quai)"
                 )
                 satisfactionComponentRow(
                     title: "Confort de charge",
