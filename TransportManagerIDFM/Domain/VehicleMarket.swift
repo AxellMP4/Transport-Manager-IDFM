@@ -322,6 +322,65 @@ struct VehicleMarketOffer: Codable, Hashable, Identifiable, Sendable {
     let priceBasis: String
 }
 
+enum VehicleNegotiationResponse: Codable, Hashable, Sendable {
+    case accepted(priceEuro: Int)
+    case counterOffered(priceEuro: Int)
+    case refused
+    case declined
+    case purchased(priceEuro: Int)
+    case expired
+}
+
+struct VehicleNegotiationRecord: Codable, Hashable, Identifiable, Sendable {
+    let offerID: String
+    let proposedPriceEuro: Int
+    var response: VehicleNegotiationResponse
+    let createdAt: Date
+    let expiresAt: Date?
+
+    var id: String { offerID }
+
+    func response(at date: Date) -> VehicleNegotiationResponse {
+        switch response {
+        case .accepted, .counterOffered:
+            guard let expiresAt, date < expiresAt else { return .expired }
+            return response
+        default:
+            return response
+        }
+    }
+}
+
+enum VehicleMarketNegotiationRules {
+    static let responseValidity: TimeInterval = 48 * 60 * 60
+
+    static func response(
+        for offer: VehicleMarketOffer,
+        proposedPriceEuro: Int
+    ) -> VehicleNegotiationResponse? {
+        guard offer.askingPrice > 0,
+              proposedPriceEuro > 0,
+              proposedPriceEuro < offer.askingPrice else {
+            return nil
+        }
+
+        let reservationPrice = min(
+            offer.askingPrice,
+            max(offer.estimatedPriceLow, Int((Double(offer.askingPrice) * 0.9).rounded(.down)))
+        )
+        guard reservationPrice > 0 else { return nil }
+        if proposedPriceEuro >= reservationPrice {
+            return .accepted(priceEuro: proposedPriceEuro)
+        }
+
+        let counterofferThreshold = max(1, Int((Double(reservationPrice) * 0.85).rounded(.up)))
+        if proposedPriceEuro >= counterofferThreshold {
+            return .counterOffered(priceEuro: reservationPrice)
+        }
+        return .refused
+    }
+}
+
 struct VehicleMarketInspectionFinding: Codable, Hashable, Identifiable, Sendable {
     let id: String
     let title: String
@@ -1160,8 +1219,10 @@ enum VehicleMarketCatalog {
     static func ownershipCostEstimate(
         for offer: VehicleMarketOffer,
         model: VehicleMarketModel,
-        startingAt date: Date
+        startingAt date: Date,
+        acquisitionPriceEuro: Int? = nil
     ) -> VehicleOwnershipCostEstimate {
+        let acquisitionPrice = max(0, acquisitionPriceEuro ?? offer.askingPrice)
         let horizonKilometers = ownershipCostHorizonKilometers
         let energy = energyEstimate(for: model)
         let energyCost = Int((energy.estimatedCostPer100KilometersEuro * Double(horizonKilometers) / 100).rounded())
@@ -1183,7 +1244,7 @@ enum VehicleMarketCatalog {
             modelYear: offer.vehicleYear,
             odometerKilometers: max(0, offer.odometerKilometers) + horizonKilometers,
             conditionPercent: 100,
-            purchasePrice: offer.askingPrice,
+            purchasePrice: acquisitionPrice,
             deliveryAt: date,
             status: .atDepot
         )
@@ -1194,7 +1255,7 @@ enum VehicleMarketCatalog {
         return VehicleOwnershipCostEstimate(
             horizonKilometers: horizonKilometers,
             horizonYears: ownershipCostHorizonYears,
-            acquisitionCostEuro: offer.askingPrice,
+            acquisitionCostEuro: acquisitionPrice,
             energyCostEuro: energyCost,
             maintenanceCostEuro: initialRestorationCost + scheduledMaintenanceCost,
             maintenanceKitsCostEuro: maintenanceKitsCost,

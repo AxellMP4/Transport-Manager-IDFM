@@ -10,6 +10,10 @@ rg -Fq 'VehicleMarketDepotCompatibilityRules.presentation(for: energyReadiness)'
 rg -Fq '.accessibilityIdentifier("vehicleMarketDepotCompatibility")' "$market_view"
 rg -Fq '.searchable(' "$market_view"
 rg -Fq 'VehicleMarketCatalog.matchesCatalogSearch(model, query: normalizedCatalogSearch)' "$market_view"
+rg -Fq 'Label("Négocier", systemImage:' "$market_view"
+rg -Fq '.accessibilityIdentifier("vehicleMarketNegotiationPrice")' "$market_view"
+rg -Fq '.accessibilityIdentifier("vehicleMarketNegotiationResult")' "$market_view"
+rg -Fq 'règles déterministes de jeu' "$market_view"
 
 mkdir -p "$temporary_directory/swift-modules" "$temporary_directory/clang-modules"
 

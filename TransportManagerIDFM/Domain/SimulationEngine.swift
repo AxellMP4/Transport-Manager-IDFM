@@ -6,6 +6,9 @@ enum SimulationEngineError: LocalizedError {
     case marketUnavailable
     case unknownMarketOffer
     case exhaustedMarketOffer
+    case invalidVehicleNegotiationOffer
+    case vehicleNegotiationAwaitingResponse
+    case vehicleNegotiationUnavailable
     case insufficientCapital(required: Int, available: Int)
     case depotEnergyInfrastructureRequired(DepotEnergyInfrastructureKind)
     case depotEnergyInfrastructureUnavailable
@@ -89,6 +92,12 @@ enum SimulationEngineError: LocalizedError {
             "Cette offre n’appartient pas au marché épinglé à la partie."
         case .exhaustedMarketOffer:
             "Cette offre n’a plus de véhicule en stock."
+        case .invalidVehicleNegotiationOffer:
+            "Proposez un montant positif inférieur au prix demandé."
+        case .vehicleNegotiationAwaitingResponse:
+            "Une réponse de négociation attend votre décision. Acceptez-la ou refusez-la avant un achat direct."
+        case .vehicleNegotiationUnavailable:
+            "Cette réponse de négociation n’est plus disponible. Proposez un nouveau montant."
         case let .insufficientCapital(required, available):
             "Capital insuffisant : achat à \(required.formatted()) €, solde de \(available.formatted()) €."
         case let .depotEnergyInfrastructureRequired(infrastructure):
@@ -1759,6 +1768,7 @@ struct SimulationSession: Codable, Hashable, Identifiable, Sendable {
     var workshopPartOrders: [VehicleWorkshopPartOrder]?
     var depotEnergyInfrastructureProjects: [DepotEnergyInfrastructureProject]? = nil
     var marketOffers: [VehicleMarketOffer]?
+    var vehicleNegotiations: [VehicleNegotiationRecord]? = nil
     var purchasedOfferQuantities: [String: Int]?
     var ledgerEntries: [SimulationLedgerEntry]?
     var tripDistanceRecords: [TripDistanceRecord]?
@@ -2477,6 +2487,7 @@ final class SimulationEngine: ObservableObject {
             workshopPartOrders: [],
             depotEnergyInfrastructureProjects: [],
             marketOffers: VehicleMarketCatalog.offers(for: gameYear),
+            vehicleNegotiations: [],
             purchasedOfferQuantities: [:],
             ledgerEntries: [SimulationLedgerEntry(
                 id: "initial-workshop-parts",
@@ -3901,6 +3912,91 @@ final class SimulationEngine: ObservableObject {
     }
 
     func purchaseVehicle(offerID: String) throws {
+        try completeVehiclePurchase(offerID: offerID, acceptedNegotiation: nil)
+    }
+
+    @discardableResult
+    func proposeVehicleNegotiation(offerID: String, proposedPriceEuro: Int) throws -> VehicleNegotiationRecord {
+        guard var activeSession = session,
+              let offer = activeSession.marketOffers?.first(where: { $0.id == offerID }) else {
+            throw SimulationEngineError.unknownMarketOffer
+        }
+
+        var negotiations = activeSession.vehicleNegotiations ?? []
+        if let existingIndex = negotiations.firstIndex(where: { $0.offerID == offerID }) {
+            switch negotiations[existingIndex].response(at: activeSession.simulatedAt) {
+            case .accepted, .counterOffered:
+                throw SimulationEngineError.vehicleNegotiationAwaitingResponse
+            case .purchased, .refused, .declined, .expired:
+                break
+            }
+        }
+
+        guard let response = VehicleMarketNegotiationRules.response(
+            for: offer,
+            proposedPriceEuro: proposedPriceEuro
+        ) else {
+            throw SimulationEngineError.invalidVehicleNegotiationOffer
+        }
+        let expiresAt: Date?
+        switch response {
+        case .accepted, .counterOffered:
+            expiresAt = activeSession.simulatedAt.addingTimeInterval(VehicleMarketNegotiationRules.responseValidity)
+        default:
+            expiresAt = nil
+        }
+        let record = VehicleNegotiationRecord(
+            offerID: offerID,
+            proposedPriceEuro: proposedPriceEuro,
+            response: response,
+            createdAt: activeSession.simulatedAt,
+            expiresAt: expiresAt
+        )
+        if let existingIndex = negotiations.firstIndex(where: { $0.offerID == offerID }) {
+            negotiations[existingIndex] = record
+        } else {
+            negotiations.append(record)
+        }
+        activeSession.vehicleNegotiations = negotiations
+        session = activeSession
+        save()
+        return record
+    }
+
+    func declineVehicleNegotiation(offerID: String) throws {
+        guard var activeSession = session,
+              var negotiations = activeSession.vehicleNegotiations,
+              let index = negotiations.firstIndex(where: { $0.offerID == offerID }) else {
+            throw SimulationEngineError.vehicleNegotiationUnavailable
+        }
+        switch negotiations[index].response(at: activeSession.simulatedAt) {
+        case .accepted, .counterOffered:
+            negotiations[index].response = .declined
+            activeSession.vehicleNegotiations = negotiations
+            session = activeSession
+            save()
+        default:
+            throw SimulationEngineError.vehicleNegotiationUnavailable
+        }
+    }
+
+    func acceptVehicleNegotiation(offerID: String) throws {
+        guard let activeSession = session,
+              let negotiation = activeSession.vehicleNegotiations?.first(where: { $0.offerID == offerID }) else {
+            throw SimulationEngineError.vehicleNegotiationUnavailable
+        }
+        switch negotiation.response(at: activeSession.simulatedAt) {
+        case .accepted, .counterOffered:
+            try completeVehiclePurchase(offerID: offerID, acceptedNegotiation: negotiation)
+        default:
+            throw SimulationEngineError.vehicleNegotiationUnavailable
+        }
+    }
+
+    private func completeVehiclePurchase(
+        offerID: String,
+        acceptedNegotiation expectedNegotiation: VehicleNegotiationRecord?
+    ) throws {
         guard var activeSession = session,
               let cashBalance = activeSession.cashBalance,
               let marketOffers = activeSession.marketOffers,
@@ -3913,6 +4009,30 @@ final class SimulationEngine: ObservableObject {
               let model = VehicleMarketCatalog.model(id: offer.modelID) else {
             throw SimulationEngineError.unknownMarketOffer
         }
+        var negotiations = activeSession.vehicleNegotiations ?? []
+        let negotiationIndex = negotiations.firstIndex(where: { $0.offerID == offerID })
+        let purchasePrice: Int
+        if let expectedNegotiation {
+            guard let negotiationIndex, negotiations[negotiationIndex] == expectedNegotiation else {
+                throw SimulationEngineError.vehicleNegotiationUnavailable
+            }
+            switch expectedNegotiation.response(at: activeSession.simulatedAt) {
+            case let .accepted(priceEuro), let .counterOffered(priceEuro):
+                purchasePrice = priceEuro
+            default:
+                throw SimulationEngineError.vehicleNegotiationUnavailable
+            }
+        } else {
+            if let negotiationIndex {
+                switch negotiations[negotiationIndex].response(at: activeSession.simulatedAt) {
+                case .accepted, .counterOffered:
+                    throw SimulationEngineError.vehicleNegotiationAwaitingResponse
+                default:
+                    break
+                }
+            }
+            purchasePrice = offer.askingPrice
+        }
         guard activeSession.depotEnergyReadiness(for: model.energy.depotInfrastructure, depotID: activeSession.effectiveActiveDepotID).isReady else {
             throw SimulationEngineError.depotEnergyInfrastructureRequired(model.energy.depotInfrastructure)
         }
@@ -3923,8 +4043,8 @@ final class SimulationEngine: ObservableObject {
         }
         let purchasedCount = purchasedQuantities[offer.id, default: 0]
         guard purchasedCount < offer.initialStock else { throw SimulationEngineError.exhaustedMarketOffer }
-        guard cashBalance >= offer.askingPrice else {
-            throw SimulationEngineError.insufficientCapital(required: offer.askingPrice, available: cashBalance)
+        guard cashBalance >= purchasePrice else {
+            throw SimulationEngineError.insufficientCapital(required: purchasePrice, available: cashBalance)
         }
 
         let deliveryAt = activeSession.simulatedAt.addingTimeInterval(Double(offer.deliveryDays) * 24 * 60 * 60)
@@ -3943,7 +4063,7 @@ final class SimulationEngine: ObservableObject {
             modelYear: offer.vehicleYear,
             odometerKilometers: offer.odometerKilometers,
             conditionPercent: offer.conditionPercent,
-            purchasePrice: offer.askingPrice,
+            purchasePrice: purchasePrice,
             deliveryAt: deliveryAt,
             status: .inDelivery,
             coquilleNumber: String(format: "JEU-%03d", highestAssignedFleetNumber + 1),
@@ -3956,8 +4076,8 @@ final class SimulationEngine: ObservableObject {
             id: UUID().uuidString,
             occurredAt: activeSession.simulatedAt,
             category: "Achat de véhicule",
-            description: "\(model.displayName) — offre \(offer.condition.title.lowercased())",
-            amount: -offer.askingPrice,
+            description: "\(model.displayName) — offre \(offer.condition.title.lowercased())\(purchasePrice == offer.askingPrice ? "" : " · prix négocié selon la règle de jeu")",
+            amount: -purchasePrice,
             depotID: activeSession.effectiveActiveDepotID
         ))
 
@@ -3969,14 +4089,17 @@ final class SimulationEngine: ObservableObject {
         activeSession.nextEventSequence &+= 1
         activeSession.pendingEvents.append(deliveryEvent)
         activeSession.pendingEvents.sort(by: Self.eventOrder)
-        activeSession.cashBalance = cashBalance - offer.askingPrice
+        activeSession.cashBalance = cashBalance - purchasePrice
         activeSession.ownedBuses = ownedBuses
         activeSession.purchasedOfferQuantities = purchasedQuantities
         activeSession.ledgerEntries = ledgerEntries
+        if let negotiationIndex, expectedNegotiation != nil {
+            negotiations[negotiationIndex].response = .purchased(priceEuro: purchasePrice)
+            activeSession.vehicleNegotiations = negotiations
+        }
         session = activeSession
         save()
     }
-
     func sellVehicle(vehicleID: String, quotedValue: Int) throws {
         guard var activeSession = session,
               let cashBalance = activeSession.cashBalance,

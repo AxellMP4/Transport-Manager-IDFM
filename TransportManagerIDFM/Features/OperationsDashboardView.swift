@@ -6250,6 +6250,18 @@ struct DepotAssignmentManagerView: View {
 }
 
 private struct VehicleMarketView: View {
+    private enum PresentedVehicleSheet: Identifiable {
+        case inspection(VehicleMarketInspectionReport)
+        case negotiation(VehicleMarketOffer)
+
+        var id: String {
+            switch self {
+            case let .inspection(report): "inspection-\(report.id)"
+            case let .negotiation(offer): "negotiation-\(offer.id)"
+            }
+        }
+    }
+
     private enum PendingConfirmation {
         case purchase(VehicleMarketOffer)
         case maintenance(PurchasedBus)
@@ -6265,7 +6277,7 @@ private struct VehicleMarketView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var pendingConfirmation: PendingConfirmation?
     @State private var vehicleCatalogSearchText = ""
-    @State private var inspectionReport: VehicleMarketInspectionReport?
+    @State private var presentedVehicleSheet: PresentedVehicleSheet?
     @State private var inspectedUsedOfferIDs = Set<String>()
     @State private var operationErrorMessage: String?
     @State private var calculatingDepotReturnBusID: String?
@@ -6485,9 +6497,19 @@ private struct VehicleMarketView: View {
                     EmptyView()
                 }
             }
-            .sheet(item: $inspectionReport) { report in
-                VehicleMarketInspectionSheet(report: report) {
-                    inspectedUsedOfferIDs.insert(report.offerID)
+            .sheet(item: $presentedVehicleSheet) { presentedSheet in
+                switch presentedSheet {
+                case let .inspection(report):
+                    VehicleMarketInspectionSheet(report: report) {
+                        inspectedUsedOfferIDs.insert(report.offerID)
+                    }
+                case let .negotiation(offer):
+                    VehicleNegotiationProposalSheet(
+                        offer: offer,
+                        cashBalance: session?.cashBalance ?? 0
+                    ) { proposedPriceEuro in
+                        proposeVehicleNegotiation(offerID: offer.id, proposedPriceEuro: proposedPriceEuro)
+                    }
                 }
             }
             .alert("Opération impossible", isPresented: Binding(
@@ -6952,12 +6974,32 @@ private struct VehicleMarketView: View {
         let remainingStock = max(0, offer.initialStock - purchasedCount)
         let cash = session?.cashBalance ?? 0
         let energyReadiness = session?.depotEnergyReadiness(for: model.energy.depotInfrastructure, depotID: activeDepotID)
+        let negotiation = session?.vehicleNegotiations?.first(where: { $0.offerID == offer.id })
+        let negotiationResponse = negotiation.flatMap { record in
+            session.map { record.response(at: $0.simulatedAt) }
+        }
+        let negotiatedAcquisitionPrice: Int? = {
+            guard let negotiationResponse else { return nil }
+            switch negotiationResponse {
+            case let .accepted(priceEuro), let .counterOffered(priceEuro), let .purchased(priceEuro):
+                return priceEuro
+            default:
+                return nil
+            }
+        }()
         let ownershipCost = VehicleMarketCatalog.ownershipCostEstimate(
             for: offer,
             model: model,
-            startingAt: session?.simulatedAt ?? Date()
+            startingAt: session?.simulatedAt ?? Date(),
+            acquisitionPriceEuro: negotiatedAcquisitionPrice
         )
         let inspectionCompleted = inspectedUsedOfferIDs.contains(offer.id)
+        let awaitingNegotiationDecision: Bool = {
+            switch negotiationResponse {
+            case .accepted, .counterOffered: true
+            default: false
+            }
+        }()
 
         return VStack(alignment: .leading, spacing: 13) {
             HStack(alignment: .top, spacing: 12) {
@@ -7009,6 +7051,18 @@ private struct VehicleMarketView: View {
                 .background(Color.accentColor.opacity(0.045), in: RoundedRectangle(cornerRadius: 9))
             }
 
+
+            if let negotiation, let negotiationResponse {
+                negotiationResult(
+                    negotiation,
+                    response: negotiationResponse,
+                    offer: offer,
+                    remainingStock: remainingStock,
+                    cash: cash,
+                    energyReady: energyReadiness?.isReady == true,
+                    inspectionCompleted: offer.condition != .used || inspectionCompleted
+                )
+            }
             HStack(spacing: 14) {
                 Label(model.maximumCapacity.map { "\($0) places max. · fiche" } ?? "Capacité source à documenter", systemImage: "person.2")
                 if let seatedCapacity = model.seatedCapacity {
@@ -7161,12 +7215,21 @@ private struct VehicleMarketView: View {
                     .accessibilityHint("Ouvre une estimation séparée de l’état et de la remise en état. Aucun achat n’est effectué.")
                 }
                 Button {
+                    presentedVehicleSheet = .negotiation(offer)
+                } label: {
+                    Label("Négocier", systemImage: "bubble.left.and.bubble.right")
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("vehicleMarketNegotiate")
+                .accessibilityHint("Propose un prix au vendeur simulé. Aucun achat n’est effectué avant une confirmation séparée.")
+                .disabled(remainingStock == 0 || awaitingNegotiationDecision)
+                Button {
                     pendingConfirmation = .purchase(offer)
                 } label: {
                     Label("Acheter", systemImage: "cart.badge.plus")
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(remainingStock == 0 || cash < offer.askingPrice || session?.cashBalance == nil || energyReadiness?.isReady != true || (offer.condition == .used && !inspectionCompleted) || (model.energy == .electric && session?.energySimulationVersion != nil && (session?.installedChargingPointCount(for: activeDepotID) ?? 0) == 0))
+                .disabled(remainingStock == 0 || cash < offer.askingPrice || session?.cashBalance == nil || energyReadiness?.isReady != true || (offer.condition == .used && !inspectionCompleted) || awaitingNegotiationDecision || (model.energy == .electric && session?.energySimulationVersion != nil && (session?.installedChargingPointCount(for: activeDepotID) ?? 0) == 0))
             }
 
             VStack(alignment: .leading, spacing: 5) {
@@ -7202,6 +7265,127 @@ private struct VehicleMarketView: View {
         }
     }
 
+    private func negotiationResult(
+        _ negotiation: VehicleNegotiationRecord,
+        response: VehicleNegotiationResponse,
+        offer: VehicleMarketOffer,
+        remainingStock: Int,
+        cash: Int,
+        energyReady: Bool,
+        inspectionCompleted: Bool
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 9) {
+            switch response {
+            case let .accepted(priceEuro):
+                Label("Le vendeur simulé accepte \(currency(priceEuro))", systemImage: "checkmark.seal")
+                    .font(.subheadline.weight(.semibold))
+                Text("Votre proposition : \(currency(negotiation.proposedPriceEuro)). Réponse valable 48 heures simulées.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                negotiationPurchaseControls(
+                    title: "Acheter au prix accepté · \(currency(priceEuro))",
+                    priceEuro: priceEuro,
+                    offer: offer,
+                    remainingStock: remainingStock,
+                    cash: cash,
+                    energyReady: energyReady,
+                    inspectionCompleted: inspectionCompleted
+                )
+            case let .counterOffered(priceEuro):
+                Label("Contre-offre simulée · \(currency(priceEuro))", systemImage: "arrow.left.arrow.right")
+                    .font(.subheadline.weight(.semibold))
+                Text("Votre proposition : \(currency(negotiation.proposedPriceEuro)). Cette contre-offre expire après 48 heures simulées.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                negotiationPurchaseControls(
+                    title: "Accepter et acheter · \(currency(priceEuro))",
+                    priceEuro: priceEuro,
+                    offer: offer,
+                    remainingStock: remainingStock,
+                    cash: cash,
+                    energyReady: energyReady,
+                    inspectionCompleted: inspectionCompleted
+                )
+            case .refused:
+                Label("Proposition refusée par le vendeur simulé", systemImage: "xmark.circle")
+                    .font(.subheadline.weight(.semibold))
+                Text("Aucun achat n’a été effectué. Vous pouvez proposer un autre montant.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            case .declined:
+                Label("Contre-offre refusée", systemImage: "hand.raised")
+                    .font(.subheadline.weight(.semibold))
+                Text("Aucun achat n’a été effectué. Vous pouvez faire une nouvelle proposition.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            case .expired:
+                Label("Réponse expirée", systemImage: "clock")
+                    .font(.subheadline.weight(.semibold))
+                Text("Le délai de 48 heures simulées est dépassé. Proposez un nouveau montant pour reprendre la négociation.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            case let .purchased(priceEuro):
+                Label("Bus commandé · \(currency(priceEuro))", systemImage: "checkmark.circle.fill")
+                    .font(.subheadline.weight(.semibold))
+                Text("Le prix enregistré dans la flotte, le grand livre et la trésorerie correspond au montant accepté.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Text("La réponse du vendeur, les seuils et les prix sont produits par des règles déterministes de jeu; ils ne décrivent pas une négociation ou des prix réels.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(11)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.accentColor.opacity(0.055), in: RoundedRectangle(cornerRadius: 10))
+        .accessibilityIdentifier("vehicleMarketNegotiationResult")
+    }
+
+    private func negotiationPurchaseControls(
+        title: String,
+        priceEuro: Int,
+        offer: VehicleMarketOffer,
+        remainingStock: Int,
+        cash: Int,
+        energyReady: Bool,
+        inspectionCompleted: Bool
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                Button {
+                    acceptVehicleNegotiation(offerID: offer.id)
+                } label: {
+                    Label(title, systemImage: "cart.badge.plus")
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(remainingStock == 0 || cash < priceEuro || !energyReady || !inspectionCompleted)
+
+                Button("Refuser", role: .destructive) {
+                    declineVehicleNegotiation(offerID: offer.id)
+                }
+                .buttonStyle(.bordered)
+            }
+            if remainingStock == 0 {
+                Text("Cette offre n’a plus de stock; le moteur vérifiera à nouveau le stock avant l’achat.")
+                    .font(.caption2)
+                    .foregroundStyle(.orange)
+            } else if cash < priceEuro {
+                Text("Trésorerie actuelle : \(currency(cash)). L’achat nécessite \(currency(priceEuro)); la réponse reste sans débit.")
+                    .font(.caption2)
+                    .foregroundStyle(.orange)
+            } else if !energyReady {
+                Text("Installez d’abord l’équipement requis au dépôt pour acheter ce véhicule.")
+                    .font(.caption2)
+                    .foregroundStyle(.orange)
+            } else if !inspectionCompleted {
+                Text("Consultez l’inspection estimée avant de confirmer l’achat de ce véhicule d’occasion.")
+                    .font(.caption2)
+                    .foregroundStyle(.orange)
+            }
+        }
+    }
+
     private func ownershipCostRow(_ title: String, amount: Int) -> some View {
         HStack {
             Text(title)
@@ -7221,7 +7405,7 @@ private struct VehicleMarketView: View {
             operationErrorMessage = "Seules les offres d’occasion peuvent recevoir cette estimation d’inspection."
             return
         }
-        inspectionReport = report
+        presentedVehicleSheet = .inspection(report)
     }
 
     @ViewBuilder
@@ -7440,6 +7624,31 @@ private struct VehicleMarketView: View {
         amount.formatted(.currency(code: "EUR").precision(.fractionLength(0)))
     }
 
+    private func proposeVehicleNegotiation(offerID: String, proposedPriceEuro: Int) {
+        do {
+            _ = try simulation.proposeVehicleNegotiation(offerID: offerID, proposedPriceEuro: proposedPriceEuro)
+            presentedVehicleSheet = nil
+        } catch {
+            operationErrorMessage = "Négociation : \(error.localizedDescription)"
+        }
+    }
+
+    private func acceptVehicleNegotiation(offerID: String) {
+        do {
+            try simulation.acceptVehicleNegotiation(offerID: offerID)
+        } catch {
+            operationErrorMessage = "Achat négocié : \(error.localizedDescription)"
+        }
+    }
+
+    private func declineVehicleNegotiation(offerID: String) {
+        do {
+            try simulation.declineVehicleNegotiation(offerID: offerID)
+        } catch {
+            operationErrorMessage = "Contre-offre : \(error.localizedDescription)"
+        }
+    }
+
     private func purchase(offerID: String) {
         do {
             try simulation.purchaseVehicle(offerID: offerID)
@@ -7496,6 +7705,113 @@ private struct VehicleMarketView: View {
             operationErrorMessage = "Vente : \(error.localizedDescription)"
             pendingConfirmation = nil
         }
+    }
+}
+
+private struct VehicleNegotiationProposalSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let offer: VehicleMarketOffer
+    let cashBalance: Int
+    let onPropose: (Int) -> Void
+    @State private var proposedPriceEuro: Int
+
+    init(offer: VehicleMarketOffer, cashBalance: Int, onPropose: @escaping (Int) -> Void) {
+        self.offer = offer
+        self.cashBalance = cashBalance
+        self.onPropose = onPropose
+        let maximumProposal = max(1, offer.askingPrice - 1)
+        _proposedPriceEuro = State(initialValue: max(1, min(offer.estimatedPriceLow, maximumProposal)))
+    }
+
+    private var isProposalValid: Bool {
+        proposedPriceEuro > 0 && proposedPriceEuro < offer.askingPrice
+    }
+
+    private var responsePreview: String {
+        guard let response = VehicleMarketNegotiationRules.response(
+            for: offer,
+            proposedPriceEuro: proposedPriceEuro
+        ) else {
+            return "Saisissez un montant positif, inférieur au prix demandé."
+        }
+        return switch response {
+        case .accepted:
+            "Le vendeur simulé accepterait ce montant."
+        case let .counterOffered(priceEuro):
+            "Le vendeur simulé proposerait \(currency(priceEuro))."
+        case .refused:
+            "Le vendeur simulé refuserait ce montant."
+        case .declined, .purchased, .expired:
+            "Une nouvelle réponse sera calculée pour cette offre."
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    GroupBox("Références de l’offre") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            LabeledContent("Prix demandé", value: currency(offer.askingPrice))
+                            LabeledContent("Fourchette estimée", value: "\(currency(offer.estimatedPriceLow))–\(currency(offer.estimatedPriceHigh))")
+                            LabeledContent("Confiance", value: offer.estimateConfidence.title)
+                            LabeledContent("Trésorerie", value: currency(cashBalance))
+                        }
+                        .padding(.top, 4)
+                    }
+
+                    GroupBox("Votre proposition") {
+                        VStack(alignment: .leading, spacing: 10) {
+                            TextField("Montant proposé en euros", value: $proposedPriceEuro, format: .number.grouping(.never))
+                                .font(.title3.monospacedDigit())
+                                .textFieldStyle(.roundedBorder)
+                                .accessibilityLabel("Montant proposé en euros")
+                                .accessibilityIdentifier("vehicleMarketNegotiationPrice")
+                                #if os(iOS)
+                                .keyboardType(.numberPad)
+                                #endif
+                            Text(responsePreview)
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(.primary)
+                                .accessibilityIdentifier("vehicleMarketNegotiationPreview")
+                        }
+                        .padding(.top, 4)
+                    }
+
+                    Text("Le vendeur simulé accepte à partir du seuil le plus élevé entre 90 % du prix demandé et la borne basse estimée, plafonné au prix demandé. Entre 85 % de ce seuil et le seuil, il contre-propose le seuil; en dessous, il refuse. Ces règles déterministes de jeu ne représentent ni un vendeur réel ni des prix de marché. La réponse est valable 48 heures simulées; proposer un prix ne débite rien et ne commande pas le bus.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(13)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.accentColor.opacity(0.055), in: RoundedRectangle(cornerRadius: 11))
+                        .accessibilityIdentifier("vehicleMarketNegotiationRules")
+                }
+                .padding(20)
+                .frame(maxWidth: 620, alignment: .leading)
+                .frame(maxWidth: .infinity)
+            }
+            .navigationTitle("Négocier l’offre")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Annuler") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Proposer") {
+                        onPropose(proposedPriceEuro)
+                        dismiss()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(!isProposalValid)
+                    .accessibilityIdentifier("vehicleMarketNegotiationPropose")
+                }
+            }
+        }
+        .platformSheetFrame(minWidth: 440, minHeight: 430)
+    }
+
+    private func currency(_ amount: Int) -> String {
+        amount.formatted(.currency(code: "EUR").precision(.fractionLength(0)))
     }
 }
 
