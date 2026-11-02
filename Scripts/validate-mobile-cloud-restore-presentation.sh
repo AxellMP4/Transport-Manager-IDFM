@@ -33,8 +33,8 @@ import sys
 
 source = Path(sys.argv[1]).read_text()
 pattern = re.compile(
-    r"\\.onChange\\(of:\\s*simulation\\.session\\?\\.effectiveActiveDepotID\\)\\s*"
-    r"\\{\\s*_,\\s*activeDepotID\\s+in(?P<body>.*?)\\n\\s*\\.onChange\\(of:\\s*selectedWorkspaceTab\\)",
+    r"\.onChange\(of:\s*simulation\.session\?\.effectiveActiveDepotID\)\s*"
+    r"\{\s*_,\s*activeDepotID\s+in(?P<body>.*?)\n\s*\.onChange\(of:\s*selectedWorkspaceTab\)",
     re.DOTALL,
 )
 match = pattern.search(source)

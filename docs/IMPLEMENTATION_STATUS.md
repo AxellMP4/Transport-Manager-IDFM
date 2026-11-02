@@ -4,6 +4,7 @@
 - Le smoke `sh Scripts/validate-mobile-cloud-restore-presentation.sh` a échoué avant le raccordement puis passe avec le contrôle de persistance CloudKit déjà couvert. `git diff --check`, `sh -n` du script et `plutil -lint` du projet passent.
 - Le build Debug macOS générique non signé termine au code 0 : architecture `x86_64 arm64`, Info.plist valide, DerivedData dans `/private/tmp/TransitCityCloudDepotRestoreDebug`. CoreSimulator a refusé sa connexion pendant le build; le lancement visuel iPhone n’a pas été effectué.
 - Dépendances externes inchangées : essai réel Mac/iPhone avec le même compte iCloud et une équipe Apple capable de provisionner CloudKit, revue visuelle compacte iPhone, preuves ligne–COB, annexes DSP45 et données PRIM authentifiées restent non vérifiés ou indisponibles.
+- Le correctif, son smoke et le suivi sont publiés sur `main` en fast-forward; le téléchargement de données GTFS et les paquets locaux ne sont pas inclus.
 - Le dernier audit macro disponible reste à 3/9 jalons (33,3 % de ces jalons uniquement, pas un pourcentage global du jeu). L’estimation historique du travail restant reste 25–45 jours concentrés (environ 5–9 semaines pour une personne); cette correction ciblée ne permet pas de la recalibrer.
 
 # Négociation d’une offre de véhicule — 2 novembre 2026
