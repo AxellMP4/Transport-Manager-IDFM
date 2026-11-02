@@ -1108,8 +1108,7 @@ struct DepotDirectoryWorkspaceView: View {
     private var selectedSiteLineCoverage: DepotLineCoverage {
         library.depotLineCoverage(
             depotID: directorySelectedDepotID,
-            serviceDate: serviceDate,
-            operatedRouteIDs: operatedRouteIDsForDepot(directorySelectedDepotID)
+            serviceDate: serviceDate
         )
     }
 
@@ -2219,8 +2218,7 @@ private struct DepotRegionalCoverageAuditView: View {
             })
             let coverage = library.depotLineCoverage(
                 depotID: site.id,
-                serviceDate: serviceDate,
-                operatedRouteIDs: operatedRouteIDsForDepot(site.id)
+                serviceDate: serviceDate
             )
             let serviceAudit = serviceAudits[site.id]
             let serviceAuditError = sharedServiceAuditError

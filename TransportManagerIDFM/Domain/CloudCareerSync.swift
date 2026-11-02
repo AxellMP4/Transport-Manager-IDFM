@@ -32,6 +32,20 @@ enum CloudCareerSyncPolicy {
         remoteUpdatedAt > localUpdatedAt
     }
 
+    static func serverRetryAfterSeconds(for error: CKError) -> TimeInterval? {
+        guard supportsServerRetryAfter(error),
+              let retryAfterSeconds = error.retryAfterSeconds,
+              retryAfterSeconds.isFinite,
+              retryAfterSeconds > 0 else {
+            return nil
+        }
+        return retryAfterSeconds
+    }
+
+    static func supportsServerRetryAfter(_ error: CKError) -> Bool {
+        error.code == .requestRateLimited || error.code == .serviceUnavailable
+    }
+
     @MainActor
     static func resolvePreferCloudChoice(
         preserveLocal: @MainActor () async throws -> Void,
@@ -446,7 +460,22 @@ final class CloudCareerSyncManager: ObservableObject {
                 lastSyncedAt = Date()
             }
         } catch {
-            statusMessage = Self.userMessage(for: error)
+            if let cloudError = error as? CKError,
+               CloudCareerSyncPolicy.supportsServerRetryAfter(cloudError),
+               throttleRetryScheduler.scheduleIfThrottled(
+                   lastSuccessfulUploadAt: lastUploadAttemptAt,
+                   now: Date(),
+                   minimumInterval: Self.minimumUploadInterval,
+                   serverRetryAfter: CloudCareerSyncPolicy.serverRetryAfterSeconds(for: cloudError),
+                   retry: { [weak self, weak engine, weak library] in
+                       guard let self, let engine, let library else { return }
+                       await self.synchronize(with: engine, library: library)
+                   }
+               ) {
+                statusMessage = "iCloud a différé la synchronisation; une nouvelle tentative est programmée"
+            } else {
+                statusMessage = Self.userMessage(for: error)
+            }
         }
     }
 
@@ -710,6 +739,8 @@ final class CloudCareerSyncManager: ObservableObject {
             case .notAuthenticated: return "Connectez-vous à iCloud pour synchroniser cette carrière"
             case .quotaExceeded: return "Le stockage iCloud est plein; la carrière locale est conservée"
             case .networkUnavailable, .networkFailure: return "Réseau indisponible; la carrière reste sauvegardée sur cet appareil"
+            case .requestRateLimited: return "iCloud limite les requêtes; réessayez plus tard"
+            case .serviceUnavailable: return "iCloud est temporairement indisponible; réessayez plus tard"
             case .permissionFailure, .missingEntitlement: return "La capacité iCloud de l’app n’est pas provisionnée pour cette équipe Apple"
             default: return "Synchronisation iCloud impossible : \(cloudError.localizedDescription)"
             }
@@ -733,7 +764,12 @@ final class CloudSyncRetryScheduler {
     typealias ScheduleOperation = @MainActor (TimeInterval, @escaping RetryOperation) -> Cancellation
 
     private let scheduleOperation: ScheduleOperation
-    private var cancelPendingRetry: Cancellation?
+    private struct PendingRetry {
+        let id: UUID
+        let retryAt: Date
+        let cancellation: Cancellation
+    }
+    private var pendingRetry: PendingRetry?
 
     init(schedule: @escaping ScheduleOperation = CloudSyncRetryScheduler.scheduleWithTask) {
         scheduleOperation = schedule
@@ -744,29 +780,42 @@ final class CloudSyncRetryScheduler {
         lastSuccessfulUploadAt: Date?,
         now: Date,
         minimumInterval: TimeInterval,
+        serverRetryAfter: TimeInterval? = nil,
         retry: @escaping RetryOperation
     ) -> Bool {
-        guard let lastSuccessfulUploadAt else { return false }
-        let remainingInterval = minimumInterval - now.timeIntervalSince(lastSuccessfulUploadAt)
-        guard remainingInterval > 0 else { return false }
-        guard cancelPendingRetry == nil else { return true }
+        let remainingLocalInterval = lastSuccessfulUploadAt.map {
+            max(0, minimumInterval - now.timeIntervalSince($0))
+        } ?? 0
+        let requestedServerDelay = serverRetryAfter.flatMap { delay in
+            delay.isFinite && delay > 0 ? delay : nil
+        } ?? 0
+        let retryDelay = max(remainingLocalInterval, requestedServerDelay)
+        guard retryDelay > 0, retryDelay.isFinite else { return false }
 
-        cancelPendingRetry = scheduleOperation(remainingInterval) { [weak self] in
-            guard let self else { return }
-            self.cancelPendingRetry = nil
+        let retryAt = now.addingTimeInterval(retryDelay)
+        if let pendingRetry {
+            guard retryAt > pendingRetry.retryAt else { return true }
+            pendingRetry.cancellation()
+        }
+
+        let retryID = UUID()
+        let cancellation = scheduleOperation(retryDelay) { [weak self] in
+            guard let self, self.pendingRetry?.id == retryID else { return }
+            self.pendingRetry = nil
             await retry()
         }
+        pendingRetry = PendingRetry(id: retryID, retryAt: retryAt, cancellation: cancellation)
         return true
     }
 
     func cancel() {
-        let cancellation = cancelPendingRetry
-        cancelPendingRetry = nil
-        cancellation?()
+        let pendingRetry = self.pendingRetry
+        self.pendingRetry = nil
+        pendingRetry?.cancellation()
     }
 
     deinit {
-        cancelPendingRetry?()
+        pendingRetry?.cancellation()
     }
 
     private static func scheduleWithTask(after delay: TimeInterval, retry: @escaping RetryOperation) -> Cancellation {

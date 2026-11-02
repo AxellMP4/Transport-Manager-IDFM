@@ -78,6 +78,7 @@
 
 - [x] Add failing smoke coverage for all workspace mappings, playback controls, and compact hit targets; confirm RED before the 44-point and depot-navigation corrections.
 - [x] Verify the iOS 26 Liquid Glass tab accessory for pause/resume, speed, simulated time, and next event; keep equivalent 44-point controls on iOS 17–25.
+- [x] Keep speed, next event, and pause/resume in the iOS 26 inline placement by sharing the same 44-point control group with the expanded accessory.
 - [x] Adapt vehicle, staff, depot, line/timetable, and GTFS audit detail sheets to iPhone width while retaining their macOS minimum sizes and actions.
 - [x] Make pending GTFS departures navigate to a full-width assignment detail on compact iPhone; keep the fixed two-column departure/detail layout on macOS and wide iPad.
 - [x] Keep a persistent 44-point assignment action in the compact detail and return to the departure list after a successful assignment.

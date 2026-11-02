@@ -160,6 +160,20 @@ if ! rg -Fq 'Text(simulatedAt.formatted(date: .abbreviated, time: .shortened))' 
     exit 1
 fi
 
+compact_playback_accessory=$(sed -n '/private var compactContent:/,/private var expandedContent:/p' "$playback_accessory_source")
+if ! printf '%s\n' "$compact_playback_accessory" | rg -Fq 'playbackControls'; then
+    echo "The inline iOS 26 accessory must keep all playback commands reachable." >&2
+    exit 1
+fi
+
+shared_playback_controls=$(sed -n '/private var playbackControls:/,/private var status:/p' "$playback_accessory_source")
+if ! printf '%s\n' "$shared_playback_controls" | rg -Fq 'speedMenu' \
+    || ! printf '%s\n' "$shared_playback_controls" | rg -Fq 'advanceButton' \
+    || ! printf '%s\n' "$shared_playback_controls" | rg -Fq 'playbackButton'; then
+    echo "The shared iOS 26 accessory control group must include speed, next event, and pause/resume." >&2
+    exit 1
+fi
+
 for responsive_sheet in \
     '.platformSheetFrame(minWidth: 480, minHeight: 460)' \
     '.platformSheetFrame(minWidth: 500, minHeight: 380)' \

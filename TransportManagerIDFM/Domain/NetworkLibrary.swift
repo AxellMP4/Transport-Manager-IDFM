@@ -1271,8 +1271,7 @@ final class NetworkLibrary: ObservableObject {
 
     func depotLineCoverage(
         depotID: String,
-        serviceDate: Date,
-        operatedRouteIDs: Set<String> = []
+        serviceDate: Date
     ) -> DepotLineCoverage {
         let serviceDateKey = GTFSServiceDate.key(for: serviceDate, timeZone: GTFSServiceDate.parisTimeZone)
         let site = DepotLineRoster.selectableSites.first { $0.id == depotID }
@@ -1344,8 +1343,6 @@ final class NetworkLibrary: ObservableObject {
             if explicitID == nil && nameMatches.count > 1 { record.hadAmbiguousNameMatch = true }
             records[key] = record
         }
-
-        let canonicalOperatedRouteIDs = Set(operatedRouteIDs.map(LineReferenceMatcher.canonicalIdentifier))
 
         var linesWithGTFS = 0
         var routeVariantIDs = Set<String>()
@@ -1424,9 +1421,7 @@ final class NetworkLibrary: ObservableObject {
             }
 
             let rosterConfirmed = record.rows.contains { $0.evidenceStatus(on: serviceDate) == .confirmed }
-            let assignmentConfirmed = !Set(routeIDs.map(LineReferenceMatcher.canonicalIdentifier))
-                .isDisjoint(with: canonicalOperatedRouteIDs)
-            if !rosterConfirmed && !assignmentConfirmed { unconfirmedEvidenceCount += 1 }
+            if !rosterConfirmed { unconfirmedEvidenceCount += 1 }
         }
 
         return DepotLineCoverage(

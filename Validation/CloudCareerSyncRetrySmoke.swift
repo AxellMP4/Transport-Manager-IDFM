@@ -1,4 +1,5 @@
 import Foundation
+import CloudKit
 
 @main
 struct CloudCareerSyncRetrySmoke {
@@ -13,6 +14,9 @@ struct CloudCareerSyncRetrySmoke {
             policyFailures.append(failure)
         }
         await throttledUploadRetriesWithoutFurtherInput()
+        await requestRateLimitedUploadRetriesAfterServerDelay()
+        await serviceUnavailableRetriesAfterServerDelay()
+        await serverRateLimitDoesNotShortenLocalThrottle()
         await aNewerSuccessfulSyncCancelsTheRetry()
         await deallocationCancelsTheRetry()
         await aNewerRequestRunsAfterTheActiveSync()
@@ -103,6 +107,105 @@ struct CloudCareerSyncRetrySmoke {
         await queue.fireNext()
         precondition(attempts == 1, "The pending retry must run without another save or manual sync.")
         precondition(queue.pendingCount == 0, "The retry should be a single scheduled attempt.")
+    }
+
+    @MainActor
+    private static func requestRateLimitedUploadRetriesAfterServerDelay() async {
+        let queue = ManualRetryQueue()
+        let scheduler = CloudSyncRetryScheduler { delay, operation in
+            queue.enqueue(after: delay, operation: operation)
+        }
+        let now = Date(timeIntervalSince1970: 4_000)
+        let error = CKError(
+            .requestRateLimited,
+            userInfo: [CKErrorRetryAfterKey: NSNumber(value: 90)]
+        )
+        var attempts = 0
+
+        guard let retryAfter = CloudCareerSyncPolicy.serverRetryAfterSeconds(for: error) else {
+            preconditionFailure("A rate-limit error should expose CloudKit's retry-after delay.")
+        }
+        let wasLocallyThrottled = scheduler.scheduleIfThrottled(
+            lastSuccessfulUploadAt: now.addingTimeInterval(-50),
+            now: now,
+            minimumInterval: 120,
+            retry: { attempts += 1 }
+        )
+        let wasExtendedForServerDelay = scheduler.scheduleIfThrottled(
+            lastSuccessfulUploadAt: now.addingTimeInterval(-110),
+            now: now,
+            minimumInterval: 120,
+            serverRetryAfter: retryAfter,
+            retry: { attempts += 1 }
+        )
+
+        precondition(wasLocallyThrottled && wasExtendedForServerDelay, "A rate-limit response should keep one automatic retry scheduled.")
+        precondition(queue.scheduledDelays == [70, 90], "The retry must move out to CloudKit's requested 90-second delay.")
+        precondition(queue.pendingCount == 1, "Extending the retry must cancel its earlier, too-soon schedule.")
+        await queue.fireNext()
+        precondition(attempts == 0, "The canceled local retry must not run before CloudKit's requested delay.")
+        await queue.fireNext()
+        precondition(attempts == 1, "The server-requested retry must run once without further input.")
+    }
+
+    @MainActor
+    private static func serverRateLimitDoesNotShortenLocalThrottle() async {
+        let queue = ManualRetryQueue()
+        let scheduler = CloudSyncRetryScheduler { delay, operation in
+            queue.enqueue(after: delay, operation: operation)
+        }
+        let now = Date(timeIntervalSince1970: 5_000)
+        let error = CKError(
+            .requestRateLimited,
+            userInfo: [CKErrorRetryAfterKey: NSNumber(value: 30)]
+        )
+        var attempts = 0
+
+        guard let retryAfter = CloudCareerSyncPolicy.serverRetryAfterSeconds(for: error) else {
+            preconditionFailure("A rate-limit error should expose CloudKit's retry-after delay.")
+        }
+        let wasScheduled = scheduler.scheduleIfThrottled(
+            lastSuccessfulUploadAt: now.addingTimeInterval(-40),
+            now: now,
+            minimumInterval: 120,
+            serverRetryAfter: retryAfter,
+            retry: { attempts += 1 }
+        )
+
+        precondition(wasScheduled, "A CloudKit rate-limit response should schedule an automatic retry.")
+        precondition(queue.scheduledDelays == [80], "A shorter server delay must not bypass the remaining local throttle.")
+        await queue.fireNext()
+        precondition(attempts == 1, "The combined throttle retry must run once.")
+    }
+
+    @MainActor
+    private static func serviceUnavailableRetriesAfterServerDelay() async {
+        let queue = ManualRetryQueue()
+        let scheduler = CloudSyncRetryScheduler { delay, operation in
+            queue.enqueue(after: delay, operation: operation)
+        }
+        let now = Date(timeIntervalSince1970: 6_000)
+        let error = CKError(
+            .serviceUnavailable,
+            userInfo: [CKErrorRetryAfterKey: NSNumber(value: 45)]
+        )
+        var attempts = 0
+
+        guard let retryAfter = CloudCareerSyncPolicy.serverRetryAfterSeconds(for: error) else {
+            preconditionFailure("A service-unavailable error should expose CloudKit's retry-after delay.")
+        }
+        let wasScheduled = scheduler.scheduleIfThrottled(
+            lastSuccessfulUploadAt: nil,
+            now: now,
+            minimumInterval: 120,
+            serverRetryAfter: retryAfter,
+            retry: { attempts += 1 }
+        )
+
+        precondition(wasScheduled, "A CloudKit service-unavailable response should schedule an automatic retry.")
+        precondition(queue.scheduledDelays == [45], "The retry must honor CloudKit's 45-second service delay.")
+        await queue.fireNext()
+        precondition(attempts == 1, "The service-unavailable retry must run once without further input.")
     }
 
     @MainActor

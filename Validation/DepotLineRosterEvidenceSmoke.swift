@@ -8,7 +8,8 @@ func require(_ condition: @autoclosure () -> Bool, _ message: String) {
 
 @main
 struct DepotLineRosterEvidenceSmoke {
-    static func main() {
+    @MainActor
+    static func main() async throws {
         guard let site = DepotLineRoster.sites.first(where: { $0.id == "freres-lumiere" }) else {
             fatalError("Le site Frères-Lumière doit rester dans le registre.")
         }
@@ -41,11 +42,38 @@ struct DepotLineRosterEvidenceSmoke {
         require(!currentClaims.contains(where: { $0.kind == .partialStorage || $0.kind == .contractCenter }), "L’adresse actuelle ne doit pas créer une affectation de ligne après le transfert.")
         require(currentClaims.contains(where: { $0.kind == .fleetObservation }), "L’observation de flotte doit rester séparée d’une affectation de service.")
 
+        guard CommandLine.arguments.count > 1 else {
+            fatalError("Le smoke doit recevoir son GTFS minimal d’affectation.")
+        }
+        let gtfsURL = URL(fileURLWithPath: CommandLine.arguments[1])
+        _ = try NetworkVersionStore.importGTFS(from: gtfsURL)
+        let lineReferenceCSV = Data(
+            "id_line,short_name_line,name_line,transport_mode,valid_from_date,valid_to_date,id_bus_contrat\n113,113,Ligne 113,BUS,2020-01-01,,45\n".utf8
+        )
+        _ = try LineReferenceStore.importCSV(data: lineReferenceCSV, originalFilename: "line-reference-fixture.csv")
+
+        let library = NetworkLibrary()
+        await library.loadBusRoutes()
+        await library.loadActiveLineReferences()
+        let currentDate = parisCalendar.date(from: DateComponents(year: 2026, month: 11, day: 1))!
+        let coverage = library.depotLineCoverage(
+            depotID: "freres-lumiere",
+            serviceDate: currentDate
+        )
+        require(
+            coverage.linesWithGTFS == 1 && coverage.uniqueLineCount == 1,
+            "La fixture doit résoudre la ligne 113 vers son unique course GTFS, sans créer de ligne supplémentaire."
+        )
+        require(
+            coverage.unconfirmedDepotEvidenceCount == 1,
+            "La ligne 113 observée mais non rattachée doit rester comptée comme preuve COB non confirmée, même lorsqu’elle est résolue dans le GTFS."
+        )
+
         guard let futureSite = DepotLineRoster.sites.first(where: { $0.id == "neuilly-sur-marne-projet" }) else {
             fatalError("Le projet IDFM doit rester une fiche distincte.")
         }
         require(futureSite.availability == .planned, "Le futur COB ne doit pas devenir un site opérationnel par confusion d’adresse.")
 
-        print("Validation des preuves et limites de rattachement de Frères-Lumière réussie.")
+        print("Validation des preuves de rattachement et de l’indépendance des choix opérationnels réussie.")
     }
 }

@@ -806,8 +806,7 @@ struct OperationsDashboardView: View {
     private var selectedDepotLineCoverage: DepotLineCoverage {
         library.depotLineCoverage(
             depotID: selectedDepotID,
-            serviceDate: selectedDepotRosterDate,
-            operatedRouteIDs: selectedDepotRouteIDs
+            serviceDate: selectedDepotRosterDate
         )
     }
 

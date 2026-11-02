@@ -27,12 +27,12 @@ struct MobileSimulationPlaybackAccessory: View {
     }
 
     private var compactContent: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 8) {
             status
-            Spacer(minLength: 8)
-            playbackButton
+            Spacer(minLength: 4)
+            playbackControls
         }
-        .padding(.horizontal, 8)
+        .padding(.horizontal, 4)
         .frame(minHeight: 48)
     }
 
@@ -41,16 +41,20 @@ struct MobileSimulationPlaybackAccessory: View {
             status
                 .layoutPriority(1)
             Spacer(minLength: 4)
-            GlassEffectContainer(spacing: 6) {
-                HStack(spacing: 6) {
-                    speedMenu
-                    advanceButton
-                    playbackButton
-                }
-            }
+            playbackControls
         }
         .padding(.horizontal, 8)
         .frame(minHeight: 60)
+    }
+
+    private var playbackControls: some View {
+        GlassEffectContainer(spacing: 6) {
+            HStack(spacing: 6) {
+                speedMenu
+                advanceButton
+                playbackButton
+            }
+        }
     }
 
     private var status: some View {
