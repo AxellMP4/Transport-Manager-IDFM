@@ -2510,6 +2510,23 @@ enum VehicleMarketCatalog {
         models.first { $0.id == id }
     }
 
+    static func matchesCatalogSearch(_ model: VehicleMarketModel, query: String) -> Bool {
+        let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedQuery.isEmpty else { return true }
+        let searchableDetails = [
+            model.displayName,
+            model.vehicleClass.title,
+            model.displayEnergyTitle,
+            model.energy.title,
+            model.regionalEvidenceLabel ?? "",
+            model.lengthMeters.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "",
+            model.regionalEvidenceYear.map { String($0) } ?? "",
+            model.firstObservedInScenarioYear.map { String($0) } ?? "",
+            model.lastObservedInScenarioYear.map { String($0) } ?? ""
+        ].joined(separator: " ")
+        return searchableDetails.localizedStandardContains(normalizedQuery)
+    }
+
     static var marketableModels: [VehicleMarketModel] {
         models.filter { $0.marketAvailabilityNote == nil }
     }

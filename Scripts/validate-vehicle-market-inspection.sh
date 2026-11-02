@@ -8,6 +8,8 @@ trap 'rm -rf "$temporary_directory"' EXIT HUP INT TERM
 market_view="$project_root/TransportManagerIDFM/Features/OperationsDashboardView.swift"
 rg -Fq 'VehicleMarketDepotCompatibilityRules.presentation(for: energyReadiness)' "$market_view"
 rg -Fq '.accessibilityIdentifier("vehicleMarketDepotCompatibility")' "$market_view"
+rg -Fq '.searchable(' "$market_view"
+rg -Fq 'VehicleMarketCatalog.matchesCatalogSearch(model, query: normalizedCatalogSearch)' "$market_view"
 
 mkdir -p "$temporary_directory/swift-modules" "$temporary_directory/clang-modules"
 

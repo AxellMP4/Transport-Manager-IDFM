@@ -6264,6 +6264,7 @@ private struct VehicleMarketView: View {
     var showsCloseButton = true
     @Environment(\.dismiss) private var dismiss
     @State private var pendingConfirmation: PendingConfirmation?
+    @State private var vehicleCatalogSearchText = ""
     @State private var inspectionReport: VehicleMarketInspectionReport?
     @State private var inspectedUsedOfferIDs = Set<String>()
     @State private var operationErrorMessage: String?
@@ -6275,6 +6276,28 @@ private struct VehicleMarketView: View {
         DepotCareerScope.depotReference(for: activeDepotID)?.name ?? activeDepotID
     }
     private var offers: [VehicleMarketOffer] { session?.marketOffers ?? [] }
+    private var normalizedCatalogSearch: String {
+        vehicleCatalogSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+    private var isSearchingCatalog: Bool { !normalizedCatalogSearch.isEmpty }
+    private var visibleOffers: [VehicleMarketOffer] {
+        guard isSearchingCatalog else { return offers }
+        return offers.filter { offer in
+            guard let model = VehicleMarketCatalog.model(id: offer.modelID) else { return false }
+            return VehicleMarketCatalog.matchesCatalogSearch(model, query: normalizedCatalogSearch)
+        }
+    }
+    private var referenceOnlyModels: [VehicleMarketModel] {
+        VehicleMarketCatalog.models
+            .filter { $0.marketAvailabilityNote != nil }
+            .sorted { $0.displayName < $1.displayName }
+    }
+    private var visibleReferenceOnlyModels: [VehicleMarketModel] {
+        guard isSearchingCatalog else { return referenceOnlyModels }
+        return referenceOnlyModels.filter {
+            VehicleMarketCatalog.matchesCatalogSearch($0, query: normalizedCatalogSearch)
+        }
+    }
     private var fleet: [PurchasedBus] {
         (session?.ownedBuses ?? []).filter { $0.depotID == activeDepotID }
     }
@@ -6286,45 +6309,53 @@ private struct VehicleMarketView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    capitalSummary
-                    depotEnergyInfrastructureSummary
-                    fleetSummary
-                    workshopPartsSummary
-                    Text("Offres simulées, générées pour cette partie. Les véhicules réels cités servent à documenter les modèles ; ces offres, états et prix ne sont pas des annonces de vente réelles. La revente suit une règle de jeu selon le prix d’achat, l’âge, le kilométrage et l’état du bus. Les coûts d’énergie sont débités pendant les courses selon les tarifs et consommations de jeu affichés. Le risque de panne dépend de l’âge, du kilométrage et de l’état du bus ; durée et réparation suivent des règles de jeu fixes.")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(14)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+                    if !isSearchingCatalog {
+                        capitalSummary
+                        depotEnergyInfrastructureSummary
+                        fleetSummary
+                        workshopPartsSummary
+                        Text("Offres simulées, générées pour cette partie. Les véhicules réels cités servent à documenter les modèles ; ces offres, états et prix ne sont pas des annonces de vente réelles. La revente suit une règle de jeu selon le prix d’achat, l’âge, le kilométrage et l’état du bus. Les coûts d’énergie sont débités pendant les courses selon les tarifs et consommations de jeu affichés. Le risque de panne dépend de l’âge, du kilométrage et de l’état du bus ; durée et réparation suivent des règles de jeu fixes.")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(14)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
 
-                    CATPOwnershipCostBenchmarkView()
+                        CATPOwnershipCostBenchmarkView()
 
-                    let serviceRevenueRate = VehicleMarketCatalog.estimatedServiceRevenuePerVehicleKilometerEuro
-                    Text("Contribution contractuelle estimée (règle de jeu) : \(serviceRevenueRate.formatted(.currency(code: "EUR").precision(.fractionLength(2)))) par véhicule-kilomètre réellement parcouru. Au bilan quotidien, le taux de courses terminées ajoute 3 % à partir de 98 % de production, ou retire 5 % sous 94 %. Ces montants et seuils sont des règles de jeu, pas des clauses tarifaires de la DSP 45.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                        let serviceRevenueRate = VehicleMarketCatalog.estimatedServiceRevenuePerVehicleKilometerEuro
+                        Text("Contribution contractuelle estimée (règle de jeu) : \(serviceRevenueRate.formatted(.currency(code: "EUR").precision(.fractionLength(2)))) par véhicule-kilomètre réellement parcouru. Au bilan quotidien, le taux de courses terminées ajoute 3 % à partir de 98 % de production, ou retire 5 % sous 94 %. Ces montants et seuils sont des règles de jeu, pas des clauses tarifaires de la DSP 45.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    } else {
+                        Text("Résultats dans les offres de cette partie et les références régionales hors marché.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
                     HStack {
                         Text("OFFRES DISPONIBLES")
                             .font(.caption.weight(.bold))
                             .tracking(0.7)
                             .foregroundStyle(.secondary)
                         Spacer()
-                        Text("\(offers.count) offres • \(VehicleMarketCatalog.marketableModels.count) modèles proposés")
+                        Text(isSearchingCatalog
+                             ? "\(visibleOffers.count) offres correspondantes"
+                             : "\(offers.count) offres • \(VehicleMarketCatalog.marketableModels.count) modèles proposés")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
 
-                    if offers.isEmpty {
+                    if offers.isEmpty && !isSearchingCatalog {
                         ContentUnavailableView(
                             "Marché indisponible",
                             systemImage: "bus",
                             description: Text("Cette sauvegarde ne contient pas encore de marché versionné.")
                         )
-                    } else {
+                    } else if !visibleOffers.isEmpty {
                         LazyVStack(spacing: 12) {
-                            ForEach(offers) { offer in
+                            ForEach(visibleOffers) { offer in
                                 if let model = VehicleMarketCatalog.model(id: offer.modelID) {
                                     offerCard(offer, model: model)
                                 }
@@ -6332,12 +6363,19 @@ private struct VehicleMarketView: View {
                         }
                     }
 
-                    let referenceOnlyModels = VehicleMarketCatalog.models
-                        .filter { $0.marketAvailabilityNote != nil }
-                        .sorted { $0.displayName < $1.displayName }
-                    if !referenceOnlyModels.isEmpty {
+                    if isSearchingCatalog && visibleOffers.isEmpty && visibleReferenceOnlyModels.isEmpty {
+                        ContentUnavailableView(
+                            "Aucun véhicule trouvé",
+                            systemImage: "magnifyingglass",
+                            description: Text("Essayez un autre nom, une énergie ou un gabarit.")
+                        )
+                    }
+
+                    if !visibleReferenceOnlyModels.isEmpty {
                         VStack(alignment: .leading, spacing: 11) {
-                            Text("RÉFÉRENCES RÉGIONALES HORS MARCHÉ")
+                            Text(isSearchingCatalog
+                                 ? "RÉFÉRENCES RÉGIONALES · \(visibleReferenceOnlyModels.count)"
+                                 : "RÉFÉRENCES RÉGIONALES HORS MARCHÉ")
                                 .font(.caption.weight(.bold))
                                 .tracking(0.7)
                                 .foregroundStyle(.secondary)
@@ -6345,7 +6383,7 @@ private struct VehicleMarketView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .fixedSize(horizontal: false, vertical: true)
-                            ForEach(referenceOnlyModels) { model in
+                            ForEach(visibleReferenceOnlyModels) { model in
                                 regionalReferenceCard(model)
                             }
                         }
@@ -6353,7 +6391,9 @@ private struct VehicleMarketView: View {
                         .background(Color.blue.opacity(0.045), in: RoundedRectangle(cornerRadius: 14))
                     }
 
-                    ledgerSummary
+                    if !isSearchingCatalog {
+                        ledgerSummary
+                    }
                 }
                 .padding(22)
                 .frame(maxWidth: 900, alignment: .leading)
@@ -6361,6 +6401,11 @@ private struct VehicleMarketView: View {
             }
             .background(Color.primary.opacity(0.025))
             .navigationTitle("Marché de véhicules")
+            .searchable(
+                text: $vehicleCatalogSearchText,
+                placement: .automatic,
+                prompt: "Modèle, énergie ou gabarit"
+            )
             .toolbar {
                 if showsCloseButton {
                     ToolbarItem(placement: .cancellationAction) {

@@ -16,6 +16,15 @@ struct VehicleMarketInspectionSmoke {
         precondition(legacyCompatibility.status.contains("non vérifié"))
         precondition(legacyCompatibility.detail == unknownDepotEnergy.note)
 
+        guard let hydrogenReference = VehicleMarketCatalog.model(id: "solaris-new-urbino-12-hydrogen-idfm") else {
+            fatalError("Le modèle Solaris de référence doit rester consultable.")
+        }
+        precondition(VehicleMarketCatalog.matchesCatalogSearch(hydrogenReference, query: "SOLARIS"))
+        precondition(VehicleMarketCatalog.matchesCatalogSearch(hydrogenReference, query: "hydrogene"))
+        precondition(VehicleMarketCatalog.matchesCatalogSearch(hydrogenReference, query: "12"))
+        precondition(VehicleMarketCatalog.matchesCatalogSearch(hydrogenReference, query: "  Solaris  "))
+        precondition(!VehicleMarketCatalog.matchesCatalogSearch(hydrogenReference, query: "articulé"))
+
         let requiredInstallation = DepotEnergyReadiness.requiresInstallation(unknownDepotEnergy)
         let blockedCompatibility = VehicleMarketDepotCompatibilityRules.presentation(for: requiredInstallation)
         precondition(!requiredInstallation.isReady, "Une carrière récente doit installer l’équipement requis avant l’achat.")
