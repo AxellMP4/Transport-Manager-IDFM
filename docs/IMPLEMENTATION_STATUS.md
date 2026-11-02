@@ -1,3 +1,11 @@
+# Synchronisation iCloud au retour à l’avant-plan — 2 novembre 2026
+
+- Nouveauté : le tableau de bord enregistre la carrière au passage en arrière-plan et programme une synchronisation CloudKit quand la scène redevient active. Le joueur retrouve ainsi une réconciliation avec l’autre appareil sans mettre la simulation en pause. Le gestionnaire existant applique son délai de coalescence de 10 secondes.
+- Vérification test-first : `sh Scripts/validate-background-save-checkpoint.sh` échouait avant le raccordement car la phase active n’avait pas de politique de synchronisation, puis passe; le smoke couvre active, inactive et background pour les deux règles. Les validateurs de restauration CloudKit et de reprise après erreur passent aussi. `swiftc -frontend -parse`, `sh -n`, `plutil -lint` du projet et `git diff --check` passent.
+- Le build Debug macOS universel termine avec succès : architectures `arm64` et `x86_64`, Info.plist valide. Le paquet jouable local a été reconstruit, signé ad hoc et extrait à neuf. ZIP, signature, Info.plist, architectures, identité du binaire, 18 fragments GTFS et absence d’AppleDouble passent. Taille : 173 618 518 octets; SHA-256 `6bbc1cc6bcccb355b7f97c825ee522d4ce1834fbb8470f5769e11c898d63d204`. L’archive reste locale, sans Developer ID ni notarisation.
+- Le test réel d’une carrière synchronisée entre deux appareils avec CloudKit provisionné demeure à faire; aucune inspection visuelle iPhone n’est revendiquée.
+- Les dépendances externes restent distinctes : aucun compte PRIM, preuves complètes de rattachement actuel des lignes aux COB et annexes financières DSP45 indisponibles. Le dernier audit macro reste à 3/9 jalons (33,3 % de ces jalons seulement, pas un pourcentage global du jeu); l’estimation historique du travail restant reste 25–45 jours concentrés (environ 5–9 semaines pour une personne).
+
 # Alignement du dépôt actif après une restauration iCloud — 2 novembre 2026
 
 - Nouveauté : le tableau de bord suit maintenant le dépôt actif porté par la carrière. Après le téléchargement iCloud, la reprise d’une sauvegarde ou un changement de dépôt, la sélection de carte/lignes revient sur le dépôt sauvegardé et l’espace Réseau; cela évite d’afficher le dépôt local précédent avec l’état d’une autre carrière.

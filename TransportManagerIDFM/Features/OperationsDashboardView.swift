@@ -397,6 +397,7 @@ private enum DataWorkspaceSection: String, CaseIterable, Identifiable {
 
 struct OperationsDashboardView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.scenePhase) private var scenePhase
 
     private enum LocalImportKind {
         case gtfs
@@ -1541,6 +1542,13 @@ struct OperationsDashboardView: View {
         .onChange(of: simulation.lastSavedAt) { _, savedAt in
             guard savedAt != nil else { return }
             cloudSync.scheduleSynchronization(with: simulation, library: library)
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            if CareerLifecycleCheckpoint.shouldSave(for: newPhase) {
+                simulation.save()
+            } else if CareerLifecycleCheckpoint.shouldSynchronize(for: newPhase) {
+                cloudSync.scheduleSynchronization(with: simulation, library: library)
+            }
         }
         .onChange(of: simulation.session?.id) { _, _ in
             browsedDepotID = nil

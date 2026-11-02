@@ -88,6 +88,7 @@
 		030000000000000000000137 /* MobileSimulationPlaybackAccessory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000137 /* MobileSimulationPlaybackAccessory.swift */; };
 		030000000000000000000138 /* CareerGuideModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000138 /* CareerGuideModel.swift */; };
 		030000000000000000000139 /* CareerDifficulty.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000139 /* CareerDifficulty.swift */; };
+		030000000000000000000140 /* CareerLifecycleCheckpoint.swift in Sources */ = {isa = PBXBuildFile; fileRef = 020000000000000000000140 /* CareerLifecycleCheckpoint.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -175,6 +176,7 @@
 		020000000000000000000138 /* CareerGuideModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CareerGuideModel.swift; sourceTree = "<group>"; };
 		020000000000000000000139 /* CareerDifficulty.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CareerDifficulty.swift; sourceTree = "<group>"; };
 		040000000000000000000001 /* TransportManagerIDFM.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TransportManagerIDFM.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		020000000000000000000140 /* CareerLifecycleCheckpoint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CareerLifecycleCheckpoint.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -260,6 +262,7 @@
 			isa = PBXGroup;
 			children = (
 				020000000000000000000004 /* OperationsDashboardView.swift */,
+				020000000000000000000140 /* CareerLifecycleCheckpoint.swift */,
 				020000000000000000000136 /* RoadIncidentHistorySection.swift */,
 				020000000000000000000135 /* GameLaunchMenuView.swift */,
 				020000000000000000000137 /* MobileSimulationPlaybackAccessory.swift */,
@@ -425,6 +428,7 @@
 				030000000000000000000002 /* NetworkCatalog.swift in Sources */,
 				030000000000000000000003 /* ScenarioCatalog.swift in Sources */,
 				030000000000000000000004 /* OperationsDashboardView.swift in Sources */,
+				030000000000000000000140 /* CareerLifecycleCheckpoint.swift in Sources */,
 				030000000000000000000131 /* PassengerLoadGaugeView.swift in Sources */,
 				030000000000000000000132 /* PassengerOperationsReportView.swift in Sources */,
 				030000000000000000000133 /* GTFSDepartureIntervalSummary.swift in Sources */,
